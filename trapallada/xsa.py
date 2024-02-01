@@ -4,31 +4,89 @@ import re
 import tempfile
 import shutil
 
-# import pandas as pd
+import pandas as pd
 
 # import astropy.io
 # from astropy.table import Table
 
 from astroquery.esa.xmm_newton import XMMNewton
 
-file_types = ['SRCTSR', 'SRSPEC', 'OBSMLI', 'OMSRLI']
+file_types = ['SRCTSR', 'SRSPEC', 'OBSMLI', 'OMSRLI', 'SRCRES']
 re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
 
-def download_extract_filter(obs: str, output_directory: pathlib.Path | str, verbose: bool = False) -> pathlib.Path:
+def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, verbose: bool = True) -> pathlib.Path:
 
-    output_subdir = pathlib.Path(output_directory) / obs
+    # TODO: maybe apply `.zfill(10)` on `obs`
+
+    # for the sake of simplicity
+    output_directory = pathlib.Path(output_directory)
+
+    output_subdir = output_directory / obs
     output_subdir.mkdir(exist_ok=True)
 
+    # if has been downloaded before...
+    if output_subdir.exists():
+
+        print(f'found directory "{output_subdir}", skipping...')
+        
+        # ...return
+        return output_subdir
+
     with tempfile.TemporaryDirectory() as tmp_dir:
+
+        # context's descriptor is turned into a `Pathlib`
         tmp_dir_root = pathlib.Path(tmp_dir)
-        tar_file = tmp_dir_root / f'result{obs}.tar'
-        XMMNewton.download_data(obs,filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+        
+        # tar_file = (output_directory if keep_tar else tmp_dir_root) / f'result{obs}.tar'
+        tar_file = (output_directory if keep_tar else tmp_dir_root) / f'{obs}.tar'
+        
+        # actual download
+        XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+        
         tmp_dir_extracted = tmp_dir_root / 'extracted'
+        
         with tarfile.open(tar_file) as f:
             files = f.getnames()
             f.extractall(path=tmp_dir_extracted)
+        
+        # only file (names) matching the pattern are kept...
         m_light_curves = [(f, m) for f in files if (m := re_filename.match(pathlib.Path(f).name))]
+        
+        # ...and every one of the them is copied into the appropriate directory
         for filename, _ in m_light_curves:
+            
             shutil.copy(tmp_dir_extracted / filename, output_subdir)
 
     return output_subdir
+
+
+def get_observations_in_interval(
+    duration_interval: tuple, chunk_size: int = 2_000, columns: tuple[str] = ('observation_id', 'duration')
+    ) -> pd.DataFrame:
+
+    # for the sake of readability
+    duration_min, duration_max = duration_interval
+
+    offset = 0
+
+    # only relevant in the very first iteration
+    n_read = chunk_size
+
+    tables_list = []
+
+    while n_read == chunk_size:
+
+        query = f'select TOP {chunk_size} {",".join(columns)} from v_public_observations WHERE duration BETWEEN {duration_min} AND {duration_max} OFFSET {offset}'
+        table = XMMNewton.query_xsa_tap(query)
+        n_read = len(table)
+
+        tables_list.append(table)
+        offset += n_read
+
+    print(f'number of chunks: {len(tables_list)}')
+
+    return pd.concat([e.to_pandas() for e in tables_list], axis=0)
+
+def get_all_tables() -> list[str]:
+
+    return XMMNewton.get_tables()
