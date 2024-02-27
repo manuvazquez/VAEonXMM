@@ -10,8 +10,11 @@ LIBRARIES=(
     jupyterlab">"4
     astropy
     matplotlib
-    pandas
+    pandas pyarrow
     # altair">"5.1
+	mkdocstrings-python python-markdown-math
+    # pytorch torchvision
+    # pytorch torchvision cpuonly # apparently, using the above line without a GPU is a problem
 )
 
 CHANNELS=(
@@ -47,6 +50,7 @@ $MANAGER create --yes -n $NAME $LIBRARIES_CONCATENATED -c $CHANNELS_CONCATENATED
 conda activate $NAME
 
 # pip stuff here....
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install astroquery
 pip install -e .
 

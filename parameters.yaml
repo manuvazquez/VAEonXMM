@@ -1,0 +1,14 @@
+loss:
+  x_sd: 0.3162277638912201
+model:
+  dim_z: 50
+  input_size:
+  - 30
+  - 250
+training:
+  batch_size: 32
+  learning_rate: 3.0e-05
+  n_epochs: 500
+  splitting:
+    random_state: 42
+    test_size: 0.2

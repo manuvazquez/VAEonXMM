@@ -3,6 +3,9 @@ import tarfile
 import re
 import tempfile
 import shutil
+import time
+
+import requests.exceptions
 
 import pandas as pd
 
@@ -22,15 +25,21 @@ def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep
     output_directory = pathlib.Path(output_directory)
 
     output_subdir = output_directory / obs
-    output_subdir.mkdir(exist_ok=True)
 
-    # if has been downloaded before...
+    # if it has been downloaded before...
     if output_subdir.exists():
 
         print(f'found directory "{output_subdir}", skipping...')
         
         # ...return
         return output_subdir
+    
+    # if it has NOT been downloaded before...
+    else:
+
+        # directory is created
+        output_subdir.mkdir(exist_ok=True)
+
 
     with tempfile.TemporaryDirectory() as tmp_dir:
 
@@ -40,13 +49,33 @@ def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep
         # tar_file = (output_directory if keep_tar else tmp_dir_root) / f'result{obs}.tar'
         tar_file = (output_directory if keep_tar else tmp_dir_root) / f'{obs}.tar'
         
-        # actual download
-        XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+
+        try:
+
+            # actual download
+            XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+
+        except requests.exceptions.HTTPError:
+
+            print(f'Exception while downloading {obs}, waiting and retrying...')
+            time.sleep(1)
+            XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+
         
         tmp_dir_extracted = tmp_dir_root / 'extracted'
         
         with tarfile.open(tar_file) as f:
-            files = f.getnames()
+
+            try:
+
+                files = f.getnames()
+
+            except tarfile.ReadError:
+
+                print(f'There is something wrong with downloaded tar file "{tar_file}"')
+
+                raise
+            
             f.extractall(path=tmp_dir_extracted)
         
         # only file (names) matching the pattern are kept...
@@ -63,6 +92,17 @@ def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep
 def get_observations_in_interval(
     duration_interval: tuple, chunk_size: int = 2_000, columns: tuple[str] = ('observation_id', 'duration')
     ) -> pd.DataFrame:
+    """
+    Get metadata  from all the observations recorded in a certain interval.
+
+    Args:
+        duration_interval (tuple): Minimum and maximum duration
+
+    Returns:
+        Metadata for the selected observations
+
+
+    """
 
     # for the sake of readability
     duration_min, duration_max = duration_interval
@@ -88,5 +128,8 @@ def get_observations_in_interval(
     return pd.concat([e.to_pandas() for e in tables_list], axis=0)
 
 def get_all_tables() -> list[str]:
+    """
+    Get all the tables offered by XMM-Newton Science Archive.
+    """
 
     return XMMNewton.get_tables()
