@@ -1,5 +1,8 @@
 import pathlib
+import argparse
 
+import yaml
+import pandas as pd
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -15,7 +18,7 @@ from torch.utils.data import DataLoader, Subset
 import trapallada.data
 import trapallada.model
 
-def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int | jax.Array):
+def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int | jax.Array) -> tuple[eqx.Module, pd.DataFrame]:
 
     # if an `int` (as opposed to a jax `PRNGKey`) was passed...
     if isinstance(rng_key, int):
@@ -37,17 +40,21 @@ def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int |
     )
     train_ds, validation_ds = Subset(ds, train_idx), Subset(ds, validation_idx)
 
+    # a random key...
     key, subkey = jr.split(rng_key)
 
-    # torch_rng = torch.Generator().manual_seed(parameters['training']['data loader generator seed'])
+    # ...to compute a seed for a PyTorch `Generator`...
     torch_seed = jr.bits(subkey, (1,), dtype=jnp.uint32).item()
     torch_rng = torch.Generator().manual_seed(torch_seed)
+
+    # ...meant for "batching" in the `DataLoader`'s
     train_dl = DataLoader(train_ds, batch_size=parameters['training']['batch_size'], shuffle=True, generator=torch_rng)
     validation_dl = DataLoader(validation_ds, batch_size=parameters['training']['batch_size'], shuffle=False, generator=torch_rng)
 
+    # another random key is shed...
     key, subkey = jr.split(rng_key)
-
-    # model = trapallada.model.vae(**parameters['model'])
+    
+    # ...to initialize the model
     model = trapallada.model.vae(**parameters['model'], rng_key=subkey)
 
     optim = optax.adamw(parameters['training']['learning_rate'])
@@ -85,6 +92,8 @@ def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int |
     kl = [None] * n_epochs
     
     valid_loss = [None] * n_epochs
+    valid_log_likelihood = [None] * n_epochs
+    valid_kl = [None] * n_epochs
     
     for epoch in range(n_epochs):
     
@@ -92,28 +101,79 @@ def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int |
         log_likelihood[epoch] = 0.
         kl[epoch] = 0.
     
-        for step, (x, _) in enumerate(train_dl):
+        for x, _ in train_dl:
     
             key, subkey = jr.split(key)
     
             model, opt_state, (train_loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x.numpy(), dim_z, x_sd, subkey)
     
-            train_loss[epoch] += train_loss_value
-            log_likelihood[epoch] += log_likelihood_value
-            kl[epoch] += kl_value
+            train_loss[epoch] += train_loss_value.item()
+            log_likelihood[epoch] += log_likelihood_value.item()
+            kl[epoch] += kl_value.item()
     
             # print(step)
     
             # if (step % )
+
+        # a random key for validation
+        validation_key = jr.fold_in(key, epoch)
     
-        # # validation
-        # valid_loss[epoch] = 0.
+        # validation
+        valid_loss[epoch] = 0.
+        valid_log_likelihood[epoch] = 0.
+        valid_kl[epoch] = 0.
         
-        # for x, _ in validation_dl:
+        for x, _ in validation_dl:
         
-        #     key, subkey = jr.split(key)
-        #     valid_loss[epoch] += loss(model, x.numpy(), x_sd, subkey)[0]
+            validation_key, validation_subkey = jr.split(validation_key)
+            (train_loss_value, (log_likelihood_value, kl_value)) = trapallada.model.loss(model, x.numpy(), dim_z, x_sd, validation_subkey)
+            
+            valid_loss[epoch] += train_loss_value.item()
+            valid_log_likelihood[epoch] += log_likelihood_value.item()
+            valid_kl[epoch] += kl_value.item()
     
-        # valid_loss[epoch] /= len(validation_dl)
+        valid_loss[epoch] /= len(validation_dl)
+        valid_log_likelihood[epoch] /= len(validation_dl)
+        valid_kl[epoch] /= len(validation_dl)
     
         print(epoch, train_loss[epoch] / len(train_dl), valid_loss[epoch])
+
+    df = pd.DataFrame({
+        ('train', 'loss'): train_loss,
+        ('train', 'log_likelihood'): log_likelihood,
+        ('train', 'KL'): kl,
+        ('valid', 'loss'): valid_loss,
+        ('valid', 'log_likelihood'): valid_log_likelihood,
+        ('valid', 'KL'): valid_kl,
+    })
+
+    return model, df
+    # return model, (train_loss, log_likelihood, kl), (valid_loss, valid_log_likelihood, valid_kl)
+
+def cl_fit(args: list = None):
+    """
+    Command line interface for the `fit` function.
+    """
+
+    parser = argparse.ArgumentParser(description='Fit a model to a dataset.')
+
+    parser.add_argument(
+        'parameters_file', type=argparse.FileType('r'), default='parameters.yaml', help='parameters file',
+        nargs='?')
+    
+    parser.add_argument('database_filename', type=str, help='Database filename')
+    
+    parser.add_argument('-r', '--rng_key', type=int, default=42, help='Pseudo-random number generator key')
+
+    command_line_arguments = parser.parse_args(args)
+
+    with open(command_line_arguments.parameters_file.name, 'r') as f:
+        parameters = yaml.safe_load(f)
+    
+    model, df = fit(command_line_arguments.database_filename, parameters, command_line_arguments.rng_key)
+    
+    output_filename = pathlib.Path(
+        f'res_z={parameters["model"]["dim_z"]}_epochs={parameters["training"]["n_epochs"]}')
+
+    trapallada.model.save_vae(output_filename.with_suffix('.eqx'), model)
+    df.to_parquet(output_filename.with_suffix('.parquet'))

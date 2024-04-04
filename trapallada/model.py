@@ -315,6 +315,10 @@ def load_vae(file: str | pathlib.Path, input_size: int, dim_z: int) -> eqx.Modul
 
     file = pathlib.Path(file)
 
+    # check whether the file has the correct extension
+    if file.suffix != '.eqx':
+        raise ValueError("Invalid file extension. Expected '.eqx'.")
+
     # the random key is not gonna be used anyway
     model = vae(input_size, dim_z, jr.PRNGKey(42))
 
@@ -322,3 +326,9 @@ def load_vae(file: str | pathlib.Path, input_size: int, dim_z: int) -> eqx.Modul
         return eqx.tree_deserialise_leaves(f, model)
 
     return model
+
+def save_vae(file: str | pathlib.Path, model: eqx.Module):
+    
+    with open(file, 'wb') as f:
+        
+        eqx.tree_serialise_leaves(f, model)
