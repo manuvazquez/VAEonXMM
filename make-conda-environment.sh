@@ -7,19 +7,26 @@ NAME=trap
 LIBRARIES=(
     python=3
     ipdb # debugging
+    nbdime
     jupyterlab">"4
-    astropy
+    astropy astroquery
     matplotlib
+    plotly ipywidgets python-kaleido
+    altair
+    scikit-learn
+    scipy"<"1.13 # scipy.linalg.tril error
     pandas pyarrow
-    # altair">"5.1
 	mkdocstrings-python python-markdown-math
     # pytorch torchvision
-    # pytorch torchvision cpuonly # apparently, using the above line without a GPU is a problem
+    pytorch torchvision cpuonly # apparently, using the above line without a GPU is a problem
+    jax equinox optax
 )
 
 CHANNELS=(
     defaults
     conda-forge
+    # nvidia # required for CUDA-enabled jax
+    pytorch # just needed for cpuonly
 )
 
 # ---
@@ -51,7 +58,7 @@ conda activate $NAME
 
 # pip stuff here....
 # pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install astroquery
+# pip install astroquery
 pip install -e .
 
 # ------------
