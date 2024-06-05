@@ -1,3 +1,5 @@
 *.FTZ
 *.PNG
 *.jpg
+*.parquet
+*.pt

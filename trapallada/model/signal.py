@@ -12,13 +12,9 @@ class Classifier(eqx.Module):
 
     layers: list
 
-    def __init__(self, input_size: tuple, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
+    def __init__(self, input_size: tuple, n_classes: int, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
 
         padding = 0
-
-        # dropout_rate = 0.
-        # dropout_rate = 0.1
-        # dropout_rate = 0.25
 
         self.layers = []
 
@@ -42,12 +38,11 @@ class Classifier(eqx.Module):
 
             self.layers.append(eqx.nn.Dropout(p=dropout_rate))
 
-        # self.layers.append(jnp.squeeze)
         self.layers.append(jnp.ravel)
 
         key, subkey = jr.split(key)
         print(channels[-1] * input_size[0])
-        self.layers.append(eqx.nn.Linear(in_features=channels[-1] * input_size[0], out_features=3, key=subkey))
+        self.layers.append(eqx.nn.Linear(in_features=channels[-1] * input_size[0], out_features=n_classes, key=subkey))
         
     def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
 
