@@ -12,13 +12,13 @@ class Classifier(eqx.Module):
 
     layers: list
 
-    def __init__(self, input_size: tuple, kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: tuple, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
 
         padding = 0
 
-        dropout_rate = 0.
+        # dropout_rate = 0.
         # dropout_rate = 0.1
-        dropout_rate = 0.25
+        # dropout_rate = 0.25
 
         self.layers = []
 
