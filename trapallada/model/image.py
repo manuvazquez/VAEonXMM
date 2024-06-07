@@ -35,7 +35,6 @@ class Encoder(eqx.Module):
         ]
 
         conv_layers_output_size = trapallada.util.size_across_conv_layers(input_size, trapallada.util.conv_output_size, self.layers)
-        # print(conv_output_size)
         
         self.layers.extend([
             eqx.nn.Linear(conv_layers_output_size, 512, key=key6),

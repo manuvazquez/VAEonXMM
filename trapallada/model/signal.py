@@ -12,11 +12,13 @@ class Classifier(eqx.Module):
 
     layers: list
 
-    def __init__(self, input_size: tuple, n_classes: int, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
+    def __init__(self, input_size: int, n_classes: int, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
 
         padding = 0
 
         self.layers = []
+
+        conv_output_len = input_size
 
         for in_channels, out_channels, key, kernel_size in zip(
             channels[:-1], channels[1:],
@@ -25,15 +27,15 @@ class Classifier(eqx.Module):
         ):
             
             # the length of the feature map for the next layer
-            input_size = trapallada.util.conv_output_size(input_size, (kernel_size,), (stride,), (padding,))
-            print(f'{input_size=}')
+            conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
+            print(f'{conv_output_len=}')
 
             key, subkey = jr.split(key)
             
             self.layers.extend([
-                eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=key),
+                eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=subkey),
                 jax.nn.relu,
-                eqx.nn.LayerNorm((out_channels, input_size[0]))
+                eqx.nn.LayerNorm((out_channels, conv_output_len[0]))
             ])
 
             self.layers.append(eqx.nn.Dropout(p=dropout_rate))
@@ -41,9 +43,9 @@ class Classifier(eqx.Module):
         self.layers.append(jnp.ravel)
 
         key, subkey = jr.split(key)
-        print(channels[-1] * input_size[0])
-        self.layers.append(eqx.nn.Linear(in_features=channels[-1] * input_size[0], out_features=n_classes, key=subkey))
-        
+        print(out_channels * conv_output_len[0])
+        self.layers.append(eqx.nn.Linear(in_features=out_channels * conv_output_len[0], out_features=n_classes, key=subkey))
+
     def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
 
         for layer in self.layers:
