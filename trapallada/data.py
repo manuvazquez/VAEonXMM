@@ -27,9 +27,14 @@ class ImageDataset(Dataset):
     
 class SignalsDataset(Dataset):
 
-    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path):
+    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path, normalize: bool = False):
 
         self.signals = torch.load(signals_filename)
+
+        if normalize:
+            mean = self.signals.mean(axis=-1)
+            std = self.signals.std(axis=-1)
+            self.signals = (self.signals - mean[..., None]) / std[..., None]
         
         self.metadata_df = pd.read_parquet(metadata_filename)
         self.labels = self.metadata_df['label'].cat.codes

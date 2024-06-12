@@ -1,6 +1,7 @@
 from typing import Sequence, Callable, List
 
 import numpy as np
+import pandas as pd
 import equinox as eqx
 
 def conv_output_size(
@@ -76,3 +77,20 @@ def size_across_conv_layers(
             last_conv_layer = l
 
     return np.array(size).prod() * last_conv_layer.out_channels
+
+
+def make_results_df(n_epochs: int, metrics: List[str]=['loss', 'accuracy']) -> pd.DataFrame:
+    """
+    Create a DataFrame to store the results of training.
+
+    Args:
+        n_epochs (int): The number of epochs.
+
+    Returns:
+        pd.DataFrame: A DataFrame to store the results of training.
+
+    Examples:
+        >>> make_results_df(2)   
+    """
+    
+    return pd.DataFrame({ (data, metric): [0.] * n_epochs for data in ['training', 'validation'] for metric in metrics})

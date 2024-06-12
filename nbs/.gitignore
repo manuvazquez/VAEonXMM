@@ -3,3 +3,5 @@
 *.jpg
 *.parquet
 *.pt
+iframe_figures
+*.tar
