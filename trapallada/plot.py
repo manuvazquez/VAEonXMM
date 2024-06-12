@@ -1,6 +1,10 @@
 import torch
-import matplotlib.pyplot as plt
 import equinox as eqx
+import pandas as pd
+from jaxtyping import Array, Float
+
+import matplotlib.pyplot as plt
+import altair as alt
 
 def img_and_pred(model: tuple[eqx.Module, eqx.Module], x: torch.Tensor, dim_z: int):
     """
@@ -23,3 +27,18 @@ def img_and_pred(model: tuple[eqx.Module, eqx.Module], x: torch.Tensor, dim_z: i
     
     # decoded image
     axes[1].imshow(decoder(encoder(x.numpy())[:dim_z])[0])
+
+def signals(signals: Float[Array, 'batch 1 length'], metadata_df: pd.DataFrame, n_samples: int = 100):
+
+    df = pd.DataFrame(signals.squeeze().T, columns=metadata_df['file name'].str.extract(r'.*/(.*).(?:jpg|mat)')[0])
+    df.columns = df.columns.str.replace('.', '')
+    
+    chart = alt.Chart(
+        df.iloc[:n_samples].reset_index()
+    ).transform_fold(
+        df.columns.to_list()
+    ).mark_line().encode(
+        x='index:Q', y='value:Q', color='key:N'
+    ).properties(width=1_200, height=400)
+
+    return chart
