@@ -7,9 +7,10 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.random as jr
+import numpyro.distributions as dist
 import optax
 import equinox as eqx
-from jaxtyping import Array, Float, Int, PyTree
+from jaxtyping import Array, Float, PyTree, PRNGKeyArray
 
 from sklearn.model_selection import train_test_split
 import torch
@@ -177,3 +178,115 @@ def cl_fit(args: list = None):
 
     trapallada.model.save_vae(output_filename.with_suffix('.eqx'), model)
     df.to_parquet(output_filename.with_suffix('.parquet'))
+
+# --------
+
+def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Module, pd.DataFrame]:
+
+    @eqx.filter_jit
+    def loss(
+            model: eqx.Module,
+            x: Float[Array, 'batch 1 length'],
+            x_sd: float,
+            key: PRNGKeyArray
+            ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:
+
+        # # for the sake of readability
+        batch_size = len(x)
+
+        x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size))
+
+        # reconstruction term
+        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
+
+        # KL divergence
+        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+
+        return -loglikelihood + kl, (loglikelihood, kl)
+    
+    @eqx.filter_jit
+    def take_step(
+        model: eqx.Module,
+        opt_state: PyTree,
+        x: Float[Array, 'batch 1 length'],
+        x_sd: float,
+        key: PRNGKeyArray
+    ) -> tuple[tuple[eqx.Module], PyTree, Float[Array, '']]:
+
+        value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, x_sd, key)
+
+        # it returns transformed/processed gradients, and the optimizer state
+        updates, opt_state = optim.update(grads, opt_state, model)
+
+        model = eqx.apply_updates(model, updates)
+
+        return model, opt_state, value_aux
+    
+    def evaluate(model: eqx.Module, dataloader: torch.utils.data.DataLoader, x_sd: float, key: PRNGKeyArray):
+
+        # # in case, there are layers that behave differently in training and inference modes
+        # model = eqx.nn.inference_mode(model)
+
+        loss_acc = 0.
+        log_likelihood_acc = 0.
+        kl_value_acc = 0.
+
+        for _, x, y in dataloader:
+
+            key, subkey = jr.split(key)
+
+            x = x.numpy()
+            y = y.numpy()
+        
+            loss_value, (log_likelihood_value, kl_value) = loss(model, x, x_sd, subkey)
+            
+            # adding up *averages*
+            loss_acc += loss_value.item()
+            log_likelihood_acc += log_likelihood_value.item()
+            kl_value_acc += kl_value.item()
+
+        # # reverting to training mode
+        # model = eqx.nn.inference_mode(model, value=False)
+
+        return loss_acc / len(dataloader), log_likelihood_acc / len(dataloader), kl_value_acc / len(dataloader)
+    
+    encoder = trapallada.model.signal.Encoder(**(parameters['model'] | parameters['encoder']), key=jr.PRNGKey(42))
+    decoder = trapallada.model.signal.Decoder(**(parameters['model'] | parameters['decoder']), key=jr.PRNGKey(43))
+    model = trapallada.model.signal.VAE(encoder, decoder)
+
+    optim = optax.adamw(parameters['training']['learning_rate'])
+    opt_state = optim.init(eqx.filter(model, eqx.is_array))
+
+    results_df = trapallada.util.make_results_df(parameters['training']['n_epochs'], metrics=['loss', 'loglikelihood', 'kl'])
+
+    key = jr.PRNGKey(14)
+
+    for epoch in range(parameters['training']['n_epochs']):
+
+        for i_batch, (_, x, _) in enumerate(train_dl):
+
+            key, subkey = jr.split(key)
+
+            x = x.numpy()
+
+            model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, parameters['loss']['x_sd'], subkey)
+
+            # adding up *averages* (of both the loss and the accuracy)
+            results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
+            results_df.loc[epoch, ('training', 'loglikelihood')] += log_likelihood_value.item()
+            results_df.loc[epoch, ('training', 'kl')] += kl_value.item()
+
+
+        results_df.loc[
+            epoch, [('training', 'loss'), ('training', 'loglikelihood'), ('training', 'kl')]
+            ] /= len(train_dl)
+
+        # validation
+        results_df.loc[epoch, [('validation', 'loss'), ('validation', 'loglikelihood'), ('validation', 'kl')]] = evaluate(
+            model, validation_dl, parameters['loss']['x_sd'], jr.PRNGKey(15))
+
+        # print(results_df.loc[epoch, 'training'].to_frame().T)
+        print(results_df.loc[epoch].to_frame().T)
+        # display(results_df.loc[epoch].to_frame().T)
+
+    return model, results_df
