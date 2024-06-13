@@ -118,10 +118,10 @@ class Encoder(eqx.Module):
                 eqx.nn.LayerNorm((out_channels, conv_output_len[0]))
             ])
 
-            self.layers_spatial_sizes.append(conv_output_len[0])
+            self.layers_spatial_sizes.append(conv_output_len[0].item())
 
         
-        self.layers_spatial_sizes.append(out_channels * conv_output_len[0])
+        self.layers_spatial_sizes.append((out_channels * conv_output_len[0]).item())
 
         # the last PRNG key from the loop is split again
         _, subkey = jr.split(key)

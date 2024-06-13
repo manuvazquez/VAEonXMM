@@ -251,7 +251,11 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Mo
         return loss_acc / len(dataloader), log_likelihood_acc / len(dataloader), kl_value_acc / len(dataloader)
     
     encoder = trapallada.model.signal.Encoder(**(parameters['model'] | parameters['encoder']), key=jr.PRNGKey(42))
-    decoder = trapallada.model.signal.Decoder(**(parameters['model'] | parameters['decoder']), key=jr.PRNGKey(43))
+    
+    # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
+    decoder = trapallada.model.signal.Decoder(**(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}), key=jr.PRNGKey(43))
+    # decoder = trapallada.model.signal.Decoder(**(parameters['model'] | parameters['decoder']), key=jr.PRNGKey(43))
+    
     model = trapallada.model.signal.VAE(encoder, decoder)
 
     optim = optax.adamw(parameters['training']['learning_rate'])
