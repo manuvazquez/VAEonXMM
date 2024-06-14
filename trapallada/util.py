@@ -1,8 +1,12 @@
 from typing import Sequence, Callable, List
+from jaxtyping import PyTree
 
 import numpy as np
 import pandas as pd
 import equinox as eqx
+
+import jax
+import jax.tree_util
 
 def conv_output_size(
         input_size: tuple | np.ndarray,
@@ -94,3 +98,20 @@ def make_results_df(n_epochs: int, metrics: List[str]=['loss', 'accuracy']) -> p
     """
     
     return pd.DataFrame({ (data, metric): [0.] * n_epochs for data in ['training', 'validation'] for metric in metrics})
+
+
+def get_layers_n_parameters(model: PyTree) -> dict:
+    """
+    Get the number of parameters in every layer of a model.
+
+    Args:
+        model (PyTree): A model.
+
+    Returns:
+        dict: The number of parameters in each layer.
+    """
+
+    return {
+        path_leave[0]: np.prod(path_leave[1].shape).item() 
+        for path_leave in jax.tree_util.tree_leaves_with_path(model) if isinstance(path_leave[1], jax.Array)
+    }

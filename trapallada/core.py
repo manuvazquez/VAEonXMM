@@ -1,5 +1,6 @@
 import pathlib
 import argparse
+import shutil
 
 import yaml
 import pandas as pd
@@ -18,6 +19,8 @@ from torch.utils.data import DataLoader, Subset
 
 import trapallada.data
 import trapallada.model
+import trapallada.model.signal
+import trapallada.model.image
 
 def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int | jax.Array) -> tuple[eqx.Module, pd.DataFrame]:
 
@@ -250,20 +253,29 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Mo
 
         return loss_acc / len(dataloader), log_likelihood_acc / len(dataloader), kl_value_acc / len(dataloader)
     
-    encoder = trapallada.model.signal.Encoder(**(parameters['model'] | parameters['encoder']), key=jr.PRNGKey(42))
+    encoder = trapallada.model.signal.Encoder(
+        **(parameters['model'] | parameters['encoder']),
+        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['encoder']))
     
     # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
-    decoder = trapallada.model.signal.Decoder(**(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}), key=jr.PRNGKey(43))
-    # decoder = trapallada.model.signal.Decoder(**(parameters['model'] | parameters['decoder']), key=jr.PRNGKey(43))
+    decoder = trapallada.model.signal.Decoder(
+        **(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}),
+        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder']))
     
     model = trapallada.model.signal.VAE(encoder, decoder)
 
+    # optimizer
     optim = optax.adamw(parameters['training']['learning_rate'])
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
+    # a `DataFrame` to collect metrics during training
     results_df = trapallada.util.make_results_df(parameters['training']['n_epochs'], metrics=['loss', 'loglikelihood', 'kl'])
 
-    key = jr.PRNGKey(14)
+    # a random key for drawing samples in the training set...
+    key = jr.PRNGKey(parameters['PRNG seeds']['sampling']['training set'])
+
+    # ...a different one for the validation set
+    evaluation_key = jr.PRNGKey(parameters['PRNG seeds']['sampling']['validation set'])
 
     for epoch in range(parameters['training']['n_epochs']):
 
@@ -285,12 +297,72 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Mo
             epoch, [('training', 'loss'), ('training', 'loglikelihood'), ('training', 'kl')]
             ] /= len(train_dl)
 
+        # CAVEAT: the same `evaluation_key` is used every time
+
         # validation
         results_df.loc[epoch, [('validation', 'loss'), ('validation', 'loglikelihood'), ('validation', 'kl')]] = evaluate(
-            model, validation_dl, parameters['loss']['x_sd'], jr.PRNGKey(15))
+            model, validation_dl, parameters['loss']['x_sd'], evaluation_key)
 
-        # print(results_df.loc[epoch, 'training'].to_frame().T)
         print(results_df.loc[epoch].to_frame().T)
         # display(results_df.loc[epoch].to_frame().T)
 
     return model, results_df
+
+def cl_fit_vae_on_signals(args: list = None):
+    """
+    Command line interface for the `fit_vae_on_signals` function.
+    """
+
+    parser = argparse.ArgumentParser(description='Fit a VAE model to a dataset.')
+
+    parser.add_argument('parameters_file', type=argparse.FileType('r'), help='parameters file')
+    parser.add_argument('signals_file', type=argparse.FileType('r'), help='signals file')
+    parser.add_argument('metadata_file', type=argparse.FileType('r'), help='associated metadata for signals file')
+    # parser.add_argument('output_files_stem', type=str, help='base name for output files')
+    parser.add_argument('-o', '--output-files-stem', default=None, help='base name for output files',
+        nargs='?')
+
+    command_line_arguments = parser.parse_args(args)
+
+    # for the sake of convenience
+    parameters_file = pathlib.Path(command_line_arguments.parameters_file.name)
+
+    if command_line_arguments.output_files_stem:
+        output_filename = pathlib.Path(command_line_arguments.output_files_stem)
+    else:
+        output_filename = pathlib.Path(parameters_file.with_suffix(''))
+
+    # parameters file is read
+    with parameters_file.open() as f:
+        parameters = yaml.safe_load(f)
+
+    # the dataset is loaded...
+    ds = trapallada.data.SignalsDataset(
+        command_line_arguments.signals_file.name, command_line_arguments.metadata_file.name, normalize=True
+    )
+    
+    # ...and split into training and validation sets (here in the form of `DataLoader`s)
+    train_dl, validation_dl = trapallada.data.dataloaders_from_dataset(
+        ds,
+        parameters['training']['train_test_split'] | dict(random_state=parameters['PRNG seeds']['training-validation splitting']),
+        parameters['training']['batch_size'], parameters['PRNG seeds']['training dataloader']
+    )
+
+    # the model is trained
+    model, results_df = trapallada.core.fit_vae_on_signals(train_dl, validation_dl, parameters)
+    
+    # a "base name" for the output files
+    output_filename = pathlib.Path(command_line_arguments.output_files_stem)
+
+    # the weights of the model are saved...
+    trapallada.model.image.save_vae(output_filename.with_suffix('.eqx'), model)
+
+    # ...and so are the results
+    results_df.to_parquet(output_filename.with_suffix('.parquet'))
+
+    # a name for a backup of the parameters file is also derived
+    parameters_file_backup = output_filename.with_suffix('.yaml')
+
+    # if it's not the same file as the one passed as an argument, a copy is made
+    if not parameters_file_backup.samefile(command_line_arguments.parameters_file.name):
+        shutil.copy2(command_line_arguments.parameters_file.name, output_filename.with_suffix('.yaml'))

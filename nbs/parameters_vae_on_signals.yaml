@@ -1,0 +1,33 @@
+PRNG seeds:
+  model initialization:
+    decoder: 43
+    encoder: 42
+  sampling:
+    training set: 14
+    validation set: 15
+  training dataloader: 43
+  training-validation splitting: 42
+encoder:
+  input_size:
+  - 1
+  - 10000
+loss:
+  x_sd: 0.5
+model:
+  channels:
+  - 12
+  - 12
+  - 12
+  dim_z: 10
+  kernel_sizes:
+  - 128
+  - 64
+  - 32
+  stride: 2
+training:
+  batch_size: 32
+  dl_rng_key: 43
+  learning_rate: 3.0e-05
+  n_epochs: 3
+  train_test_split:
+    test_size: 0.2

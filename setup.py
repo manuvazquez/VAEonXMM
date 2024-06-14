@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/manuvazquez/trapallada",
     packages=setuptools.find_packages(),
-    install_requires=['astropy', 'astroquery', 'pandas', 'jax', 'optax', 'equinox', 'jaxtyping', 'numpyro'],
+    install_requires=['astropy', 'astroquery', 'pandas', 'jax', 'optax', 'equinox', 'jaxtyping', 'numpyro', 'pyyaml'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Environment :: Console",
@@ -22,6 +22,9 @@ setuptools.setup(
     ],
     python_requires='>=3.10',
     entry_points={
-        'console_scripts': ['trap_fit.py=trapallada.core:cl_fit'],
+        'console_scripts': [
+            'trap_fit.py=trapallada.core:cl_fit',
+            'trap_fit_vae_on_signals.py=trapallada.core:cl_fit_vae_on_signals'
+        ],
     }
 )

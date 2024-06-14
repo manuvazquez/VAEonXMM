@@ -1,4 +1,7 @@
+import pathlib
 from typing import Sequence, List
+
+import yaml
 
 import jax.nn
 import jax.random as jr
@@ -28,7 +31,7 @@ class Classifier(eqx.Module):
             
             # the length of the feature map for the next layer
             conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-            print(f'{conv_output_len=}')
+            # print(f'{conv_output_len=}')
 
             key, subkey = jr.split(key)
             
@@ -43,7 +46,7 @@ class Classifier(eqx.Module):
         self.layers.append(jnp.ravel)
 
         key, subkey = jr.split(key)
-        print(out_channels * conv_output_len[0])
+        # print(out_channels * conv_output_len[0])
         self.layers.append(eqx.nn.Linear(in_features=out_channels * conv_output_len[0], out_features=n_classes, key=subkey))
 
     def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
@@ -108,7 +111,7 @@ class Encoder(eqx.Module):
             
             # the length of the feature map for the next layer
             conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-            print(f'{conv_output_len=}')
+            # print(f'{conv_output_len=}')
 
             # key, subkey = jr.split(key)
             
@@ -245,3 +248,36 @@ class VAE(eqx.Module):
         z = dist.Normal(loc=z_mean, scale=z_sd).sample(key)
 
         return self.decoder(z), z_mean, z_sd
+    
+
+def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Path) -> eqx.Module:
+
+    weights_file = pathlib.Path(weights_file)
+    assert weights_file.suffix == '.eqx', "weights file should have extension '.eqx'"
+
+
+    parameters_file = pathlib.Path(parameters_file)
+
+    with parameters_file.open() as f:
+        
+        parameters = yaml.safe_load(f)
+    
+    encoder = Encoder(
+        **(parameters['model'] | parameters['encoder']),
+        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['encoder'])
+    )
+    
+    # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
+    decoder = Decoder(
+        **(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}),
+        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder'])
+    )
+    
+    model = VAE(encoder, decoder)
+
+    with weights_file.open('rb') as f:
+        return eqx.tree_deserialise_leaves(f, model)
+
+    return model
+
+# `save_vae` is identical to `save_model` in `model/signal.py`
