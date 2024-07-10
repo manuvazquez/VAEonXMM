@@ -351,9 +351,6 @@ def cl_fit_vae_on_signals(args: list = None):
     # the model is trained
     model, results_df = trapallada.core.fit_vae_on_signals(train_dl, validation_dl, parameters)
     
-    # a "base name" for the output files
-    output_filename = pathlib.Path(command_line_arguments.output_files_stem)
-
     # the weights of the model are saved...
     trapallada.model.image.save_vae(output_filename.with_suffix('.eqx'), model)
 
