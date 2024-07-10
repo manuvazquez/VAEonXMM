@@ -327,9 +327,12 @@ def cl_fit_vae_on_signals(args: list = None):
     # for the sake of convenience
     parameters_file = pathlib.Path(command_line_arguments.parameters_file.name)
 
+    # if a "base name" for the output files was passed...
     if command_line_arguments.output_files_stem:
         output_filename = pathlib.Path(command_line_arguments.output_files_stem)
+    # if a "base name" for the output files was NOT passed...
     else:
+        # ...it is inferred from that of the parameters file
         output_filename = pathlib.Path(parameters_file.with_suffix(''))
 
     # parameters file is read
