@@ -1,6 +1,6 @@
 ## XSA
 
-Some functions to retrieve data from XMM-Newton Science Archive.
+Some functions to retrieve data from [XMM-Newton Science Archive](https://nxsa.esac.esa.int/). It relies mostly on [astropy](https://docs.astropy.org/en/stable/io/unified.html#getting-started-with-table-i-o) and, especially, [astroquery.esa.xmm_newton](https://astroquery.readthedocs.io/en/latest/esa/xmm_newton/xmm_newton.html).
 
 ::: trapallada.xsa
 
