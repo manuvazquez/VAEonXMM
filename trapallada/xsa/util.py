@@ -60,6 +60,7 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
 
     series_list = []
     skipped_files_list = []
+    index = None
     
     for f in files:
         
@@ -69,6 +70,13 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             series = time_series_from_df(df)
             series.name = f.name
             series_list.append(series)
+            
+            # if this is the first file
+            if index is None:
+                index = series.index
+            # if this is NOT the first file
+            else:
+                assert index.equals(series.index), 'The indexes of the time series do not match.'
         else:
             # print(f'{f} does not look like a light curve, skipping...')
             skipped_files_list.append(f)

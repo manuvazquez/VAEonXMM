@@ -234,12 +234,11 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Mo
         log_likelihood_acc = 0.
         kl_value_acc = 0.
 
-        for _, x, y in dataloader:
+        for _, x, _ in dataloader:
 
             key, subkey = jr.split(key)
 
             x = x.numpy()
-            y = y.numpy()
         
             loss_value, (log_likelihood_value, kl_value) = loss(model, x, x_sd, subkey)
             

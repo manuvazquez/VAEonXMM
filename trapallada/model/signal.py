@@ -278,6 +278,6 @@ def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Pa
     with weights_file.open('rb') as f:
         return eqx.tree_deserialise_leaves(f, model)
 
-    return model
+    # return model
 
 # `save_vae` is identical to `save_model` in `model/signal.py`

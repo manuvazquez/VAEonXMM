@@ -31,7 +31,7 @@ class ImageDataset(Dataset):
     
 class SignalsDataset(Dataset):
 
-    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path, normalize: bool = False):
+    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False):
 
         self.signals = torch.load(signals_filename)
 
@@ -40,9 +40,14 @@ class SignalsDataset(Dataset):
             std = self.signals.std(axis=-1)
             self.signals = (self.signals - mean[..., None]) / std[..., None]
         
-        self.metadata_df = pd.read_parquet(metadata_filename)
-        self.labels = self.metadata_df['label'].cat.codes
-        self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+        if metadata_filename:
+            self.metadata_df = pd.read_parquet(metadata_filename)
+            self.labels = self.metadata_df['label'].cat.codes
+            self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+        else:
+            # self.labels = [None] * len(self.signals)
+            self.labels = torch.full((len(self.signals),), torch.nan)
+            self.labels_names = {}
 
     def __len__(self):
 

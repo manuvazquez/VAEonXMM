@@ -11,6 +11,8 @@
 		"files.exclude": {
 			"**/__pycache__": true,
 			"**/*.egg-info": true,
+			"**/*.eqx": true,
+			"**/*.parquet": true,
 			"**/iframe_figures": true
 		}
 	}
