@@ -13,12 +13,20 @@ import pandas as pd
 
 from astroquery.esa.xmm_newton import XMMNewton
 
-file_types = ['SRCTSR', 'SRSPEC', 'OBSMLI', 'OMSRLI', 'SRCRES']
-re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+# SRC: Source
+# TSR: Type of data and processing stage
+# file_types = ['SRCTSR', 'SRSPEC', 'OBSMLI', 'OMSRLI', 'SRCRES']
+file_types = ['SRCTSR']
 
-def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, verbose: bool = True) -> pathlib.Path:
+# PN: Epic-pn camera
+# re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+re_filename = re.compile(r'^P(\d{10})PN(S\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+
+def download_extract_filter(
+        obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, verbose: bool = True) -> pathlib.Path:
     """
     Downloads and extracts the 'tar' file for a given observation keeping only the files whose name match a specific pattern.
+    Data already processed (through the Pipeline Processing System, or PPS) is returned.
 
     Args:
         obs (str): The observation identifier.
@@ -57,10 +65,8 @@ def download_extract_filter(obs: str, output_directory: pathlib.Path | str, keep
         # context's descriptor is turned into a `Pathlib`
         tmp_dir_root = pathlib.Path(tmp_dir)
         
-        # tar_file = (output_directory if keep_tar else tmp_dir_root) / f'result{obs}.tar'
         tar_file = (output_directory if keep_tar else tmp_dir_root) / f'{obs}.tar'
         
-
         try:
 
             # actual download

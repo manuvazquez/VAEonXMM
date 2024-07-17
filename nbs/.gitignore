@@ -1,7 +1,2 @@
-*.FTZ
-*.PNG
-*.jpg
 *.parquet
 *.pt
-iframe_figures
-*.tar

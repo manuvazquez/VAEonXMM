@@ -13,6 +13,7 @@
 			"**/*.egg-info": true,
 			"**/*.eqx": true,
 			"**/*.parquet": true,
+			"**/*.tar": true,
 			"**/iframe_figures": true
 		}
 	}

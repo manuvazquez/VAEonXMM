@@ -4,7 +4,6 @@ import torch
 import equinox as eqx
 import pandas as pd
 from jaxtyping import Array, Float, PRNGKeyArray
-import jax
 import jax.random as jr
 
 import matplotlib.pyplot as plt
@@ -96,7 +95,7 @@ def df(df: pd.DataFrame, width: int = 1_200, height: int = 400, columns: Sequenc
         assert len(columns) == df.shape[1], 'The number of columns must match that in the DataFrame.'
 
     chart = alt.Chart(
-        df.reset_index(names='index')
+        df.rename(columns=dict(zip(df.columns, columns))).reset_index(names='index')
     ).transform_fold(
         columns
     ).mark_line().encode(
