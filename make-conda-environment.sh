@@ -20,6 +20,7 @@ LIBRARIES=(
     # pytorch torchvision
     pytorch torchvision cpuonly # apparently, using the above line without a GPU is a problem
     jax equinox optax
+    papermill
 )
 
 CHANNELS=(

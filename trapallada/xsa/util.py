@@ -1,4 +1,11 @@
 import pathlib
+import time
+import argparse
+import tarfile
+import tempfile
+import shutil
+import re
+from typing import Sequence
 
 import pandas as pd
 
@@ -9,8 +16,14 @@ import astropy.units as u
 
 import trapallada.xsa.access
 
-# # in order to avoid warnings, custom unit 'fraction' is defined
-# fraction = u.def_unit('fraction')
+# SRC: Source
+# TSR: Type of data and processing stage
+# file_types = ['SRCTSR', 'SRSPEC', 'OBSMLI', 'OMSRLI', 'SRCRES']
+file_types = ['SRCTSR']
+
+# PN: Epic-pn camera
+# re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+re_filename = re.compile(r'^P(\d{10})PN(S\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
 
 def bin_fits_df(df: pd.DataFrame, bin_size: int = 63) -> pd.DataFrame:
     """
@@ -128,9 +141,159 @@ def rank_obs_files(obs_dir: str | pathlib.Path) -> pd.DataFrame:
     fits_files_series = pd.Series([f.name for f in fits_files], dtype=pd.StringDtype())
     
     # the names are parsed into a `DataFrame`...
-    fits_files_df = fits_files_series.str.extract(trapallada.xsa.access.re_filename)
+    fits_files_df = fits_files_series.str.extract(trapallada.xsa.util.re_filename)
 
     # ...which is then enriched with the full path of every file
     fits_files_df['full path'] = fits_files
     
     return fits_files_df.sort_values(3)
+
+def download_observations(
+        download_directory: str | pathlib.Path,
+        duration_interval: Sequence[int] = (35_000, 45_000),
+        keep_tars: bool = True, sleep_time_between_requests: float = 5.) -> None:
+
+    # metadata for the observations in the given interval
+    obs_metadata = trapallada.xsa.access.get_observations_in_interval(duration_interval=duration_interval)
+
+    # their id's are extracted
+    obs_to_download = obs_metadata['observation_id']
+
+    # for every observation...
+    for obs_id in obs_to_download:
+
+        print(f'Requesting observation {obs_id}')
+        
+        # ...the data is downloaded, extracted and filtered to the appointed location
+        # output_dir_or_None = trapallada.xsa.access.download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
+        output_dir_or_None = trapallada.xsa.util.download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
+
+        # if something was *actually* downloaded...
+        if output_dir_or_None:
+        
+            # in order to, hopefully, avoid bans/errors
+            time.sleep(sleep_time_between_requests)
+
+def cl_download_observations(args: list = None):
+    """
+    Command line interface for the `download_observations` function.
+    """
+
+    parser = argparse.ArgumentParser(description='Download observations.')
+
+    parser.add_argument('download_directory', type=str, help='Download directory')
+    
+    parser.add_argument('-m', '--min-duration', type=int, default=35000, help='Minimum duration')
+    parser.add_argument('-M', '--max-duration', type=int, default=45000, help='Maximum duration')
+
+    command_line_arguments = parser.parse_args(args)
+
+    download_directory = pathlib.Path(command_line_arguments.download_directory)
+    
+    if not download_directory.exists():
+        print(f'"{download_directory}" does not exist')
+        return
+
+    # print(command_line_arguments)
+
+    download_observations(
+        download_directory=download_directory,
+        duration_interval=(command_line_arguments.min_duration, command_line_arguments.max_duration))
+
+def extract_filter_tar(tar_file: pathlib.Path | str, output_directory: pathlib.Path | str | None = None) -> pathlib.Path | None:
+    """
+    Extracts tha *tar* file for a given observation keeping only the files whose name match a specific pattern.
+
+    Args:
+        tar_file (pathlib.Path | str): Name of the *tar* file.
+        output_directory (pathlib.Path | str): The output directory where the files will be saved.
+
+    Returns:
+        pathlib.Path or None: The path to the output directory where the files were saved if any, or None if nothing was downloaded.
+    """
+
+    # for the sake of readability
+    tar_file = pathlib.Path(tar_file)
+
+    # if no output directory is given...
+    if output_directory is None:
+            
+        # ...the parent directory of the *tar* file is used
+        output_directory = tar_file.parent
+
+    # the subdirectory is named after the *tar* file
+    output_subdir = output_directory / tar_file.stem
+
+    # if it has been downloaded/extracted before...
+    if output_subdir.exists():
+
+        print(f'found directory "{output_subdir}", skipping...')
+        
+        return None
+    
+    # if it has NOT been downloaded/extracted before...
+    else:
+
+        # directory is created
+        output_subdir.mkdir(exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+        # context's descriptor is turned into a `Pathlib`
+        tmp_dir_root = pathlib.Path(tmp_dir)
+
+        tmp_dir_extracted = tmp_dir_root / 'extracted'
+        
+        with tarfile.open(tar_file) as f:
+
+            try:
+
+                files = f.getnames()
+
+            except tarfile.ReadError:
+
+                print(f'There is something wrong with downloaded tar file "{tar_file}"')
+
+                raise
+            
+            f.extractall(path=tmp_dir_extracted)
+        
+        # only file (names) matching the pattern are kept...
+        m_light_curves = [(f, m) for f in files if (m := re_filename.match(pathlib.Path(f).name))]
+        
+        # ...and every one of the them is copied into the appropriate directory
+        for filename, _ in m_light_curves:
+            
+            shutil.copy(tmp_dir_extracted / filename, output_subdir)
+
+    return output_subdir
+
+def download_extract_filter(
+        obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, n_attemps: int = 3, verbose: bool = True) -> pathlib.Path | None:
+    """
+    Downloads and extracts the 'tar' file for a given observation keeping only the files whose name match a specific pattern.
+    Data already processed (through the Pipeline Processing System, or PPS) is returned.
+
+    Args:
+        obs (str): The observation identifier.
+        output_directory (pathlib.Path | str): The output directory where the files will be saved.
+        keep_tar (bool, optional): Whether to keep the downloaded tar file. Defaults to False.
+        n_attemps (int, optional): Number of attemps to download the file. Defaults to 3.
+        verbose (bool, optional): Whether to print download messages. Defaults to True.
+
+    Returns:
+        pathlib.Path or None: The path to the output directory where the files were saved if any, or None if nothing was downloaded.
+    """
+
+    # # for the sake of simplicity
+    # output_directory = pathlib.Path(output_directory)
+
+    tar_file = trapallada.xsa.access.download_obs(obs=obs, output_directory=output_directory, n_attemps=n_attemps, verbose=verbose)
+
+    if tar_file is None:
+        
+        return None
+
+    output_subdir = extract_filter_tar(tar_file)
+
+    return output_subdir
