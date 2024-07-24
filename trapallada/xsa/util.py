@@ -165,11 +165,13 @@ def download_observations(
         print(f'Requesting observation {obs_id}')
         
         # ...the data is downloaded, extracted and filtered to the appointed location
-        # output_dir_or_None = trapallada.xsa.access.download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
-        output_dir_or_None = trapallada.xsa.util.download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
+        # output_dir_or_None = download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
+        
+        # ...the data is downloaded
+        tar_file_or_None = trapallada.xsa.access.download_obs(obs=obs_id, output_directory=download_directory)
 
         # if something was *actually* downloaded...
-        if output_dir_or_None:
+        if tar_file_or_None:
         
             # in order to, hopefully, avoid bans/errors
             time.sleep(sleep_time_between_requests)
@@ -285,15 +287,35 @@ def download_extract_filter(
         pathlib.Path or None: The path to the output directory where the files were saved if any, or None if nothing was downloaded.
     """
 
-    # # for the sake of simplicity
-    # output_directory = pathlib.Path(output_directory)
+    # for the sake of convenience
+    tar_file = output_directory / f'{obs}.tar'
 
-    tar_file = trapallada.xsa.access.download_obs(obs=obs, output_directory=output_directory, n_attemps=n_attemps, verbose=verbose)
-
-    if tar_file is None:
+    if tar_file.exists():
         
-        return None
+        print(f'found file "{tar_file}", extracting...')
+
+    else:
+        
+        tar_file = trapallada.xsa.access.download_obs(obs=obs, output_directory=output_directory, n_attemps=n_attemps, verbose=verbose)
 
     output_subdir = extract_filter_tar(tar_file)
 
     return output_subdir
+
+def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame:
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+        # context's descriptor is turned into a `Pathlib`
+        tmp_dir_root = pathlib.Path(tmp_dir)
+        
+        # files are extracted into a temporary directory...
+        extracted_files_dir = trapallada.xsa.util.extract_filter_tar(file, tmp_dir_root)
+
+        # ...and ranked
+        ranked_files_df = trapallada.xsa.util.rank_obs_files(extracted_files_dir).iloc[:max_n_sources]['full path']
+
+        # the top ranked files are read into a DataFrame
+        fits_df, skipped_files_list = trapallada.xsa.util.read_fits_files(ranked_files_df.tolist())
+
+    return fits_df

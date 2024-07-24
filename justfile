@@ -40,4 +40,4 @@ fit PARAMETERS:
 download DIR="~/data/trapallada/":
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  trap_download_obs.py {DIR}
+  trap_download_obs.py {{DIR}}
