@@ -1,5 +1,6 @@
 import pathlib
 import time
+import os
 import argparse
 import tarfile
 import tempfile
@@ -9,12 +10,19 @@ from typing import Sequence
 
 import pandas as pd
 
+import numpy as np
+
+from jaxtyping import Array, Float
+
 from astropy.table import Table
 import astropy.io.fits as fits
 from astropy.time import Time
 import astropy.units as u
 
 import trapallada.xsa.access
+import trapallada.logging as log
+
+logger = log.setup_logging(__name__)
 
 # SRC: Source
 # TSR: Type of data and processing stage
@@ -100,26 +108,50 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
     series_list = []
     skipped_files_list = []
     index = None
+    first_file = None
     
     for f in files:
+
+        # print(f'Reading {f}...')
         
         df = read_fits_file(f)
         
         if 'TIME' in df:
-            
+
             series = df['RATE']
             series.index = df['TIME']
+
+            # if this is the first file...
+            if index is None:
+                
+                # ...the reference index...
+                index = series.index
+
+                # ...and file are set
+                first_file = f
+            
+            # if this is NOT the first file
+            else:
+
+                if not index.equals(series.index):
+
+                    logger.warning((f'Time stamps for file "{f.relative_to(f.parents[1])}" don\'t match '
+                            f'those for "{first_file.relative_to(first_file.parents[1])}" (the first file, taken as reference), skipping...'))
+                    
+                    skipped_files_list.append(f)
+                    
+                    continue
+
+                # assert index.equals(series.index), 'The indexes of the time series do not match.'
+            
             series.name = f.name
             series_list.append(series)
             
-            # if this is the first file
-            if index is None:
-                index = series.index
-            # if this is NOT the first file
-            else:
-                assert index.equals(series.index), 'The indexes of the time series do not match.'
+        # if `TIME` column is NOT present...
         else:
-            # print(f'{f} does not look like a light curve, skipping...')
+            
+            logger.warning(f'{f.relative_to(f.parents[1])} does not look like a light curve, skipping...')
+            
             skipped_files_list.append(f)
 
     return pd.concat(series_list, axis=1), skipped_files_list
@@ -151,7 +183,7 @@ def rank_obs_files(obs_dir: str | pathlib.Path) -> pd.DataFrame:
 def download_observations(
         download_directory: str | pathlib.Path,
         duration_interval: Sequence[int] = (35_000, 45_000),
-        keep_tars: bool = True, sleep_time_between_requests: float = 5.) -> None:
+        sleep_time_between_requests: float = 5.) -> None:
 
     # metadata for the observations in the given interval
     obs_metadata = trapallada.xsa.access.get_observations_in_interval(duration_interval=duration_interval)
@@ -162,16 +194,14 @@ def download_observations(
     # for every observation...
     for obs_id in obs_to_download:
 
-        print(f'Requesting observation {obs_id}')
-        
-        # ...the data is downloaded, extracted and filtered to the appointed location
-        # output_dir_or_None = download_extract_filter(obs=obs_id, output_directory=download_directory, keep_tar=keep_tars)
+        # print(f'Requesting observation {obs_id}')
+        logger.info(f'Requesting observation {obs_id}')
         
         # ...the data is downloaded
-        tar_file_or_None = trapallada.xsa.access.download_obs(obs=obs_id, output_directory=download_directory)
+        tar_file = trapallada.xsa.access.download_obs(obs=obs_id, output_directory=download_directory)
 
-        # if something was *actually* downloaded...
-        if tar_file_or_None:
+        # if the file has been created less than a minute ago (i.e., something was *actually* downloaded)...
+        if (tar_file is not None) and (time.time() - os.path.getmtime(tar_file)) < 60:
         
             # in order to, hopefully, avoid bans/errors
             time.sleep(sleep_time_between_requests)
@@ -211,7 +241,8 @@ def extract_filter_tar(tar_file: pathlib.Path | str, output_directory: pathlib.P
         output_directory (pathlib.Path | str): The output directory where the files will be saved.
 
     Returns:
-        pathlib.Path or None: The path to the output directory where the files were saved if any, or None if nothing was downloaded.
+        pathlib.Path or None: The path to the output directory where the files are saved (even if nothing was actually extracted)
+        or `None` if there are not relevant files.
     """
 
     # for the sake of readability
@@ -224,54 +255,58 @@ def extract_filter_tar(tar_file: pathlib.Path | str, output_directory: pathlib.P
         output_directory = tar_file.parent
 
     # the subdirectory is named after the *tar* file
-    output_subdir = output_directory / tar_file.stem
+    output_subdir = pathlib.Path(output_directory) / tar_file.stem
 
     # if it has been downloaded/extracted before...
     if output_subdir.exists():
 
         print(f'found directory "{output_subdir}", skipping...')
         
-        return None
-    
     # if it has NOT been downloaded/extracted before...
     else:
 
         # directory is created
         output_subdir.mkdir(exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
 
-        # context's descriptor is turned into a `Pathlib`
-        tmp_dir_root = pathlib.Path(tmp_dir)
+            # context's descriptor is turned into a `Pathlib`
+            tmp_dir_root = pathlib.Path(tmp_dir)
 
-        tmp_dir_extracted = tmp_dir_root / 'extracted'
-        
-        with tarfile.open(tar_file) as f:
-
-            try:
-
-                files = f.getnames()
-
-            except tarfile.ReadError:
-
-                print(f'There is something wrong with downloaded tar file "{tar_file}"')
-
-                raise
+            tmp_dir_extracted = tmp_dir_root / 'extracted'
             
-            f.extractall(path=tmp_dir_extracted)
-        
-        # only file (names) matching the pattern are kept...
-        m_light_curves = [(f, m) for f in files if (m := re_filename.match(pathlib.Path(f).name))]
-        
-        # ...and every one of the them is copied into the appropriate directory
-        for filename, _ in m_light_curves:
+            with tarfile.open(tar_file) as f:
+
+                try:
+
+                    files = f.getnames()
+
+                except tarfile.ReadError:
+
+                    logger.error(f'There is something wrong with downloaded tar file "{tar_file}"')
+
+                    raise
+                
+                f.extractall(path=tmp_dir_extracted)
             
-            shutil.copy(tmp_dir_extracted / filename, output_subdir)
+            # only file (names) matching the pattern are kept...
+            m_light_curves = [(f, m) for f in files if (m := re_filename.match(pathlib.Path(f).name))]
+
+            if not m_light_curves:
+                    
+                    logger.warning(f'No relevant files in "{tar_file}"')
+    
+                    return None
+            
+            # ...and every one of the them is copied into the appropriate directory
+            for filename, _ in m_light_curves:
+                
+                shutil.copy(tmp_dir_extracted / filename, output_subdir)
 
     return output_subdir
 
 def download_extract_filter(
-        obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, n_attemps: int = 3, verbose: bool = True) -> pathlib.Path | None:
+        obs: str, output_directory: pathlib.Path | str, keep_tar: bool = False, n_attemps: int = 3, verbose: bool = True) -> pathlib.Path:
     """
     Downloads and extracts the 'tar' file for a given observation keeping only the files whose name match a specific pattern.
     Data already processed (through the Pipeline Processing System, or PPS) is returned.
@@ -284,15 +319,15 @@ def download_extract_filter(
         verbose (bool, optional): Whether to print download messages. Defaults to True.
 
     Returns:
-        pathlib.Path or None: The path to the output directory where the files were saved if any, or None if nothing was downloaded.
+        pathlib.Path: The path to the output directory where the files are saved (even if nothing was actually downloaded).
     """
 
     # for the sake of convenience
-    tar_file = output_directory / f'{obs}.tar'
+    tar_file = pathlib.Path(output_directory) / f'{obs}.tar'
 
     if tar_file.exists():
         
-        print(f'found file "{tar_file}", extracting...')
+        logger.info(f'found file "{tar_file}", extracting...')
 
     else:
         
@@ -302,7 +337,17 @@ def download_extract_filter(
 
     return output_subdir
 
-def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame:
+def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame | None:
+    """
+    Reads a tar file containing FITS files, returning a number of sources.
+
+    Args:
+        file (str or pathlib.Path): The path to the tar file.
+        max_n_sources (int, optional): The maximum number of top ranked files to read. Defaults to 3.
+
+    Returns:
+        pd.DataFrame or None: The DataFrame containing the the top *ranked* FITS files or `None` if there are not relevant files.
+    """
 
     with tempfile.TemporaryDirectory() as tmp_dir:
 
@@ -312,6 +357,11 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame:
         # files are extracted into a temporary directory...
         extracted_files_dir = trapallada.xsa.util.extract_filter_tar(file, tmp_dir_root)
 
+        # if no relevant files were found
+        if extracted_files_dir is None:
+                
+                return None
+
         # ...and ranked
         ranked_files_df = trapallada.xsa.util.rank_obs_files(extracted_files_dir).iloc[:max_n_sources]['full path']
 
@@ -319,3 +369,93 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame:
         fits_df, skipped_files_list = trapallada.xsa.util.read_fits_files(ranked_files_df.tolist())
 
     return fits_df
+
+def slice(
+        df: pd.DataFrame, window_size: int, step: int, tail_as_window: bool = True, return_n_windows: bool = False
+        ) -> Float[Array, 'window time']:
+    
+    slices = np.lib.stride_tricks.sliding_window_view(df.values, window_shape=window_size, axis=0)[::step]
+
+    index_slices = np.lib.stride_tricks.sliding_window_view(df.index.values, window_shape=window_size)[::step]
+
+    # the 1st window for the first signal, then the 1st for the 2nd signal...
+    # then the 2nd window for the 1st signal, and so forth and so on
+    stacked_slices = slices.reshape((-1, slices.shape[-1]))
+
+    n_windows = slices.shape[0]
+
+    if tail_as_window:
+
+        stacked_slices = np.vstack((stacked_slices, df.values[-window_size:].T))
+
+        index_slices = np.vstack((index_slices, df.index.values[-window_size:][None, :]))
+
+        n_windows += 1
+
+    index_slices = np.repeat(index_slices, len(df.columns), axis=0)
+
+    res = stacked_slices, index_slices
+
+    if return_n_windows:
+
+        res = res + (n_windows,)
+
+    return res
+
+def tars_to_array(
+        files, bin_size: int = 63, window_size: int = 200, step: int = 50, min_duration: int = 20_000, max_n_sources: int = 4
+        ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
+
+    signals_list = []
+    last_period = None
+
+    start_list, end_list = [], []
+    f_list = []
+    names_list = []
+
+    # every tar file...
+    for f in files:
+        
+        # ...is read into a `DataFrame`
+        df = trapallada.xsa.util.read_tar(f, max_n_sources=max_n_sources)
+
+        # if something was actually read...
+        if df is not None:
+
+            # duration of the signal in this file
+            duration = df.index[-1] - df.index[0]
+
+            if duration.total_seconds() < min_duration:
+                
+                logger.warning(f'skipping "{f}" because it is too short')
+                
+                continue
+
+            # the period
+            period = df.index[1] - df.index[0]
+
+            # if this is not the first file...
+            if last_period:
+
+                assert period == last_period, f'the period of "{f}" does not match the previous period'
+
+            # if there is *any* `NaN` at all (in any column, at any time instant)...
+            if df.isna().any().any():
+                
+                # ...it's filled in using interpolation.
+                df = df.interpolate(method='linear', axis=0)
+
+            # signals are binned
+            binned_df = trapallada.xsa.util.bin_fits_df(df, bin_size=bin_size)
+
+            sliced_signals, sliced_times, n_windows = trapallada.xsa.util.slice(
+                binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
+
+            signals_list.append(sliced_signals)
+            start_list.append(sliced_times[:, 0])
+            end_list.append(sliced_times[:, -1])
+            f_list.append(np.full(len(sliced_signals), f.name))
+            names_list.append(np.tile(binned_df.columns, n_windows))
+
+    return np.vstack(signals_list), pd.DataFrame(
+        {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})

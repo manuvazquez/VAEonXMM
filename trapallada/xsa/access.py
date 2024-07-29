@@ -6,9 +6,13 @@ import requests.exceptions
 
 import pandas as pd
 
+import trapallada.logging as log
+
 # import astropy.io
 
 from astroquery.esa.xmm_newton import XMMNewton
+
+logger = log.setup_logging(__name__)
 
 def download_obs(
         obs: str, output_directory: pathlib.Path | str, n_attemps: int = 3, verbose: bool = True) -> pathlib.Path | None:
@@ -22,7 +26,8 @@ def download_obs(
         verbose (bool, optional): Whether to print download messages. Defaults to True.
 
     Returns:
-        pathlib.Path or None: The path to the corresponding *tar* file if downloaded, or None if nothing was downloaded.
+        pathlib.Path: The path to the corresponding *tar* file (regardless of whether it was downloaded or was found already there)
+        or `None` if it could not be retrieved.
     """
 
     # TODO: maybe apply `.zfill(10)` on `obs`
@@ -53,18 +58,22 @@ def download_obs(
 
                 attemp += 1
 
-                delay = random.random() * 5 + 1
+                delay = random.random()*5 + 1
 
                 print(f'Exception while downloading {obs}, waiting {delay} and retrying (attempt #{attemp})...')
 
                 time.sleep(delay)
+        
+        if attemp == n_attemps:
+
+            logger.error(f'failed to download {obs} after {n_attemps} attempts')
+
+            return None
     
     # it the *tar* file DOES exist in the output directory...
     else:
 
         print(f'found file "{tar_file}", skipping...')
-        
-        return None
         
     return tar_file
 
