@@ -12,6 +12,8 @@ import pandas as pd
 
 import numpy as np
 
+import torch
+
 from jaxtyping import Array, Float
 
 from astropy.table import Table
@@ -374,16 +376,20 @@ def slice(
         df: pd.DataFrame, window_size: int, step: int, tail_as_window: bool = True, return_n_windows: bool = False
         ) -> Float[Array, 'window time']:
     
+    # data is sliced...
     slices = np.lib.stride_tricks.sliding_window_view(df.values, window_shape=window_size, axis=0)[::step]
 
+    # ...and so are the time indexes
     index_slices = np.lib.stride_tricks.sliding_window_view(df.index.values, window_shape=window_size)[::step]
 
     # the 1st window for the first signal, then the 1st for the 2nd signal...
     # then the 2nd window for the 1st signal, and so forth and so on
     stacked_slices = slices.reshape((-1, slices.shape[-1]))
 
+    # the number of resulting windows
     n_windows = slices.shape[0]
 
+    # if a last window with (most likely including leftovers) is to be considered...
     if tail_as_window:
 
         stacked_slices = np.vstack((stacked_slices, df.values[-window_size:].T))
@@ -396,14 +402,16 @@ def slice(
 
     res = stacked_slices, index_slices
 
+    # if the number of windows/slices is to be returned...
     if return_n_windows:
 
+        # ...it is appended to the (`tuple`) result
         res = res + (n_windows,)
 
     return res
 
 def tars_to_array(
-        files, bin_size: int = 63, window_size: int = 200, step: int = 50, min_duration: int = 20_000, max_n_sources: int = 4
+        files, bin_size: int = 63, window_size: int = 200, step: int = 50, min_duration: int = 20_000, max_n_sources: int = 4, min_power: float = .5
         ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
 
     signals_list = []
@@ -422,31 +430,90 @@ def tars_to_array(
         # if something was actually read...
         if df is not None:
 
-            # duration of the signal in this file
-            duration = df.index[-1] - df.index[0]
+            # # duration of the signal in this file
+            # duration = df.index[-1] - df.index[0]
 
-            if duration.total_seconds() < min_duration:
+            # if duration.total_seconds() < min_duration:
                 
-                logger.warning(f'skipping "{f}" because it is too short')
+            #     logger.warning(f'skipping "{f}" because it is too short')
                 
-                continue
-
-            # the period
-            period = df.index[1] - df.index[0]
-
-            # if this is not the first file...
-            if last_period:
-
-                assert period == last_period, f'the period of "{f}" does not match the previous period'
+            #     continue
 
             # if there is *any* `NaN` at all (in any column, at any time instant)...
             if df.isna().any().any():
+
+                # logger.warning(f'"{f}" has NaN values: interpolating...')
                 
                 # ...it's filled in using interpolation.
                 df = df.interpolate(method='linear', axis=0)
 
+                if df.isna().any().any():
+
+                    logger.warning(f'"{f}" still has `NaN` values after interpolating, skipping...')
+                    
+                    continue
+
             # signals are binned
             binned_df = trapallada.xsa.util.bin_fits_df(df, bin_size=bin_size)
+
+            # ---
+            
+            # # power of the (binned) signals
+            # power = (binned_df**2).mean(axis=0)
+
+            # # a `Series` with the columns (i.e., signals) whose power is below the threshold
+            # low_power_columns = power[(power < min_power)].index
+            # n_low_power_columns = len(low_power_columns)
+
+            # # if every signal has low power...
+            # if n_low_power_columns == len(binned_df.columns):
+
+            #     logger.warning(f'every signal has power below {min_power} in "{f}", skipping...')
+                
+            #     continue
+
+            # # at this point not EVERY signal has low power, but if any...
+            # if n_low_power_columns > 0:
+
+            #     binned_df = binned_df.drop(low_power_columns, axis=1)
+
+            #     logger.warning(f'dropping {n_low_power_columns} signals in "{f}" due to low power (<{min_power})')
+
+            # ---
+            
+            # the period of the raw `DataFrame`
+            period = df.index[1] - df.index[0]
+
+            # that of the *binned* one
+            binned_period = binned_df.index[1] - binned_df.index[0]
+
+            # if this is not the first file (`last_period` is `None`)...
+            if last_period:
+
+                if period != last_period:
+
+                    logger.critical(f'the period of "{f}" does not match the previous period(s)')
+                    
+                    raise RuntimeError('Period mismatch')
+
+            # if this IS the first file...
+            else:
+
+                window_size_in_seconds = (binned_period * window_size).total_seconds()
+
+                logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds (period is {period * bin_size})')
+
+                # if window_size_in_seconds > min_duration:
+
+                #     logger.warning(f'window size might be too large for the duration of the signal')
+
+            last_period = period
+
+            if len(binned_df) < window_size:
+
+                logger.warning(f'skipping "{f}" because it is too short after binning')
+                
+                continue
 
             sliced_signals, sliced_times, n_windows = trapallada.xsa.util.slice(
                 binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
@@ -459,3 +526,44 @@ def tars_to_array(
 
     return np.vstack(signals_list), pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
+
+
+def cl_tars_to_array(args: list = None):
+    """
+    Command line interface for the `tars_to_array` function.
+    """
+
+    parser = argparse.ArgumentParser(description='Download observations.')
+
+    parser.add_argument('download_directory', type=pathlib.Path, help='Download directory')
+    parser.add_argument('output_directory', type=pathlib.Path, help='Output directory')
+    parser.add_argument('output_files_stem', type=str, help='Output directory')
+    
+    parser.add_argument('-b', '--bin-size', type=int, default=None, help='Bin size')
+    parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size')
+    parser.add_argument('-m', '--min-duration', type=int, default=None, help='Minimum duration (of the whole observation)')
+    parser.add_argument('-s', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
+    parser.add_argument('-p', '--min-power', type=float, default=None, help='Minimum power')
+
+    command_line_arguments = parser.parse_args(args)
+    
+    # tar_files = list(command_line_arguments.download_directory.glob('*.tar'))[:4]
+    tar_files = list(command_line_arguments.download_directory.glob('*.tar'))
+
+    # arguments that are `None` and command line-only arguments are trimmed
+    not_none_args = {
+        k: v for k, v in vars(command_line_arguments).items()
+        if (v is not None) and (k not in ['download_directory', 'output_directory', 'output_files_stem'])
+    }
+
+    signals, metadata_df = tars_to_array(tar_files, **not_none_args)
+
+    duration = (metadata_df['end'] - metadata_df['start']).iloc[0].total_seconds()
+
+    logger.info(f'{signals.shape[0]} signals of length {signals.shape[1]} samples ({duration} seconds)')
+
+    torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
+    parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
+
+    torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
+    metadata_df.to_parquet(parquet_file)

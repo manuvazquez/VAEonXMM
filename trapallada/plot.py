@@ -53,7 +53,6 @@ def signals_dataset(
     if n_signals is None:
         n_signals = len(ds)
 
-    # i_signals = jr.randint(rng_key, (n_signals,), 0, len(ds)).tolist()
     i_signals = jr.choice(rng_key, len(ds), (n_signals, ), replace=False).tolist()
 
     if columns is None:
@@ -67,7 +66,6 @@ def signals_dataset(
         # columns=ds.metadata_df.iloc[i_signals]['file name'].str.extract(r'.*/(.*).(?:jpg|mat)')[0]
         columns=columns
     )
-    # df.columns = df.columns.str.replace('.', '')
     
     chart = alt.Chart(
         df.iloc[:n_samples].reset_index()

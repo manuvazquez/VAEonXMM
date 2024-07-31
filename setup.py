@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="trapallada",
-    version="0.0.1",
+    version="0.0.2",
     author="Manuel A. Vázquez",
     author_email="manuavazquez@gmail.com",
     description="Analyze light curves",
@@ -25,7 +25,8 @@ setuptools.setup(
         'console_scripts': [
             'trap_fit.py=trapallada.core:cl_fit',
             'trap_fit_vae_on_signals.py=trapallada.core:cl_fit_vae_on_signals',
-            'trap_download_obs.py=trapallada.xsa.util:cl_download_observations'
+            'trap_download_obs.py=trapallada.xsa.util:cl_download_observations',
+            'trap_pack_obs.py=trapallada.xsa.util:cl_tars_to_array'
         ],
     }
 )

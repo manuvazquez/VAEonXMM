@@ -184,7 +184,7 @@ def cl_fit(args: list = None):
 
 # --------
 
-def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Module, pd.DataFrame]:
+def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.Module, pd.DataFrame]:
 
     @eqx.filter_jit
     def loss(
@@ -278,13 +278,24 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters:dict) -> tuple[eqx.Mo
 
     for epoch in range(parameters['training']['n_epochs']):
 
-        for i_batch, (_, x, _) in enumerate(train_dl):
+        for i_batch, (i_sample, x, _) in enumerate(train_dl):
 
             key, subkey = jr.split(key)
 
             x = x.numpy()
 
+            # print(x[0,0,0])
+
+            # np.argwhere(np.isnan(x))
+
+            # if jnp.isnan(x).any().item():
+                
+            #     print(f'oops {i_sample=}')
+
             model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, parameters['loss']['x_sd'], subkey)
+
+            # if jnp.isnan(loss_value).item():
+            #     print('oops')
 
             # adding up *averages* (of both the loss and the accuracy)
             results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
@@ -362,6 +373,8 @@ def cl_fit_vae_on_signals(args: list = None):
     # a name for a backup of the parameters file is also derived
     parameters_file_backup = output_filename.with_suffix('.yaml')
 
-    # if it's not the same file as the one passed as an argument, a copy is made
+    # if it's not the same file as the one passed as an argument...
     if not parameters_file_backup.samefile(command_line_arguments.parameters_file.name):
+        
+        # ...a copy is made
         shutil.copy2(command_line_arguments.parameters_file.name, output_filename.with_suffix('.yaml'))

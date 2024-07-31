@@ -16,5 +16,5 @@
 			"**/*.tar": true,
 			"**/iframe_figures": true
 		}
-	}
+	},
 }

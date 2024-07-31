@@ -35,19 +35,60 @@ class SignalsDataset(Dataset):
 
         self.signals = torch.load(signals_filename)
 
+        # n_signals = len(self.signals)
+
         if normalize:
             mean = self.signals.mean(axis=-1)
             std = self.signals.std(axis=-1)
+            
             self.signals = (self.signals - mean[..., None]) / std[..., None]
+
+            # indexes of the constant signals
+            i_constant = torch.nonzero(std == 0.)[:, 0]
+
+            # a mask to keep only the non-constant signals
+            to_keep = torch.full((len(self.signals),), 1, dtype=bool)
+            to_keep[i_constant] = False
+
+            # only non-constant signals are kept
+            self.signals = self.signals[to_keep]
+
+            if torch.isnan(self.signals).any().item():
+
+                print('oops normalizing signals produced NaNs')
         
+        # if metadata_filename:
+        #     self.metadata_df = pd.read_parquet(metadata_filename)
+        #     self.labels = self.metadata_df['label'].cat.codes
+        #     self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+        # else:
+        #     self.labels = torch.full((len(self.signals),), torch.nan)
+        #     self.labels_names = {}
+
+        # factored out code to initialize `labels` and `labels_names` when `metadata_filename`
+        # is not provided or it doesn't contain labels
+        # make_labels_and_labels_names = lambda : (torch.full((len(self.signals),), torch.nan), {})
+        make_labels_and_labels_names = lambda : (np.full((len(self.signals),), np.nan), {})
+
         if metadata_filename:
+            
             self.metadata_df = pd.read_parquet(metadata_filename)
-            self.labels = self.metadata_df['label'].cat.codes
-            self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+
+            # only metadata for non-constant signals is kept
+            self.metadata_df = self.metadata_df.drop(i_constant)
+            # self.metadata_df = self.metadata_df.iloc[to_keep]
+
+            if 'label' in self.metadata_df.columns:
+
+                self.labels = self.metadata_df['label'].cat.codes
+                self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+
+            else:
+                    
+                self.labels, self.labels_names = make_labels_and_labels_names()
         else:
-            # self.labels = [None] * len(self.signals)
-            self.labels = torch.full((len(self.signals),), torch.nan)
-            self.labels_names = {}
+            
+            self.labels, self.labels_names = make_labels_and_labels_names()
 
     def __len__(self):
 
@@ -65,7 +106,8 @@ def dataloaders_from_dataset(
         np.arange(len(ds)), 
         **splitting_parameters, 
         shuffle=True,
-        stratify=ds.labels
+        # stratify=ds.labels
+        stratify=ds.labels if not np.isnan(ds.labels).all().item() else None
     )
 
     train_ds, validation_ds = Subset(ds, train_idx), Subset(ds, validation_idx)

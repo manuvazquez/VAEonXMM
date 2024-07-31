@@ -31,7 +31,6 @@ class Classifier(eqx.Module):
             
             # the length of the feature map for the next layer
             conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-            # print(f'{conv_output_len=}')
 
             key, subkey = jr.split(key)
             
@@ -46,7 +45,8 @@ class Classifier(eqx.Module):
         self.layers.append(jnp.ravel)
 
         key, subkey = jr.split(key)
-        # print(out_channels * conv_output_len[0])
+
+        # after `raveling`, the output from the previous layer (now `in_features`) is flattened
         self.layers.append(eqx.nn.Linear(in_features=out_channels * conv_output_len[0], out_features=n_classes, key=subkey))
 
     def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
@@ -111,10 +111,7 @@ class Encoder(eqx.Module):
             
             # the length of the feature map for the next layer
             conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-            # print(f'{conv_output_len=}')
 
-            # key, subkey = jr.split(key)
-            
             self.layers.extend([
                 eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=key),
                 jax.nn.relu,
@@ -280,4 +277,4 @@ def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Pa
 
     # return model
 
-# `save_vae` is identical to `save_model` in `model/signal.py`
+# `save_vae` is identical to `save_model` in `model/image.py`
