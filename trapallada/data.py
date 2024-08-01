@@ -8,6 +8,10 @@ from torch.utils.data import Dataset, DataLoader, Subset
 import jax.random as jr
 import jax.numpy as jnp
 
+import trapallada.logging as log
+
+logger = log.setup_logging(__name__)
+
 class ImageDataset(Dataset):
 
     def __init__(self, images_filename: str | pathlib.Path, labels_filename: str | pathlib.Path):
@@ -35,6 +39,11 @@ class SignalsDataset(Dataset):
 
         self.signals = torch.load(signals_filename)
 
+        # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
+        if type(self.signals) == np.ndarray:
+            
+            self.signals = torch.from_numpy(self.signals)
+
         # n_signals = len(self.signals)
 
         if normalize:
@@ -43,8 +52,13 @@ class SignalsDataset(Dataset):
             
             self.signals = (self.signals - mean[..., None]) / std[..., None]
 
+            # TODO: compute `i_constant` first, and filter out the signals
+
             # indexes of the constant signals
             i_constant = torch.nonzero(std == 0.)[:, 0]
+
+            # the number of them
+            n_constant_signals = len(i_constant)
 
             # a mask to keep only the non-constant signals
             to_keep = torch.full((len(self.signals),), 1, dtype=bool)
@@ -53,17 +67,9 @@ class SignalsDataset(Dataset):
             # only non-constant signals are kept
             self.signals = self.signals[to_keep]
 
-            if torch.isnan(self.signals).any().item():
+            if n_constant_signals > 0:
 
-                print('oops normalizing signals produced NaNs')
-        
-        # if metadata_filename:
-        #     self.metadata_df = pd.read_parquet(metadata_filename)
-        #     self.labels = self.metadata_df['label'].cat.codes
-        #     self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
-        # else:
-        #     self.labels = torch.full((len(self.signals),), torch.nan)
-        #     self.labels_names = {}
+                logger.warning(f'dismissed {n_constant_signals} constant signals (that cannot be normalized); {len(self.signals)} left')
 
         # factored out code to initialize `labels` and `labels_names` when `metadata_filename`
         # is not provided or it doesn't contain labels
@@ -74,9 +80,11 @@ class SignalsDataset(Dataset):
             
             self.metadata_df = pd.read_parquet(metadata_filename)
 
-            # only metadata for non-constant signals is kept
-            self.metadata_df = self.metadata_df.drop(i_constant)
-            # self.metadata_df = self.metadata_df.iloc[to_keep]
+            if normalize:
+            
+                # only metadata for non-constant signals is kept
+                # self.metadata_df = self.metadata_df.drop(i_constant)
+                self.metadata_df = self.metadata_df.drop(i_constant).reset_index(drop=True)
 
             if 'label' in self.metadata_df.columns:
 
@@ -113,7 +121,6 @@ def dataloaders_from_dataset(
     train_ds, validation_ds = Subset(ds, train_idx), Subset(ds, validation_idx)
 
     # a random key...
-    # key, subkey = jr.split(rng_key)
     key, subkey = jr.split(jr.PRNGKey(batching_random_state))
 
     # ...to compute a seed for a PyTorch `Generator`...

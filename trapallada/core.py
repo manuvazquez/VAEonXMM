@@ -1,6 +1,7 @@
 import pathlib
 import argparse
 import shutil
+import signal
 
 import yaml
 import pandas as pd
@@ -21,6 +22,26 @@ import trapallada.data
 import trapallada.model
 import trapallada.model.signal
 import trapallada.model.image
+
+import trapallada.logging as log
+
+# logger = log.setup_logging(__name__)
+
+# --------
+
+sigint_recived = False
+
+def signal_handler(sig, frame):
+
+    global sigint_recived
+    
+    print('Control-C pressed, exiting gracefully...')
+    
+    sigint_recived = True
+
+signal.signal(signal.SIGINT, signal_handler)
+
+# --------
 
 def fit(data_base_filename: str | pathlib.Path, parameters: dict, rng_key: int | jax.Array) -> tuple[eqx.Module, pd.DataFrame]:
 
@@ -186,6 +207,8 @@ def cl_fit(args: list = None):
 
 def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.Module, pd.DataFrame]:
 
+    global sigint_recived
+
     @eqx.filter_jit
     def loss(
             model: eqx.Module,
@@ -276,7 +299,10 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     # ...a different one for the validation set
     evaluation_key = jr.PRNGKey(parameters['PRNG seeds']['sampling']['validation set'])
 
-    for epoch in range(parameters['training']['n_epochs']):
+    epoch = 0
+
+    while (epoch < parameters['training']['n_epochs']) and not sigint_recived:
+    # for epoch in range(parameters['training']['n_epochs']):
 
         for i_batch, (i_sample, x, _) in enumerate(train_dl):
 
@@ -284,18 +310,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
             x = x.numpy()
 
-            # print(x[0,0,0])
-
-            # np.argwhere(np.isnan(x))
-
-            # if jnp.isnan(x).any().item():
-                
-            #     print(f'oops {i_sample=}')
-
             model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, parameters['loss']['x_sd'], subkey)
-
-            # if jnp.isnan(loss_value).item():
-            #     print('oops')
 
             # adding up *averages* (of both the loss and the accuracy)
             results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
@@ -315,6 +330,13 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         print(results_df.loc[epoch].to_frame().T)
         # display(results_df.loc[epoch].to_frame().T)
+
+        epoch += 1
+
+    # if training was interrupted...
+    if epoch < parameters['training']['n_epochs']:
+        
+        results_df = results_df.loc[:epoch-1]
 
     return model, results_df
 
@@ -339,9 +361,12 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # if a "base name" for the output files was passed...
     if command_line_arguments.output_files_stem:
+        
         output_filename = pathlib.Path(command_line_arguments.output_files_stem)
+    
     # if a "base name" for the output files was NOT passed...
     else:
+        
         # ...it is inferred from that of the parameters file
         output_filename = pathlib.Path(parameters_file.with_suffix(''))
 

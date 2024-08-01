@@ -14,7 +14,8 @@
 			"**/*.eqx": true,
 			"**/*.parquet": true,
 			"**/*.tar": true,
-			"**/iframe_figures": true
+			"**/iframe_figures": true,
+			"LICENSE": true
 		}
 	},
 }

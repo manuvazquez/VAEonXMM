@@ -411,7 +411,7 @@ def slice(
     return res
 
 def tars_to_array(
-        files, bin_size: int = 63, window_size: int = 200, step: int = 50, min_duration: int = 20_000, max_n_sources: int = 4, min_power: float = .5
+        files, bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4, min_power: float = .5
         ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
 
     signals_list = []
@@ -429,15 +429,6 @@ def tars_to_array(
 
         # if something was actually read...
         if df is not None:
-
-            # # duration of the signal in this file
-            # duration = df.index[-1] - df.index[0]
-
-            # if duration.total_seconds() < min_duration:
-                
-            #     logger.warning(f'skipping "{f}" because it is too short')
-                
-            #     continue
 
             # if there is *any* `NaN` at all (in any column, at any time instant)...
             if df.isna().any().any():
@@ -503,10 +494,6 @@ def tars_to_array(
 
                 logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds (period is {period * bin_size})')
 
-                # if window_size_in_seconds > min_duration:
-
-                #     logger.warning(f'window size might be too large for the duration of the signal')
-
             last_period = period
 
             if len(binned_df) < window_size:
@@ -541,8 +528,9 @@ def cl_tars_to_array(args: list = None):
     
     parser.add_argument('-b', '--bin-size', type=int, default=None, help='Bin size')
     parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size')
-    parser.add_argument('-m', '--min-duration', type=int, default=None, help='Minimum duration (of the whole observation)')
     parser.add_argument('-s', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
+
+    # TODO: to be removed
     parser.add_argument('-p', '--min-power', type=float, default=None, help='Minimum power')
 
     command_line_arguments = parser.parse_args(args)
@@ -565,5 +553,6 @@ def cl_tars_to_array(args: list = None):
     torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
     parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
 
-    torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
+    # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
+    torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
