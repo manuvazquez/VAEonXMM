@@ -107,8 +107,8 @@ class SignalsDataset(Dataset):
         return idx, self.signals[idx], self.labels[idx]
     
 def dataloaders_from_dataset(
-        ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int
-        ) -> tuple[DataLoader, DataLoader]:
+        ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False
+        ) -> tuple[DataLoader, DataLoader] | tuple[tuple[DataLoader, DataLoader], tuple[Dataset, Dataset]]:
 
     train_idx, validation_idx = train_test_split(
         np.arange(len(ds)), 
@@ -130,5 +130,9 @@ def dataloaders_from_dataset(
     # ...meant for "batching" in the `DataLoader`'s
     train_dl = DataLoader(train_ds, batch_size, shuffle=True, generator=torch_rng)
     validation_dl = DataLoader(validation_ds, batch_size=batch_size, shuffle=False, generator=torch_rng)
+
+    if return_datasets:
+        
+        return (train_dl, validation_dl), (train_ds, validation_ds)
 
     return train_dl, validation_dl

@@ -1,4 +1,5 @@
 home_dir := env_var('HOME')
+tmp_dir := '/tmp/'
 
 light_curves_dir := join(home_dir, 'Sync/research/light curves')
 
@@ -68,3 +69,7 @@ pack_obs OUTPUT_FILES_STEM BIN_SIZE="20" WINDOW_SIZE="600" MIN_POWER="0.5" DOWNL
 
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
+
+retrieve_from_cluster SERVER="meiga04" DIRECTORY="trapallada/experiments/results":
+  rsync {{SERVER}}:{{DIRECTORY}}/* {{tmp_dir}}/
+  @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"

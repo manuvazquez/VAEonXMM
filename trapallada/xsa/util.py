@@ -492,7 +492,9 @@ def tars_to_array(
 
                 window_size_in_seconds = (binned_period * window_size).total_seconds()
 
-                logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds (period is {period * bin_size})')
+                print(step)
+                logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds '
+                            f'(period is {binned_period.total_seconds()} seconds, step is {(binned_period * step).total_seconds()} seconds)')
 
             last_period = period
 

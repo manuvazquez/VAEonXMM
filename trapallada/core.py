@@ -2,6 +2,8 @@ import pathlib
 import argparse
 import shutil
 import signal
+import time
+import datetime
 
 import yaml
 import pandas as pd
@@ -22,10 +24,11 @@ import trapallada.data
 import trapallada.model
 import trapallada.model.signal
 import trapallada.model.image
+import trapallada.util
 
 import trapallada.logging as log
 
-# logger = log.setup_logging(__name__)
+logger = log.setup_logging(__name__)
 
 # --------
 
@@ -345,6 +348,8 @@ def cl_fit_vae_on_signals(args: list = None):
     Command line interface for the `fit_vae_on_signals` function.
     """
 
+    starting_time = time.time()
+
     parser = argparse.ArgumentParser(description='Fit a VAE model to a dataset.')
 
     parser.add_argument('parameters_file', type=argparse.FileType('r'), help='parameters file')
@@ -388,6 +393,8 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # the model is trained
     model, results_df = trapallada.core.fit_vae_on_signals(train_dl, validation_dl, parameters)
+
+    logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
     
     # the weights of the model are saved...
     trapallada.model.image.save_vae(output_filename.with_suffix('.eqx'), model)
@@ -403,3 +410,8 @@ def cl_fit_vae_on_signals(args: list = None):
         
         # ...a copy is made
         shutil.copy2(command_line_arguments.parameters_file.name, output_filename.with_suffix('.yaml'))
+
+    end_time = time.time()
+
+    # logger.info(f'elapsed time: {end_time - starting_time:.2f} seconds')
+    logger.info(f'elapsed time: {datetime.timedelta(seconds=end_time - starting_time)} (hours:minutes:seconds)')
