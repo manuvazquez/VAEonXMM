@@ -28,19 +28,21 @@ import trapallada.util
 
 import trapallada.logging as log
 
+import mlflow
+
 logger = log.setup_logging(__name__)
 
 # --------
 
-sigint_recived = False
+sigint_received = False
 
 def signal_handler(sig, frame):
 
-    global sigint_recived
+    global sigint_received
     
     print('Control-C pressed, exiting gracefully...')
     
-    sigint_recived = True
+    sigint_received = True
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -210,7 +212,7 @@ def cl_fit(args: list = None):
 
 def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.Module, pd.DataFrame]:
 
-    global sigint_recived
+    global sigint_received
 
     @eqx.filter_jit
     def loss(
@@ -304,7 +306,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
     epoch = 0
 
-    while (epoch < parameters['training']['n_epochs']) and not sigint_recived:
+    while (epoch < parameters['training']['n_epochs']) and not sigint_received:
     # for epoch in range(parameters['training']['n_epochs']):
 
         for i_batch, (i_sample, x, _) in enumerate(train_dl):
@@ -352,17 +354,15 @@ def cl_fit_vae_on_signals(args: list = None):
 
     parser = argparse.ArgumentParser(description='Fit a VAE model to a dataset.')
 
-    parser.add_argument('parameters_file', type=argparse.FileType('r'), help='parameters file')
-    parser.add_argument('signals_file', type=argparse.FileType('r'), help='signals file')
-    parser.add_argument('metadata_file', type=argparse.FileType('r'), help='associated metadata for signals file')
+    parser.add_argument('parameters_file', type=pathlib.Path, help='parameters file')
+    parser.add_argument('signals_file', type=pathlib.Path, help='signals file')
+    parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
+    parser.add_argument('signals_hyperparameters_file', type=pathlib.Path, nargs='?', default=None, help='hyperparameters used in assembling the signals')
     # parser.add_argument('output_files_stem', type=str, help='base name for output files')
     parser.add_argument('-o', '--output-files-stem', default=None, help='base name for output files',
         nargs='?')
 
     command_line_arguments = parser.parse_args(args)
-
-    # for the sake of convenience
-    parameters_file = pathlib.Path(command_line_arguments.parameters_file.name)
 
     # if a "base name" for the output files was passed...
     if command_line_arguments.output_files_stem:
@@ -373,15 +373,16 @@ def cl_fit_vae_on_signals(args: list = None):
     else:
         
         # ...it is inferred from that of the parameters file
-        output_filename = pathlib.Path(parameters_file.with_suffix(''))
+        output_filename = command_line_arguments.parameters_file.with_suffix('')
 
     # parameters file is read
-    with parameters_file.open() as f:
+    with command_line_arguments.parameters_file.open() as f:
+        
         parameters = yaml.safe_load(f)
 
     # the dataset is loaded...
     ds = trapallada.data.SignalsDataset(
-        command_line_arguments.signals_file.name, command_line_arguments.metadata_file.name, normalize=True
+        command_line_arguments.signals_file, command_line_arguments.metadata_file, normalize=True
     )
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
@@ -406,12 +407,37 @@ def cl_fit_vae_on_signals(args: list = None):
     parameters_file_backup = output_filename.with_suffix('.yaml')
 
     # if it's not the same file as the one passed as an argument...
-    if not parameters_file_backup.samefile(command_line_arguments.parameters_file.name):
+    if not parameters_file_backup.samefile(command_line_arguments.parameters_file):
         
         # ...a copy is made
-        shutil.copy2(command_line_arguments.parameters_file.name, output_filename.with_suffix('.yaml'))
+        shutil.copy2(command_line_arguments.parameters_file, output_filename.with_suffix('.yaml'))
 
     end_time = time.time()
 
     # logger.info(f'elapsed time: {end_time - starting_time:.2f} seconds')
     logger.info(f'elapsed time: {datetime.timedelta(seconds=end_time - starting_time)} (hours:minutes:seconds)')
+
+        # the URL for mlflow
+    # mlflow.set_tracking_uri(uri='http://127.0.0.1:8080')
+    # mlflow.set_tracking_uri(uri='http://meiga05:5000')
+
+    if command_line_arguments.signals_hyperparameters_file:
+    
+        with command_line_arguments.signals_hyperparameters_file.open() as f:
+            
+            data_hyperparameters = yaml.safe_load(f)
+
+        parameters['data'] = data_hyperparameters
+
+    mlflow.set_experiment("VAE")
+
+    with mlflow.start_run():
+            
+        mlflow.log_params(parameters)
+
+        mlflow.set_tag("Vanilla VAE", "plain")
+
+        for i_res, res in results_df.iterrows():
+            
+            # mlflow.log_metrics(res['validation'].to_dict(), step=i_res)
+            mlflow.log_metrics({'_'.join(k):v for k,v in res.to_dict().items()}, step=i_res)

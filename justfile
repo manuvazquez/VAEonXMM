@@ -31,7 +31,7 @@ cuda:
   python -c "import jax; print(jax.devices())"
 
 [private]
-fit PARAMETERS DATA_FILE METADATA_FILE:
+fit PARAMETERS DATA_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
@@ -49,11 +49,11 @@ fit PARAMETERS DATA_FILE METADATA_FILE:
       echo "nvidia-smi not found. CUDA_VISIBLE_DEVICES not set."
   fi
   
-  trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}"
+  trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
 fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_classes_modulated_labels.parquet")
 
-fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet")
+fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
@@ -61,11 +61,11 @@ download_obs DIR=data_dir:
   conda activate {{conda_environment}}
   trap_download_obs.py {{DIR}}
 
-pack_obs OUTPUT_FILES_STEM BIN_SIZE="20" WINDOW_SIZE="600" MIN_POWER="0.5" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
+pack_obs OUTPUT_FILES_STEM BIN_SIZE="20" WINDOW_SIZE="600" STEP="50" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_FILES_STEM}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -p {{MIN_POWER}}
+  trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_FILES_STEM}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}}
 
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
@@ -73,3 +73,16 @@ whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_F
 retrieve_from_cluster SERVER="meiga04" DIRECTORY="trapallada/experiments/results":
   rsync {{SERVER}}:{{DIRECTORY}}/* {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
+
+mlflow_ui:
+  #!/usr/bin/env bash
+  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+  conda activate {{conda_environment}}
+  mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+
+remote_mlflow_ui SERVER="meiga04" BROWSER="microsoft-edge-stable":
+  #!/usr/bin/env bash
+  ssh -N -L 10000:localhost:8080 {{SERVER}} &
+  SSH_PID=$!
+  {{BROWSER}} http://localhost:10000
+  kill $SSH_PID

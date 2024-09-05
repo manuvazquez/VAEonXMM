@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/manuvazquez/trapallada",
     packages=setuptools.find_packages(),
-    install_requires=['astropy', 'astroquery', 'pandas', 'jax', 'optax', 'equinox', 'jaxtyping', 'numpyro', 'pyyaml'],
+    install_requires=['astropy', 'astroquery', 'pandas', 'jax', 'optax', 'equinox', 'jaxtyping', 'numpyro', 'pyyaml', 'mlflow'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Environment :: Console",

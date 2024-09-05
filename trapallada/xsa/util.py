@@ -9,8 +9,8 @@ import re
 from typing import Sequence
 
 import pandas as pd
-
 import numpy as np
+import yaml
 
 import torch
 
@@ -411,7 +411,7 @@ def slice(
     return res
 
 def tars_to_array(
-        files, bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4, min_power: float = .5
+        files, bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4
         ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
 
     signals_list = []
@@ -448,6 +448,8 @@ def tars_to_array(
             binned_df = trapallada.xsa.util.bin_fits_df(df, bin_size=bin_size)
 
             # ---
+
+            # min_power = .5
             
             # # power of the (binned) signals
             # power = (binned_df**2).mean(axis=0)
@@ -504,6 +506,7 @@ def tars_to_array(
                 
                 continue
 
+            # signals are "sliced"
             sliced_signals, sliced_times, n_windows = trapallada.xsa.util.slice(
                 binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
 
@@ -530,17 +533,15 @@ def cl_tars_to_array(args: list = None):
     
     parser.add_argument('-b', '--bin-size', type=int, default=None, help='Bin size')
     parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size')
-    parser.add_argument('-s', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
-
-    # TODO: to be removed
-    parser.add_argument('-p', '--min-power', type=float, default=None, help='Minimum power')
+    parser.add_argument('-s', '--step', type=int, default=None, help='Step for the sliding window')
+    parser.add_argument('-m', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
 
     command_line_arguments = parser.parse_args(args)
     
     # tar_files = list(command_line_arguments.download_directory.glob('*.tar'))[:4]
     tar_files = list(command_line_arguments.download_directory.glob('*.tar'))
 
-    # arguments that are `None` and command line-only arguments are trimmed
+    # arguments that are `None`, and also command line-only arguments are trimmed
     not_none_args = {
         k: v for k, v in vars(command_line_arguments).items()
         if (v is not None) and (k not in ['download_directory', 'output_directory', 'output_files_stem'])
@@ -554,7 +555,12 @@ def cl_tars_to_array(args: list = None):
 
     torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
     parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
+    yaml_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_hyperparameters')).with_suffix('.yaml')
 
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
     torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
+    
+    with open(yaml_file, 'w') as f:
+        
+        yaml.dump(not_none_args, f, default_flow_style=False)

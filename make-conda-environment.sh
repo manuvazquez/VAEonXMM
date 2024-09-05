@@ -60,6 +60,7 @@ conda activate $NAME
 # pip stuff here....
 # pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 # pip install astroquery
+pip install mlflow # apparently, conda installation is not working
 pip install -e .
 
 # ------------

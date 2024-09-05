@@ -57,6 +57,7 @@ $MANAGER create --yes -n $NAME $LIBRARIES_CONCATENATED -c $CHANNELS_CONCATENATED
 conda activate $NAME
 
 # pip stuff here....
+pip install mlflow # apparently, conda installation is not working
 pip install -e .
 
 # ------------
