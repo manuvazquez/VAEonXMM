@@ -80,7 +80,7 @@ mlflow_ui:
   conda activate {{conda_environment}}
   mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
-remote_mlflow_ui SERVER="meiga04" BROWSER="microsoft-edge-stable":
+connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="opera":
   #!/usr/bin/env bash
   ssh -N -L 10000:localhost:8080 {{SERVER}} &
   SSH_PID=$!

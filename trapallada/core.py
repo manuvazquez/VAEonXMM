@@ -371,6 +371,12 @@ def cl_fit_vae_on_signals(args: list = None):
     
     # if a "base name" for the output files was NOT passed...
     else:
+
+        if '.' in command_line_arguments.parameters_file.stem:
+            
+            print('The *name* of the parameters file should NOT have an extension')
+
+            raise SystemExit
         
         # ...it is inferred from that of the parameters file
         output_filename = command_line_arguments.parameters_file.with_suffix('')
@@ -410,19 +416,24 @@ def cl_fit_vae_on_signals(args: list = None):
     if not parameters_file_backup.samefile(command_line_arguments.parameters_file):
         
         # ...a copy is made
-        shutil.copy2(command_line_arguments.parameters_file, output_filename.with_suffix('.yaml'))
+        # shutil.copy2(command_line_arguments.parameters_file, output_filename.with_suffix('.yaml'))
+        shutil.copy2(command_line_arguments.parameters_file, parameters_file_backup)
 
     end_time = time.time()
 
     # logger.info(f'elapsed time: {end_time - starting_time:.2f} seconds')
     logger.info(f'elapsed time: {datetime.timedelta(seconds=end_time - starting_time)} (hours:minutes:seconds)')
 
+    # ----- MLflow logging -----
+
         # the URL for mlflow
     # mlflow.set_tracking_uri(uri='http://127.0.0.1:8080')
     # mlflow.set_tracking_uri(uri='http://meiga05:5000')
 
+    # if a file with hyperparameters for the signals was passed...
     if command_line_arguments.signals_hyperparameters_file:
     
+        # ...it is read
         with command_line_arguments.signals_hyperparameters_file.open() as f:
             
             data_hyperparameters = yaml.safe_load(f)
@@ -437,7 +448,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
         mlflow.set_tag("Vanilla VAE", "plain")
 
+        # for every row (epoch) in the results `DataFrame`...
         for i_res, res in results_df.iterrows():
             
-            # mlflow.log_metrics(res['validation'].to_dict(), step=i_res)
             mlflow.log_metrics({'_'.join(k):v for k,v in res.to_dict().items()}, step=i_res)
