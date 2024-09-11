@@ -55,13 +55,15 @@ fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_cl
 
 fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
 
+fit_test: (fit_real "experiments/results/mini_good.yaml" "63_225_10")
+
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
   trap_download_obs.py {{DIR}}
 
-pack_obs OUTPUT_FILES_STEM BIN_SIZE="20" WINDOW_SIZE="600" STEP="50" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
+pack_obs OUTPUT_FILES_STEM BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
@@ -78,6 +80,7 @@ mlflow_ui:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
+  echo {{env_var('MLFLOW_TRACKING_URI')}}
   mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
 connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="opera":

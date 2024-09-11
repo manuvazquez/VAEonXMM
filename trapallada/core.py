@@ -352,6 +352,8 @@ def cl_fit_vae_on_signals(args: list = None):
 
     starting_time = time.time()
 
+    # TODO: should `signals_hyperparameters_file` be optional?
+
     parser = argparse.ArgumentParser(description='Fit a VAE model to a dataset.')
 
     parser.add_argument('parameters_file', type=pathlib.Path, help='parameters file')
@@ -374,12 +376,14 @@ def cl_fit_vae_on_signals(args: list = None):
 
         if '.' in command_line_arguments.parameters_file.stem:
             
-            print('The *name* of the parameters file should NOT have an extension')
+            print('The *name* of the parameters file should NOT include a dot (.)')
 
             raise SystemExit
         
         # ...it is inferred from that of the parameters file
-        output_filename = command_line_arguments.parameters_file.with_suffix('')
+        # output_filename = command_line_arguments.parameters_file.with_suffix('')
+        output_filename = command_line_arguments.parameters_file.\
+            with_stem('res_' + command_line_arguments.parameters_file.stem).with_suffix('')
 
     # parameters file is read
     with command_line_arguments.parameters_file.open() as f:
@@ -402,26 +406,20 @@ def cl_fit_vae_on_signals(args: list = None):
     model, results_df = trapallada.core.fit_vae_on_signals(train_dl, validation_dl, parameters)
 
     logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
+
+    # for the sake of convenience
+    eqx_filename = output_filename.with_suffix('.eqx')
+    parquet_filename = output_filename.with_suffix('.parquet')
+    yaml_filename = output_filename.with_suffix('.yaml')
     
     # the weights of the model are saved...
-    trapallada.model.image.save_vae(output_filename.with_suffix('.eqx'), model)
+    trapallada.model.image.save_vae(eqx_filename, model)
 
     # ...and so are the results
-    results_df.to_parquet(output_filename.with_suffix('.parquet'))
-
-    # a name for a backup of the parameters file is also derived
-    parameters_file_backup = output_filename.with_suffix('.yaml')
-
-    # if it's not the same file as the one passed as an argument...
-    if not parameters_file_backup.samefile(command_line_arguments.parameters_file):
-        
-        # ...a copy is made
-        # shutil.copy2(command_line_arguments.parameters_file, output_filename.with_suffix('.yaml'))
-        shutil.copy2(command_line_arguments.parameters_file, parameters_file_backup)
+    results_df.to_parquet(parquet_filename)
 
     end_time = time.time()
 
-    # logger.info(f'elapsed time: {end_time - starting_time:.2f} seconds')
     logger.info(f'elapsed time: {datetime.timedelta(seconds=end_time - starting_time)} (hours:minutes:seconds)')
 
     # ----- MLflow logging -----
@@ -430,15 +428,35 @@ def cl_fit_vae_on_signals(args: list = None):
     # mlflow.set_tracking_uri(uri='http://127.0.0.1:8080')
     # mlflow.set_tracking_uri(uri='http://meiga05:5000')
 
+    # in order to obtain relative paths down below
+    home_dir = pathlib.Path.home()
+
+    # a section in the parameters file for everything related to the dataset used for training
+    parameters['dataset'] = {}
+    
+    # the files used for training are recorded
+    parameters['dataset']['files'] = dict(
+        signals_file=command_line_arguments.signals_file.relative_to(home_dir).as_posix(),
+        metadata_file=command_line_arguments.metadata_file.relative_to(home_dir).as_posix())
+
     # if a file with hyperparameters for the signals was passed...
     if command_line_arguments.signals_hyperparameters_file:
     
-        # ...it is read
+        # ...it is read...
         with command_line_arguments.signals_hyperparameters_file.open() as f:
             
             data_hyperparameters = yaml.safe_load(f)
 
-        parameters['data'] = data_hyperparameters
+        # ...and added to the `parameters` dictionary
+        parameters['dataset']['hyperparameters'] = data_hyperparameters
+
+        # another file used for training is recorded
+        parameters['dataset']['files']['signals_hyperparameters_file'] = command_line_arguments.\
+            signals_hyperparameters_file.relative_to(home_dir).as_posix()
+
+    with open(yaml_filename, 'w') as f:
+        
+        yaml.dump(parameters, f, default_flow_style=False)
 
     mlflow.set_experiment("VAE")
 
@@ -452,3 +470,11 @@ def cl_fit_vae_on_signals(args: list = None):
         for i_res, res in results_df.iterrows():
             
             mlflow.log_metrics({'_'.join(k):v for k,v in res.to_dict().items()}, step=i_res)
+
+        mlflow.log_artifact(yaml_filename)
+        mlflow.log_artifact(eqx_filename)
+        mlflow.log_artifact(parquet_filename)
+
+        if command_line_arguments.signals_hyperparameters_file:
+            
+            mlflow.log_artifact(command_line_arguments.signals_hyperparameters_file)

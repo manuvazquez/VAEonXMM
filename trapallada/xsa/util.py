@@ -79,7 +79,7 @@ def read_fits_file(file: pathlib.Path | str) -> pd.DataFrame:
     # the "Mission Time Zero" is extracted from the header...
     mjdref = fits.getheader(file, 1)['MJDREF']
     
-    # and an *astropy* `Time` object is made out of it
+    # ...and an *astropy* `Time` object is made out of it
     time_ref = Time(mjdref, format='mjd')
     
     # dates are shifted
@@ -196,7 +196,6 @@ def download_observations(
     # for every observation...
     for obs_id in obs_to_download:
 
-        # print(f'Requesting observation {obs_id}')
         logger.info(f'Requesting observation {obs_id}')
         
         # ...the data is downloaded
@@ -374,7 +373,21 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame |
 
 def slice(
         df: pd.DataFrame, window_size: int, step: int, tail_as_window: bool = True, return_n_windows: bool = False
-        ) -> Float[Array, 'window time']:
+        ) -> Float[Array, 'window time'] | tuple[Float[Array, 'window time'], int]:
+    """
+    Vertically slices a DataFrame into windows of a specified size and step.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame to be sliced.
+        window_size (int): The size of each window.
+        step (int): The step size between windows.
+        tail_as_window (bool, optional): Whether to include a last window with leftovers. Defaults to True.
+        return_n_windows (bool, optional): Whether to return the number of windows. Defaults to False.
+    
+    Returns:
+        Tuple[Float[Array, 'window time']]: A tuple containing the stacked slices and the corresponding index slices.
+        If `return_n_windows` is True, the tuple also includes the number of windows.
+    """
     
     # data is sliced...
     slices = np.lib.stride_tricks.sliding_window_view(df.values, window_shape=window_size, axis=0)[::step]
@@ -411,8 +424,24 @@ def slice(
     return res
 
 def tars_to_array(
-        files, bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4
+        files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4
         ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
+    """
+    Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
+    
+    Args:
+        files (Sequence[str | pathlib.Path]): A sequence of file paths to tar files.
+        bin_size (int, optional): The size of the bins for signal binning. Defaults to 63.
+        window_size (int, optional): The size of the window for signal slicing. Defaults to 200.
+        step (int, optional): The step size for signal slicing. Defaults to 50.
+        max_n_sources (int, optional): The maximum number of sources to read from each tar file. Defaults to 4.
+    
+    Returns:
+        tuple[Float[Array, 'window time'], pd.DataFrame]: A tuple containing the NumPy array of signals and the pandas DataFrame of metadata.
+    
+    Raises:
+        RuntimeError: If the period of a tar file does not match the previous period(s).
+    """
 
     signals_list = []
     last_period = None
@@ -444,12 +473,15 @@ def tars_to_array(
                     
                     continue
 
+            # the period of the raw `DataFrame`
+            period = df.index[1] - df.index[0]
+            
             # signals are binned
             binned_df = trapallada.xsa.util.bin_fits_df(df, bin_size=bin_size)
 
             # ---
 
-            # min_power = .5
+            # min_power = 5.
             
             # # power of the (binned) signals
             # power = (binned_df**2).mean(axis=0)
@@ -473,11 +505,8 @@ def tars_to_array(
             #     logger.warning(f'dropping {n_low_power_columns} signals in "{f}" due to low power (<{min_power})')
 
             # ---
-            
-            # the period of the raw `DataFrame`
-            period = df.index[1] - df.index[0]
 
-            # that of the *binned* one
+            # the period of the *binned* `DataFrame`
             binned_period = binned_df.index[1] - binned_df.index[0]
 
             # if this is not the first file (`last_period` is `None`)...
@@ -494,7 +523,7 @@ def tars_to_array(
 
                 window_size_in_seconds = (binned_period * window_size).total_seconds()
 
-                print(step)
+                # print(step)
                 logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds '
                             f'(period is {binned_period.total_seconds()} seconds, step is {(binned_period * step).total_seconds()} seconds)')
 
