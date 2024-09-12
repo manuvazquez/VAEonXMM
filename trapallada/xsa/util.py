@@ -603,5 +603,5 @@ def cl_tars_to_array(args: list = None):
     
     with open(yaml_file, 'w') as f:
         
-        # yaml.dump(not_none_args, f, default_flow_style=False)
+        # `default_args` are used only whenever a key is not present in `not_none_args`
         yaml.dump(default_args | not_none_args, f, default_flow_style=False)
