@@ -462,7 +462,8 @@ def cl_fit_vae_on_signals(args: list = None):
 
     with mlflow.start_run():
             
-        mlflow.log_params(parameters)
+        # mlflow.log_params(parameters)
+        mlflow.log_params(trapallada.util.flatten_dict(parameters))
 
         mlflow.set_tag("Vanilla VAE", "plain")
 

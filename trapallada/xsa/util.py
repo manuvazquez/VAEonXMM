@@ -21,6 +21,7 @@ import astropy.io.fits as fits
 from astropy.time import Time
 import astropy.units as u
 
+import trapallada.util
 import trapallada.xsa.access
 import trapallada.logging as log
 
@@ -424,8 +425,8 @@ def slice(
     return res
 
 def tars_to_array(
-        files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50, max_n_sources: int = 4
-        ) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
+        files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
+        max_n_sources: int = 4, min_power: float = 0.) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
     
@@ -435,6 +436,7 @@ def tars_to_array(
         window_size (int, optional): The size of the window for signal slicing. Defaults to 200.
         step (int, optional): The step size for signal slicing. Defaults to 50.
         max_n_sources (int, optional): The maximum number of sources to read from each tar file. Defaults to 4.
+        min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
     
     Returns:
         tuple[Float[Array, 'window time'], pd.DataFrame]: A tuple containing the NumPy array of signals and the pandas DataFrame of metadata.
@@ -483,26 +485,28 @@ def tars_to_array(
 
             # min_power = 5.
             
-            # # power of the (binned) signals
-            # power = (binned_df**2).mean(axis=0)
+            # power of the (binned) signals
+            power = (binned_df**2).mean(axis=0)
 
-            # # a `Series` with the columns (i.e., signals) whose power is below the threshold
-            # low_power_columns = power[(power < min_power)].index
-            # n_low_power_columns = len(low_power_columns)
+            # a `Series` with the columns (i.e., signals) whose power is below the threshold
+            low_power_columns = power[(power < min_power)].index
+            n_low_power_columns = len(low_power_columns)
 
-            # # if every signal has low power...
-            # if n_low_power_columns == len(binned_df.columns):
+            # if every signal has low power...
+            if n_low_power_columns == len(binned_df.columns):
 
-            #     logger.warning(f'every signal has power below {min_power} in "{f}", skipping...')
+                logger.warning(f'every signal has power below {min_power} in "{f}", skipping...')
                 
-            #     continue
+                # ...the file is skipped
+                continue
 
-            # # at this point not EVERY signal has low power, but if any...
-            # if n_low_power_columns > 0:
+            # at this point not EVERY signal has low power, but those that do have...
+            if n_low_power_columns > 0:
 
-            #     binned_df = binned_df.drop(low_power_columns, axis=1)
+                # ...are dropped
+                binned_df = binned_df.drop(low_power_columns, axis=1)
 
-            #     logger.warning(f'dropping {n_low_power_columns} signals in "{f}" due to low power (<{min_power})')
+                logger.warning(f'dropping {n_low_power_columns} signals in "{f}" due to low power (<{min_power})')
 
             # ---
 
@@ -563,7 +567,8 @@ def cl_tars_to_array(args: list = None):
     parser.add_argument('-b', '--bin-size', type=int, default=None, help='Bin size')
     parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size')
     parser.add_argument('-s', '--step', type=int, default=None, help='Step for the sliding window')
-    parser.add_argument('-m', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
+    parser.add_argument('-M', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
+    parser.add_argument('-m', '--min-power', type=float, default=None, help='Minimum power')
 
     command_line_arguments = parser.parse_args(args)
     
@@ -589,7 +594,14 @@ def cl_tars_to_array(args: list = None):
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
     torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
+
+    # the default arguments of the function doing the actual work...
+    default_args = trapallada.util.func_args_with_defaults(trapallada.xsa.util.tars_to_array)
+    
+    # ...minus the `files` argument
+    default_args.pop('files')
     
     with open(yaml_file, 'w') as f:
         
-        yaml.dump(not_none_args, f, default_flow_style=False)
+        # yaml.dump(not_none_args, f, default_flow_style=False)
+        yaml.dump(default_args | not_none_args, f, default_flow_style=False)

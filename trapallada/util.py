@@ -1,5 +1,5 @@
 from typing import Sequence, Callable, List
-from jaxtyping import PyTree
+import inspect
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 import jax
 import jax.numpy as jnp
 import jax.tree_util
+from jaxtyping import PyTree
 
 def conv_output_size(
         input_size: tuple | np.ndarray,
@@ -161,3 +162,42 @@ def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_proj
     z_tsne_df = pd.DataFrame(np.hstack((z_s, t_sne_embeddings)), columns=z_s_names + t_sne_names, index=metadata_df.index)
 
     return pd.concat([metadata_df, z_tsne_df], axis=1)
+
+def func_args_with_defaults(func):
+    """
+    Returns a dictionary of arguments and their default values for a given function.
+
+    Args:
+        func (function): The function to inspect.
+
+    Returns:
+        dict: A dictionary where keys are argument names and values are their default values.
+              If an argument has no default value, it is set to None.
+    """
+    signature = inspect.signature(func)
+    
+    return {
+        param.name: param.default if param.default is not param.empty else None
+        for param in signature.parameters.values()
+    }
+
+def flatten_dict(d, parent_key='', sep='.'):
+    """
+    Recursively flattens a nested dictionary.
+    
+    Args:
+        d (dict): The dictionary to flatten.
+        parent_key (str): The base key for recursion (used internally).
+        sep (str): The separator between parent and child keys.
+        
+    Returns:
+        dict: A flattened dictionary.
+    """
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
