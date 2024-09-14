@@ -11,6 +11,8 @@ data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'tra
 
 conda_environment := "trap"
 
+import '~/python/import.just'
+
 default:
   just --list
 
@@ -55,7 +57,7 @@ fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_cl
 
 fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
 
-fit_test: (fit_real "experiments/results/mini_good.yaml" "63_225_10")
+fit_test: (fit_real "results/mini_good.yaml" "63_225_10")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
@@ -84,7 +86,7 @@ mlflow_ui:
   echo {{env_var('MLFLOW_TRACKING_URI')}}
   mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
-connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="opera":
+connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   #!/usr/bin/env bash
   ssh -N -L 10000:localhost:8080 {{SERVER}} &
   SSH_PID=$!

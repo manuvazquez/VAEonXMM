@@ -44,8 +44,6 @@ class SignalsDataset(Dataset):
             
             self.signals = torch.from_numpy(self.signals)
 
-        # n_signals = len(self.signals)
-
         if normalize:
             mean = self.signals.mean(axis=-1)
             std = self.signals.std(axis=-1)
@@ -72,8 +70,7 @@ class SignalsDataset(Dataset):
                 logger.warning(f'dismissed {n_constant_signals} constant signals (that cannot be normalized); {len(self.signals)} left')
 
         # factored out code to initialize `labels` and `labels_names` when `metadata_filename`
-        # is not provided or it doesn't contain labels
-        # make_labels_and_labels_names = lambda : (torch.full((len(self.signals),), torch.nan), {})
+        # is not provided or doesn't contain labels
         make_labels_and_labels_names = lambda : (np.full((len(self.signals),), np.nan), {})
 
         if metadata_filename:
@@ -83,7 +80,6 @@ class SignalsDataset(Dataset):
             if normalize:
             
                 # only metadata for non-constant signals is kept
-                # self.metadata_df = self.metadata_df.drop(i_constant)
                 self.metadata_df = self.metadata_df.drop(i_constant).reset_index(drop=True)
 
             if 'label' in self.metadata_df.columns:
