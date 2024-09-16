@@ -68,12 +68,6 @@ def read_fits_file(file: pathlib.Path | str) -> pd.DataFrame:
         pd.DataFrame: The content of the FITS file.
     """
 
-    # # file is read with the high-level interface...
-    # table = Table.read(file, format='fits', hdu=1)
-
-    # # ...and turned into a Pandas DataFrame
-    # return table.to_pandas()
-
     # file is read with the high-level interface (`unit_parse_strict="silent"` is used to avoid warnings in an irrelevant column)
     df = Table.read(file, format='fits', hdu=1, unit_parse_strict="silent").to_pandas()
 
@@ -158,6 +152,20 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             skipped_files_list.append(f)
 
     return pd.concat(series_list, axis=1), skipped_files_list
+
+def get_fields_from_header(file: str | pathlib.Path, fields: Sequence[str]) -> tuple:
+    
+    header = fits.getheader(file, 1)
+
+    return [header[e] for e in fields]
+
+def get_position_from_header(file: str | pathlib.Path) -> pd.Series:
+
+    keys = ['SRC_RA', 'SRC_CRA', 'SRC_DEC', 'SRC_CDEC']
+
+    values = get_fields_from_header(file, keys)
+
+    return pd.Series(dict(zip([e.replace("SRC_", "") for e in keys], values)))
 
 def rank_obs_files(obs_dir: str | pathlib.Path) -> pd.DataFrame:
     """
@@ -432,9 +440,9 @@ def tars_to_array(
     
     Args:
         files (Sequence[str | pathlib.Path]): A sequence of file paths to tar files.
-        bin_size (int, optional): The size of the bins for signal binning. Defaults to 63.
-        window_size (int, optional): The size of the window for signal slicing. Defaults to 200.
-        step (int, optional): The step size for signal slicing. Defaults to 50.
+        bin_size (int, optional): The number of measurements that make up a bin. Defaults to 63.
+        window_size (int, optional): The size (in bins) of the window for signal slicing. Defaults to 200.
+        step (int, optional): The step size (in bins) for signal slicing. Defaults to 50.
         max_n_sources (int, optional): The maximum number of sources to read from each tar file. Defaults to 4.
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
     
@@ -565,8 +573,8 @@ def cl_tars_to_array(args: list = None):
     parser.add_argument('output_files_stem', type=str, help='Output directory')
     
     parser.add_argument('-b', '--bin-size', type=int, default=None, help='Bin size')
-    parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size')
-    parser.add_argument('-s', '--step', type=int, default=None, help='Step for the sliding window')
+    parser.add_argument('-w', '--window-size', type=int, default=None, help='Window size (in bins)')
+    parser.add_argument('-s', '--step', type=int, default=None, help='Step (in bins) for the sliding window')
     parser.add_argument('-M', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
     parser.add_argument('-m', '--min-power', type=float, default=None, help='Minimum power')
 

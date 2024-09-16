@@ -25,6 +25,13 @@ papermill FILE:
 
 test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "util.ipynb")
 
+# STEM: the full path to a results file (eqx, yaml, parquet) with or without extension
+run_results_notebook STEM:
+  #!/usr/bin/env bash
+  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+  conda activate {{conda_environment}}
+  papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{trim_start_match(file_stem(STEM), "res_")}}.ipynb -p input_files_stem {{without_extension(STEM)}}
+
 cuda:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
