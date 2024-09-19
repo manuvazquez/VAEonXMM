@@ -19,6 +19,7 @@ LIBRARIES=(
 	mkdocstrings-python python-markdown-math
     # pytorch torchvision
     pytorch torchvision cpuonly # apparently, using the above line without a GPU is a problem
+    numpyro
     jax equinox optax
     papermill
 )

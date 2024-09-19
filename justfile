@@ -30,7 +30,8 @@ run_results_notebook STEM:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{trim_start_match(file_stem(STEM), "res_")}}.ipynb -p input_files_stem {{without_extension(STEM)}}
+  # papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{trim_start_match(file_stem(STEM), "res_")}}.ipynb -p input_files_stem {{without_extension(STEM)}}
+  papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{file_stem(STEM)}}.ipynb -p input_files_stem {{STEM}}
 
 cuda:
   #!/usr/bin/env bash
@@ -62,9 +63,11 @@ fit PARAMETERS DATA_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
 
 fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_classes_modulated_labels.parquet")
 
-fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
+# fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
+fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "/signals.pt" DATA_FILES_STEM + "/metadata.parquet" DATA_FILES_STEM + "/data_preprocessing_parameters.yaml")
 
-fit_test: (fit_real "results/mini_good.yaml" "63_225_10")
+# fit_test: (fit_real "results/mini_good.yaml" "63_225_10")
+fit_test: (fit_real "results/mini_good.yaml" "5_sources")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash

@@ -37,7 +37,8 @@ class SignalsDataset(Dataset):
 
     def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False):
 
-        self.signals = torch.load(signals_filename)
+        # self.signals = torch.load(signals_filename)
+        self.signals = torch.load(signals_filename, weights_only=False)
 
         # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
         if type(self.signals) == np.ndarray:

@@ -595,9 +595,16 @@ def cl_tars_to_array(args: list = None):
 
     logger.info(f'{signals.shape[0]} signals of length {signals.shape[1]} samples ({duration} seconds)')
 
-    torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
-    parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
-    yaml_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_hyperparameters')).with_suffix('.yaml')
+    # torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
+    # parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
+    # yaml_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_hyperparameters')).with_suffix('.yaml')
+
+    output_subdirectory = command_line_arguments.output_directory / command_line_arguments.output_files_stem
+    output_subdirectory.mkdir(exist_ok=True)
+    
+    torch_file = output_subdirectory / 'signals.pt'
+    parquet_file = output_subdirectory / 'metadata.parquet'
+    yaml_file = output_subdirectory / 'data_preprocessing_parameters.yaml'
 
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
     torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array

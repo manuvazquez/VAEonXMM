@@ -360,18 +360,17 @@ def cl_fit_vae_on_signals(args: list = None):
     parser.add_argument('signals_file', type=pathlib.Path, help='signals file')
     parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
     parser.add_argument('signals_hyperparameters_file', type=pathlib.Path, nargs='?', default=None, help='hyperparameters used in assembling the signals')
-    parser.add_argument('-o', '--output-files-stem', default=None, help='base name for output files',
+    parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files',
         nargs='?')
 
     command_line_arguments = parser.parse_args(args)
 
-    # if a "base name" for the output files was passed...
-    if command_line_arguments.output_files_stem:
-        
-        output_filename = pathlib.Path(command_line_arguments.output_files_stem)
-    
-    # if a "base name" for the output files was NOT passed...
-    else:
+    # for the sake of readability
+    dataset_inferred_name = command_line_arguments.signals_file.parent.stem
+    training_inferred_name = command_line_arguments.parameters_file.stem
+
+    # if a directory for the output files was NOT passed...
+    if not command_line_arguments.output_dir:
 
         if '.' in command_line_arguments.parameters_file.stem:
             
@@ -379,18 +378,22 @@ def cl_fit_vae_on_signals(args: list = None):
 
             raise SystemExit
         
-        # ...it is inferred from that of the parameters file
+        # ...it is inferred from that of the parameters file and the (name of the) dataset determines the output directory
+        # output_dir = command_line_arguments.parameters_file.parent / command_line_arguments.signals_file.stem
+        # output_dir = (command_line_arguments.parameters_file.parent / 
+        #               command_line_arguments.signals_file.stem / 
+        #               command_line_arguments.parameters_file.stem)
         
-        # output_filename = command_line_arguments.parameters_file.with_suffix('')
-        # output_filename = command_line_arguments.parameters_file.\
-        #     with_stem('res_' + command_line_arguments.parameters_file.stem).with_suffix('')
+        # output_dir = command_line_arguments.parameters_file.with_suffix('')
+        output_dir = command_line_arguments.parameters_file.parent / dataset_inferred_name / training_inferred_name
+        
+        # it is created if it does not exist
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        # the (name of the) dataset determines the output directory
-        output_dir = command_line_arguments.parameters_file.parent / command_line_arguments.signals_file.stem
-        output_dir.mkdir(exist_ok=True)
+        print(f'output directory: {output_dir}')
         
-        output_filename = output_dir / pathlib.Path(command_line_arguments.parameters_file.name).\
-            with_stem('res_' + command_line_arguments.parameters_file.stem).with_suffix('')
+        # output_filename = output_dir / pathlib.Path(command_line_arguments.parameters_file.name).\
+        #     with_stem('res_' + command_line_arguments.parameters_file.stem).with_suffix('')
 
     # parameters file is read
     with command_line_arguments.parameters_file.open() as f:
@@ -415,9 +418,12 @@ def cl_fit_vae_on_signals(args: list = None):
     logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
 
     # for the sake of convenience
-    eqx_filename = output_filename.with_suffix('.eqx')
-    parquet_filename = output_filename.with_suffix('.parquet')
-    yaml_filename = output_filename.with_suffix('.yaml')
+    # eqx_filename = output_filename.with_suffix('.eqx')
+    # parquet_filename = output_filename.with_suffix('.parquet')
+    # yaml_filename = output_filename.with_suffix('.yaml')
+    eqx_filename = output_dir / 'model.eqx'
+    parquet_filename = output_dir / 'in_training_metrics.parquet'
+    yaml_filename = output_dir / 'extended_parameters.yaml'
     
     # the weights of the model are saved...
     trapallada.model.image.save_vae(eqx_filename, model)
@@ -472,7 +478,10 @@ def cl_fit_vae_on_signals(args: list = None):
         # mlflow.log_params(parameters)
         mlflow.log_params(trapallada.util.flatten_dict(parameters))
 
-        mlflow.set_tag("Vanilla VAE", "plain")
+        # mlflow.set_tag("Vanilla VAE", "plain")
+        mlflow.set_tags({
+            'data': dataset_inferred_name,
+            'training': training_inferred_name})
 
         # for every row (epoch) in the results `DataFrame`...
         for i_res, res in results_df.iterrows():
