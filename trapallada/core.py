@@ -379,12 +379,6 @@ def cl_fit_vae_on_signals(args: list = None):
             raise SystemExit
         
         # ...it is inferred from that of the parameters file and the (name of the) dataset determines the output directory
-        # output_dir = command_line_arguments.parameters_file.parent / command_line_arguments.signals_file.stem
-        # output_dir = (command_line_arguments.parameters_file.parent / 
-        #               command_line_arguments.signals_file.stem / 
-        #               command_line_arguments.parameters_file.stem)
-        
-        # output_dir = command_line_arguments.parameters_file.with_suffix('')
         output_dir = command_line_arguments.parameters_file.parent / dataset_inferred_name / training_inferred_name
         
         # it is created if it does not exist
@@ -392,9 +386,6 @@ def cl_fit_vae_on_signals(args: list = None):
 
         print(f'output directory: {output_dir}')
         
-        # output_filename = output_dir / pathlib.Path(command_line_arguments.parameters_file.name).\
-        #     with_stem('res_' + command_line_arguments.parameters_file.stem).with_suffix('')
-
     # parameters file is read
     with command_line_arguments.parameters_file.open() as f:
         
@@ -418,9 +409,6 @@ def cl_fit_vae_on_signals(args: list = None):
     logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
 
     # for the sake of convenience
-    # eqx_filename = output_filename.with_suffix('.eqx')
-    # parquet_filename = output_filename.with_suffix('.parquet')
-    # yaml_filename = output_filename.with_suffix('.yaml')
     eqx_filename = output_dir / 'model.eqx'
     parquet_filename = output_dir / 'in_training_metrics.parquet'
     yaml_filename = output_dir / 'extended_parameters.yaml'

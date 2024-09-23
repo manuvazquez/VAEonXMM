@@ -6,7 +6,6 @@ light_curves_dir := join(home_dir, 'Sync/research/light curves')
 trapallada_dir := join(home_dir, 'Sync/git/trapallada')
 trapallada_data_dir := join(trapallada_dir, 'data')
 
-# data_dir := join(env_var('MY_DATA_DIR'), 'trapallada')
 data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada')
 
 conda_environment := "trap"
@@ -63,10 +62,8 @@ fit PARAMETERS DATA_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
 
 fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_classes_modulated_labels.parquet")
 
-# fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "_signals.pt" DATA_FILES_STEM + "_metadata.parquet" DATA_FILES_STEM + "_hyperparameters.yaml")
-fit_real PARAMETERS DATA_FILES_STEM: (fit PARAMETERS DATA_FILES_STEM + "/signals.pt" DATA_FILES_STEM + "/metadata.parquet" DATA_FILES_STEM + "/data_preprocessing_parameters.yaml")
+fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-# fit_test: (fit_real "results/mini_good.yaml" "63_225_10")
 fit_test: (fit_real "results/mini_good.yaml" "5_sources")
 
 download_obs DIR=data_dir:

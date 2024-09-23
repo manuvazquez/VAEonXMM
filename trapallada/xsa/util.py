@@ -90,7 +90,7 @@ def read_fits_file(file: pathlib.Path | str) -> pd.DataFrame:
 
     # return df
 
-def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list[pathlib.Path | str]]:
+def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
 
@@ -98,19 +98,20 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
         files (list[pathlib.Path | str]): The files to be read.
 
     Returns:
-        pd.DataFrame: The content of the FITS files.
-        list[pathlib.Path | str]: The list of files that have been skipped.
+        tuple[pd.DataFrame, list[pathlib.Path | str], pd.DataFrame]: 
+            - The content of the FITS files.
+            - The list of files that have been skipped.
+            - A DataFrame containing the header information.
     """
 
     series_list = []
     skipped_files_list = []
     index = None
     first_file = None
+    headers_list = []
     
     for f in files:
 
-        # print(f'Reading {f}...')
-        
         df = read_fits_file(f)
         
         if 'TIME' in df:
@@ -143,6 +144,7 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             
             series.name = f.name
             series_list.append(series)
+            headers_list.append(get_position_from_header(f))
             
         # if `TIME` column is NOT present...
         else:
@@ -151,7 +153,11 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             
             skipped_files_list.append(f)
 
-    return pd.concat(series_list, axis=1), skipped_files_list
+    signals_df = pd.concat(series_list, axis=1)
+    header_df = pd.concat(headers_list, axis=1).T
+    header_df.index = signals_df.columns
+
+    return signals_df, skipped_files_list, header_df
 
 def get_fields_from_header(file: str | pathlib.Path, fields: Sequence[str]) -> tuple:
     
@@ -161,7 +167,8 @@ def get_fields_from_header(file: str | pathlib.Path, fields: Sequence[str]) -> t
 
 def get_position_from_header(file: str | pathlib.Path) -> pd.Series:
 
-    keys = ['SRC_RA', 'SRC_CRA', 'SRC_DEC', 'SRC_CDEC']
+    # keys = ['SRC_RA', 'SRC_CRA', 'SRC_DEC', 'SRC_CDEC']
+    keys = ['SRC_RA', 'SRC_DEC', 'SRC_CRA', 'SRC_CDEC']
 
     values = get_fields_from_header(file, keys)
 
@@ -347,7 +354,7 @@ def download_extract_filter(
 
     return output_subdir
 
-def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame | None:
+def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> tuple[pd.DataFrame | None, pd.Series | None]:
     """
     Reads a tar file containing FITS files, returning a number of sources.
 
@@ -356,7 +363,8 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame |
         max_n_sources (int, optional): The maximum number of top ranked files to read. Defaults to 3.
 
     Returns:
-        pd.DataFrame or None: The DataFrame containing the the top *ranked* FITS files or `None` if there are not relevant files.
+        tuple[pd.DataFrame or None, pd.Series or None]: A tuple containing the DataFrame with the top ranked FITS files
+        and a Series with the header information, or `None` if there are no relevant files.
     """
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -365,20 +373,20 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> pd.DataFrame |
         tmp_dir_root = pathlib.Path(tmp_dir)
         
         # files are extracted into a temporary directory...
-        extracted_files_dir = trapallada.xsa.util.extract_filter_tar(file, tmp_dir_root)
+        extracted_files_dir = extract_filter_tar(file, tmp_dir_root)
 
         # if no relevant files were found
         if extracted_files_dir is None:
                 
-                return None
+                return None, None
 
         # ...and ranked
-        ranked_files_df = trapallada.xsa.util.rank_obs_files(extracted_files_dir).iloc[:max_n_sources]['full path']
+        ranked_files_df = rank_obs_files(extracted_files_dir).iloc[:max_n_sources]['full path']
 
         # the top ranked files are read into a DataFrame
-        fits_df, skipped_files_list = trapallada.xsa.util.read_fits_files(ranked_files_df.tolist())
+        fits_df, skipped_files_list, header_df = read_fits_files(ranked_files_df.tolist())
 
-    return fits_df
+    return fits_df, header_df
 
 def slice(
         df: pd.DataFrame, window_size: int, step: int, tail_as_window: bool = True, return_n_windows: bool = False
@@ -434,7 +442,7 @@ def slice(
 
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
-        max_n_sources: int = 4, min_power: float = 0.) -> tuple[Float[Array, 'window time'], pd.DataFrame]:
+        max_n_sources: int = 4, min_power: float = 0.) -> tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
     
@@ -447,7 +455,8 @@ def tars_to_array(
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
     
     Returns:
-        tuple[Float[Array, 'window time'], pd.DataFrame]: A tuple containing the NumPy array of signals and the pandas DataFrame of metadata.
+        tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]: A tuple containing a NumPy array with the signals,
+        a pandas DataFrame of metadata, and another one with information from the files' headers.
     
     Raises:
         RuntimeError: If the period of a tar file does not match the previous period(s).
@@ -459,12 +468,13 @@ def tars_to_array(
     start_list, end_list = [], []
     f_list = []
     names_list = []
+    header_df_list = []
 
     # every tar file...
     for f in files:
         
         # ...is read into a `DataFrame`
-        df = trapallada.xsa.util.read_tar(f, max_n_sources=max_n_sources)
+        df, header_df = read_tar(f, max_n_sources=max_n_sources)
 
         # if something was actually read...
         if df is not None:
@@ -472,8 +482,6 @@ def tars_to_array(
             # if there is *any* `NaN` at all (in any column, at any time instant)...
             if df.isna().any().any():
 
-                # logger.warning(f'"{f}" has NaN values: interpolating...')
-                
                 # ...it's filled in using interpolation.
                 df = df.interpolate(method='linear', axis=0)
 
@@ -487,7 +495,7 @@ def tars_to_array(
             period = df.index[1] - df.index[0]
             
             # signals are binned
-            binned_df = trapallada.xsa.util.bin_fits_df(df, bin_size=bin_size)
+            binned_df = bin_fits_df(df, bin_size=bin_size)
 
             # ---
 
@@ -548,7 +556,7 @@ def tars_to_array(
                 continue
 
             # signals are "sliced"
-            sliced_signals, sliced_times, n_windows = trapallada.xsa.util.slice(
+            sliced_signals, sliced_times, n_windows = slice(
                 binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
 
             signals_list.append(sliced_signals)
@@ -556,9 +564,15 @@ def tars_to_array(
             end_list.append(sliced_times[:, -1])
             f_list.append(np.full(len(sliced_signals), f.name))
             names_list.append(np.tile(binned_df.columns, n_windows))
+            header_df_list.append(header_df)
 
-    return np.vstack(signals_list), pd.DataFrame(
+    metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
+    
+    all_headers_df = pd.concat(header_df_list, keys=metadata_df['tar file'].unique().astype(pd.StringDtype))
+    all_headers_df.index.names = ['tar file', 'source']
+    
+    return np.vstack(signals_list), metadata_df, all_headers_df
 
 
 def cl_tars_to_array(args: list = None):
@@ -589,15 +603,11 @@ def cl_tars_to_array(args: list = None):
         if (v is not None) and (k not in ['download_directory', 'output_directory', 'output_files_stem'])
     }
 
-    signals, metadata_df = tars_to_array(tar_files, **not_none_args)
+    signals, metadata_df, headers_df = tars_to_array(tar_files, **not_none_args)
 
     duration = (metadata_df['end'] - metadata_df['start']).iloc[0].total_seconds()
 
     logger.info(f'{signals.shape[0]} signals of length {signals.shape[1]} samples ({duration} seconds)')
-
-    # torch_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_signals')).with_suffix('.pt')
-    # parquet_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_metadata')).with_suffix('.parquet')
-    # yaml_file = (command_line_arguments.output_directory / (command_line_arguments.output_files_stem + '_hyperparameters')).with_suffix('.yaml')
 
     output_subdirectory = command_line_arguments.output_directory / command_line_arguments.output_files_stem
     output_subdirectory.mkdir(exist_ok=True)
@@ -605,10 +615,12 @@ def cl_tars_to_array(args: list = None):
     torch_file = output_subdirectory / 'signals.pt'
     parquet_file = output_subdirectory / 'metadata.parquet'
     yaml_file = output_subdirectory / 'data_preprocessing_parameters.yaml'
+    headers_file = output_subdirectory / 'headers.parquet'
 
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
     torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
+    headers_df.to_parquet(headers_file)
 
     # the default arguments of the function doing the actual work...
     default_args = trapallada.util.func_args_with_defaults(trapallada.xsa.util.tars_to_array)
