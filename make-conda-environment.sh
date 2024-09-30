@@ -13,6 +13,8 @@ LIBRARIES=(
     matplotlib
     plotly ipywidgets python-kaleido
     altair
+    vl-convert # for saving pictures with altair
+    vegafusion vegafusion-python-embed vl-convert-python anywidget # for selections with altair
     scikit-learn
     scipy"<"1.13 # scipy.linalg.tril error
     pandas pyarrow
@@ -22,6 +24,7 @@ LIBRARIES=(
     numpyro
     jax equinox optax
     papermill
+    openpyxl
 )
 
 CHANNELS=(
