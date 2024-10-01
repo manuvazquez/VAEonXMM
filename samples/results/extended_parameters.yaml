@@ -1,0 +1,44 @@
+PRNG seeds:
+  model initialization:
+    decoder: 43
+    encoder: 42
+  sampling:
+    training set: 14
+    validation set: 15
+  training dataloader: 43
+  training-validation splitting: 42
+dataset:
+  files:
+    metadata_file: Sync/git/trapallada/data/4_sources/metadata.parquet
+    signals_file: Sync/git/trapallada/data/4_sources/signals.pt
+    signals_hyperparameters_file: Sync/git/trapallada/data/4_sources/data_preprocessing_parameters.yaml
+  hyperparameters:
+    bin_size: 63
+    max_n_sources: 4
+    min_power: 0.0
+    step: 10
+    window_size: 225
+encoder:
+  input_size:
+  - 1
+  - 225
+loss:
+  x_sd: 0.25
+model:
+  channels:
+  - 12
+  - 12
+  - 12
+  dim_z: 50
+  kernel_sizes:
+  - 64
+  - 32
+  - 16
+  stride: 2
+training:
+  batch_size: 32
+  dl_rng_key: 43
+  learning_rate: 0.001
+  n_epochs: 20000
+  train_test_split:
+    test_size: 0.2
