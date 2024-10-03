@@ -24,6 +24,8 @@ model:
   - 64
   - 32
   stride: 2
+data:
+    normalize: true
 training:
   batch_size: 32
   dl_rng_key: 43

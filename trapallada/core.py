@@ -393,7 +393,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # the dataset is loaded...
     ds = trapallada.data.SignalsDataset(
-        command_line_arguments.signals_file, command_line_arguments.metadata_file, normalize=True
+        command_line_arguments.signals_file, command_line_arguments.metadata_file, normalize=parameters['data']['normalize']
     )
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
@@ -479,6 +479,7 @@ def cl_fit_vae_on_signals(args: list = None):
         mlflow.log_artifact(yaml_filename)
         mlflow.log_artifact(eqx_filename)
         mlflow.log_artifact(parquet_filename)
+        # mlflow.log_input(mlflow.data.Dataset(name='XMM-Newton Science Archive', source='https://nxsa.esac.esa.int/nxsa-web/#home'))
 
         if command_line_arguments.signals_hyperparameters_file:
             
