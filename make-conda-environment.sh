@@ -25,6 +25,8 @@ LIBRARIES=(
     jax equinox optax
     papermill
     openpyxl
+    leidenalg
+    bokeh
 )
 
 CHANNELS=(

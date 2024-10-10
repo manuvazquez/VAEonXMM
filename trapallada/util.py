@@ -122,6 +122,7 @@ def get_layers_n_parameters(model: PyTree) -> dict:
         for path_leave in jax.tree_util.tree_leaves_with_path(model) if isinstance(path_leave[1], jax.Array)
     }
 
+# TODO: this should be moved to the `analysis` module
 def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_projected_components: int = 2, random_state: int = 42) -> pd.DataFrame:
     """
     Build a `DataFrame` with the metadata and the projections of the latent space.

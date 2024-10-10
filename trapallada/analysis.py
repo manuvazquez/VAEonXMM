@@ -4,9 +4,12 @@ import yaml
 
 import pandas as pd
 
+from torch.utils.data import Dataset
+import equinox as eqx
 import jax.random as jr
-from jaxtyping import Array, Float, PyTree, PRNGKeyArray
+from jaxtyping import PRNGKeyArray
 
+import plotly.express as px
 from IPython.display import display
 
 import trapallada.data
@@ -67,7 +70,9 @@ def load_results_dir(dir, analysis_also: bool=False):
 
     return to_be_returned
 
-def predict_and_plot(model, ds, i, n_samples = 2000, rng_key: PRNGKeyArray = jr.PRNGKey(42)):
+# =============================================================
+
+def predict_and_plot(model: eqx.Module, ds: Dataset, i: int, n_samples: int = 2000, rng_key: PRNGKeyArray = jr.PRNGKey(42)):
     
     x = ds[i][1].numpy()
     x_pred, z_mean, z_sd = model(x, rng_key)
@@ -75,3 +80,20 @@ def predict_and_plot(model, ds, i, n_samples = 2000, rng_key: PRNGKeyArray = jr.
     df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
     
     return trapallada.plot.df(df.iloc[:n_samples])
+
+def plot_signal(
+        model: eqx.Module, ds: Dataset,
+        analysis_df: pd.DataFrame, signal_file: str,
+        hover_data: list[str], x_range: tuple[float], y_range: tuple[float]
+    ):
+    
+    df = analysis_df[analysis_df['signal'] == signal_file]
+
+    fig = px.scatter(df.reset_index(), x='tsne_1', y='tsne_2', text='# window', hover_data=hover_data, width=1_200, height=800)
+    fig.update_traces(textposition='top center')
+    fig.update_layout(xaxis=dict(range=x_range), yaxis=dict(range=y_range))
+    fig.show()
+
+    for i, row in df.iterrows():
+        print(f'# window: {row['# window']}',)
+        display(predict_and_plot(model, ds, i))
