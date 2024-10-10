@@ -10,6 +10,13 @@ import jax.random as jr
 from jaxtyping import PRNGKeyArray
 
 import plotly.express as px
+
+from bokeh.models import Scatter
+from bokeh.plotting import figure
+from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine
+# from bokeh.palettes import Category20
+from bokeh.models import CustomJS
+
 from IPython.display import display
 
 import trapallada.data
@@ -72,11 +79,17 @@ def load_results_dir(dir, analysis_also: bool=False):
 
 # =============================================================
 
-def predict_and_plot(model: eqx.Module, ds: Dataset, i: int, n_samples: int = 2000, rng_key: PRNGKeyArray = jr.PRNGKey(42)):
+def predict_and_plot(
+        model: eqx.Module, ds: Dataset,
+        i: int, n_samples: int = 2000,
+        display_metadata: bool = True,
+        rng_key: PRNGKeyArray = jr.PRNGKey(42)
+    ):
     
     x = ds[i][1].numpy()
     x_pred, z_mean, z_sd = model(x, rng_key)
-    display(ds.metadata_df.loc[i])
+    if display_metadata:
+        display(ds.metadata_df.loc[i])
     df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
     
     return trapallada.plot.df(df.iloc[:n_samples])
@@ -97,3 +110,42 @@ def plot_signal(
     for i, row in df.iterrows():
         print(f'# window: {row['# window']}',)
         display(predict_and_plot(model, ds, i))
+
+def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame, fig=None):
+
+    if fig is None:
+
+        fig = figure(
+            title="Latent space",
+            width=1_200, height=1024,
+            # x_range=(-1.1,1.1), y_range=(-1.1,1.1),
+            # tools="", toolbar_location=None
+        )
+
+    graph = GraphRenderer()
+
+    # graph.node_renderer.glyph = Ellipse(height=6., width=6., fill_color="fill_color")
+    # graph.node_renderer.glyph = Circle(radius=3., fill_color="fill_color")
+    graph.node_renderer.glyph = Scatter(size=8, fill_color="fill_color", marker="marker")
+
+    graph.node_renderer.data_source.data = nodes.reset_index()[['index', 'fill_color', 'marker']].to_dict(orient='list')
+
+    graph.node_renderer.data_source.data['community'] = nodes['community'].to_list()
+    graph.node_renderer.data_source.data['main_type'] = analysis['main_type'].to_list()
+    hover_tool = HoverTool(
+        tooltips=[
+            ("Community", "@community"),
+            ("main_type", "@main_type"),
+            ("index", "@index"),
+        ]
+    )
+
+    graph.edge_renderer.data_source.data = edges.to_dict('list')
+    graph.edge_renderer.glyph = MultiLine(line_color="black", line_alpha=0.01)
+
+    graph.layout_provider = StaticLayoutProvider(graph_layout=nodes['coordinates'].to_dict())
+
+    fig.renderers.append(graph)
+    fig.add_tools(hover_tool)
+
+    return fig

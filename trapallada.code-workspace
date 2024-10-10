@@ -9,6 +9,7 @@
 			"**/__pycache__": true,
 			"**/*.egg-info": true,
 			"**/*.eqx": true,
+			"**/*.html": true,
 			"**/*.parquet": true,
 			"**/*.tar": true,
 			"**/iframe_figures": true,
