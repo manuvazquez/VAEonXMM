@@ -100,7 +100,13 @@ connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   {{BROWSER}} http://localhost:10000
   kill $SSH_PID
 
-publish_on_cluster FILE SERVER="meiga04":
-  chmod go+r {{FILE}}
-  rsync --perms --owner {{FILE}} {{SERVER}}:public_html
-  echo https://www.tsc.uc3m.es/~mvazquez/{{file_name(FILE)}}
+# publish_on_cluster FILE SERVER="meiga04":
+#   chmod go+r {{FILE}}
+#   rsync --perms --owner {{FILE}} {{SERVER}}:public_html
+#   echo https://www.tsc.uc3m.es/~mvazquez/{{file_name(FILE)}}
+
+publish_on_cluster FILE SERVER="meiga04": (export_notebook_to_html FILE)
+  chmod go+r {{without_extension(FILE)}}.html
+  rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
+  rm {{without_extension(FILE)}}.html
+  echo https://www.tsc.uc3m.es/~mvazquez/{{file_stem(FILE)}}.html
