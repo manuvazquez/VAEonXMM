@@ -14,8 +14,6 @@ import plotly.express as px
 from bokeh.models import Scatter
 from bokeh.plotting import figure
 from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine
-# from bokeh.palettes import Category20
-from bokeh.models import CustomJS
 
 from IPython.display import display
 
@@ -124,14 +122,16 @@ def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame,
 
     graph = GraphRenderer()
 
-    # graph.node_renderer.glyph = Ellipse(height=6., width=6., fill_color="fill_color")
-    # graph.node_renderer.glyph = Circle(radius=3., fill_color="fill_color")
-    # graph.node_renderer.glyph = Scatter(size=8, fill_color="fill_color", marker="marker")
-    graph.node_renderer.glyph = Scatter(size='size', fill_color="fill_color", marker="marker")
-    # graph.node_renderer.glyph = Scatter(size='size', fill_color="fill_color", marker="marker", line_alpha=0.2, fill_alpha=0.2)
+    # graph.node_renderer.glyph = Scatter(size='size', fill_color='fill_color', marker='marker')
+    graph.node_renderer.glyph = Scatter(
+        size='size', fill_color='fill_color', marker='marker',
+        line_alpha='alpha', fill_alpha='alpha',
+    )
 
-    # graph.node_renderer.data_source.data = nodes.reset_index()[['index', 'fill_color', 'marker']].to_dict(orient='list')
-    graph.node_renderer.data_source.data = nodes.reset_index()[['index', 'fill_color', 'marker', 'size']].to_dict(orient='list')
+    graph.node_renderer.data_source.data = nodes.reset_index()[[
+        'index', 'fill_color', 'marker', 'size',
+        'alpha',
+        ]].to_dict(orient='list')
 
     graph.node_renderer.data_source.data['community'] = nodes['community'].to_list()
     graph.node_renderer.data_source.data['main_type'] = analysis['main_type'].to_list()
@@ -146,7 +146,6 @@ def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame,
     graph.edge_renderer.data_source.data = edges.to_dict('list')
     graph.edge_renderer.glyph = MultiLine(line_color="black", line_alpha=0.01)
 
-    # graph.layout_provider = StaticLayoutProvider(graph_layout=nodes['coordinates'].to_dict())
     graph.layout_provider = StaticLayoutProvider(graph_layout=nodes[['x', 'y']].apply(lambda row: row.tolist(), axis=1).to_dict())
 
     fig.renderers.append(graph)

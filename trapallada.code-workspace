@@ -7,11 +7,18 @@
 	"settings": {
 		"files.exclude": {
 			"**/__pycache__": true,
+			"**/*.csv": true,
+			"**/*.dat": true,
 			"**/*.egg-info": true,
 			"**/*.eqx": true,
+			"**/*.FTZ": true,
 			"**/*.html": true,
 			"**/*.parquet": true,
+			"**/*.pdf": true,
+			"**/*.png": true,
+			"**/*.PNG": true,
 			"**/*.tar": true,
+			"**/*.xlsx": true,
 			"**/iframe_figures": true,
 			"LICENSE": true
 		}
