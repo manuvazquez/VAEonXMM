@@ -211,7 +211,6 @@ class Decoder(eqx.Module):
 
         # last `relu` and `LayerNorm` are not needed
         del self.layers[-2:]
-        # del self.layers[-1]
         
     def __call__(self, x: Float[Array, 'dim_z']) -> Float[Array, '1 length']:
 
@@ -235,6 +234,7 @@ class NonNegativeDecoder(Decoder):
 
         super().__init__(dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 
+        # a RELU layer is added at the end
         self.layers.append(jax.nn.relu)
 
 
@@ -287,38 +287,7 @@ def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Pa
     
     model = assemble_vae(parameters)
 
-    print('assembled')
-
     with weights_file.open('rb') as f:
         return eqx.tree_deserialise_leaves(f, model)
-
-
-# def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Path) -> eqx.Module:
-
-#     weights_file = pathlib.Path(weights_file)
-#     assert weights_file.suffix == '.eqx', "weights file should have extension '.eqx'"
-
-
-#     parameters_file = pathlib.Path(parameters_file)
-
-#     with parameters_file.open() as f:
-        
-#         parameters = yaml.safe_load(f)
-    
-#     encoder = Encoder(
-#         **(parameters['model'] | parameters['encoder']),
-#         key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['encoder'])
-#     )
-    
-#     # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
-#     decoder = Decoder(
-#         **(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}),
-#         key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder'])
-#     )
-    
-#     model = VAE(encoder, decoder)
-
-#     with weights_file.open('rb') as f:
-#         return eqx.tree_deserialise_leaves(f, model)
 
 # `save_vae` is identical to `save_model` in `model/image.py`
