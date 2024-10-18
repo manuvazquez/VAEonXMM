@@ -7,13 +7,13 @@ PRNG seeds:
     validation set: 15
   training dataloader: 43
   training-validation splitting: 42
-encoder:
+encoder: &encoder
   input_size:
   - 1
   - 10000
 loss:
-  x_sd: 0.5
-model:
+  x_sd: 0.5 # <----
+model: &model
   channels:
   - 12
   - 12
@@ -26,6 +26,7 @@ model:
   stride: 2
 data:
     normalize: true
+    fft: false # <----
 training:
   batch_size: 32
   dl_rng_key: 43
@@ -33,3 +34,12 @@ training:
   n_epochs: 3
   train_test_split:
     test_size: 0.2
+VAE:
+  encoder:
+    class: Encoder
+    parameters:
+      << : [*model, *encoder]
+  decoder:
+    class: Decoder # <----
+    parameters:
+      << : [*model]

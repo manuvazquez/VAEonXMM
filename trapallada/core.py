@@ -280,16 +280,18 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         return loss_acc / len(dataloader), log_likelihood_acc / len(dataloader), kl_value_acc / len(dataloader)
     
-    encoder = trapallada.model.signal.Encoder(
-        **(parameters['model'] | parameters['encoder']),
-        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['encoder']))
+    model = trapallada.model.signal.assemble_vae(parameters)
     
-    # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
-    decoder = trapallada.model.signal.Decoder(
-        **(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}),
-        key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder']))
+    # encoder = trapallada.model.signal.Encoder(
+    #     **(parameters['model'] | parameters['encoder']),
+    #     key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['encoder']))
     
-    model = trapallada.model.signal.VAE(encoder, decoder)
+    # # `layers_spatial_sizes` is a class attribute filled by the `Encoder`'s `__init__` method
+    # decoder = trapallada.model.signal.Decoder(
+    #     **(parameters['model'] | {'layers_spatial_sizes': encoder.layers_spatial_sizes}),
+    #     key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder']))
+    
+    # model = trapallada.model.signal.VAE(encoder, decoder)
 
     # optimizer
     optim = optax.adamw(parameters['training']['learning_rate'])
@@ -393,7 +395,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # the dataset is loaded...
     ds = trapallada.data.SignalsDataset(
-        command_line_arguments.signals_file, command_line_arguments.metadata_file, normalize=parameters['data']['normalize']
+        command_line_arguments.signals_file, command_line_arguments.metadata_file, **parameters['data']
     )
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)

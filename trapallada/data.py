@@ -3,8 +3,10 @@ import pathlib
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
+
 import jax.random as jr
 import jax.numpy as jnp
 
@@ -35,7 +37,7 @@ class ImageDataset(Dataset):
     
 class SignalsDataset(Dataset):
 
-    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False):
+    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False, fft: bool = False):
 
         # self.signals = torch.load(signals_filename)
         self.signals = torch.load(signals_filename, weights_only=False)
@@ -46,6 +48,7 @@ class SignalsDataset(Dataset):
             self.signals = torch.from_numpy(self.signals)
 
         if normalize:
+            
             mean = self.signals.mean(axis=-1)
             std = self.signals.std(axis=-1)
             
@@ -65,6 +68,8 @@ class SignalsDataset(Dataset):
 
             # only non-constant signals are kept
             self.signals = self.signals[to_keep]
+
+            logger.info('normalizing signals...')
 
             if n_constant_signals > 0:
 
@@ -94,6 +99,12 @@ class SignalsDataset(Dataset):
         else:
             
             self.labels, self.labels_names = make_labels_and_labels_names()
+
+        if fft:
+
+            logger.info('computing the FFT of each signal...')
+        
+            self.signals = torch.abs(torch.fft.fft(self.signals))
 
     def __len__(self):
 
