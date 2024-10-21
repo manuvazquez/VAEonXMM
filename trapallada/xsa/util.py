@@ -442,7 +442,8 @@ def slice(
 
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
-        max_n_sources: int = 4, min_power: float = 0.) -> tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]:
+        max_n_sources: int = 4, min_power: float = 0.
+        ) -> tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
     
@@ -455,8 +456,8 @@ def tars_to_array(
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
     
     Returns:
-        tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]: A tuple containing a NumPy array with the signals,
-        a pandas DataFrame of metadata, and another one with information from the files' headers.
+        tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame, dict]: A tuple containing a NumPy array with the signals,
+        a pandas DataFrame of metadata, another one with information from the files' headers, and a dictionary with the full signals in every tar.
     
     Raises:
         RuntimeError: If the period of a tar file does not match the previous period(s).
@@ -470,11 +471,13 @@ def tars_to_array(
     names_list = []
     header_df_list = []
 
+    full_signals_dict = {}
+
     # every tar file...
-    for f in files:
+    for tar_file in files:
         
         # ...is read into a `DataFrame`
-        df, header_df = read_tar(f, max_n_sources=max_n_sources)
+        df, header_df = read_tar(tar_file, max_n_sources=max_n_sources)
 
         # if something was actually read...
         if df is not None:
@@ -487,7 +490,7 @@ def tars_to_array(
 
                 if df.isna().any().any():
 
-                    logger.warning(f'"{f}" still has `NaN` values after interpolating, skipping...')
+                    logger.warning(f'"{tar_file}" still has `NaN` values after interpolating, skipping...')
                     
                     continue
 
@@ -499,8 +502,6 @@ def tars_to_array(
 
             # ---
 
-            # min_power = 5.
-            
             # power of the (binned) signals
             power = (binned_df**2).mean(axis=0)
 
@@ -511,7 +512,7 @@ def tars_to_array(
             # if every signal has low power...
             if n_low_power_columns == len(binned_df.columns):
 
-                logger.warning(f'every signal has power below {min_power} in "{f}", skipping...')
+                logger.warning(f'every signal has power below {min_power} in "{tar_file}", skipping...')
                 
                 # ...the file is skipped
                 continue
@@ -522,7 +523,7 @@ def tars_to_array(
                 # ...are dropped
                 binned_df = binned_df.drop(low_power_columns, axis=1)
 
-                logger.warning(f'dropping {n_low_power_columns} signals in "{f}" due to low power (<{min_power})')
+                logger.warning(f'dropping {n_low_power_columns} signals in "{tar_file}" due to low power (<{min_power})')
 
             # ---
 
@@ -534,7 +535,7 @@ def tars_to_array(
 
                 if period != last_period:
 
-                    logger.critical(f'the period of "{f}" does not match the previous period(s)')
+                    logger.critical(f'the period of "{tar_file}" does not match the previous period(s)')
                     
                     raise RuntimeError('Period mismatch')
 
@@ -551,7 +552,7 @@ def tars_to_array(
 
             if len(binned_df) < window_size:
 
-                logger.warning(f'skipping "{f}" because it is too short after binning')
+                logger.warning(f'skipping "{tar_file}" because it is too short after binning')
                 
                 continue
 
@@ -562,9 +563,11 @@ def tars_to_array(
             signals_list.append(sliced_signals)
             start_list.append(sliced_times[:, 0])
             end_list.append(sliced_times[:, -1])
-            f_list.append(np.full(len(sliced_signals), f.name))
+            f_list.append(np.full(len(sliced_signals), tar_file.name))
             names_list.append(np.tile(binned_df.columns, n_windows))
             header_df_list.append(header_df)
+
+            full_signals_dict[tar_file.name] = binned_df
 
     metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
@@ -572,7 +575,7 @@ def tars_to_array(
     all_headers_df = pd.concat(header_df_list, keys=metadata_df['tar file'].unique().astype(pd.StringDtype))
     all_headers_df.index.names = ['tar file', 'source']
     
-    return np.vstack(signals_list), metadata_df, all_headers_df
+    return np.vstack(signals_list), metadata_df, all_headers_df, full_signals_dict
 
 
 def cl_tars_to_array(args: list = None):
@@ -603,7 +606,7 @@ def cl_tars_to_array(args: list = None):
         if (v is not None) and (k not in ['download_directory', 'output_directory', 'output_files_stem'])
     }
 
-    signals, metadata_df, headers_df = tars_to_array(tar_files, **not_none_args)
+    signals, metadata_df, headers_df, full_signals = tars_to_array(tar_files, **not_none_args)
 
     duration = (metadata_df['end'] - metadata_df['start']).iloc[0].total_seconds()
 
@@ -617,10 +620,20 @@ def cl_tars_to_array(args: list = None):
     yaml_file = output_subdirectory / 'data_preprocessing_parameters.yaml'
     headers_file = output_subdirectory / 'headers.parquet'
 
+    full_signals_dir = output_subdirectory / 'full_signals'
+
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
     torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
     headers_df.to_parquet(headers_file)
+
+    full_signals_dir.mkdir(exist_ok=True)
+
+    for f, df in full_signals.items():
+        
+        df.to_parquet(full_signals_dir / f'{pathlib.Path(f).stem}.parquet')
+
+    # --- parameters file
 
     # the default arguments of the function doing the actual work...
     default_args = trapallada.util.func_args_with_defaults(trapallada.xsa.util.tars_to_array)

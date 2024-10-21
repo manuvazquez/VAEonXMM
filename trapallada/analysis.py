@@ -2,6 +2,7 @@ import pathlib
 
 import yaml
 
+import numpy as np
 import pandas as pd
 
 from torch.utils.data import Dataset
@@ -12,10 +13,10 @@ from jaxtyping import PRNGKeyArray
 import plotly.express as px
 
 from bokeh.models import Scatter
-from bokeh.plotting import figure
-from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine
+from bokeh.plotting import figure, show
+from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine, Label
 
-from IPython.display import display
+from IPython.display import display, Markdown
 
 import trapallada.data
 import trapallada.model.signal
@@ -109,16 +110,11 @@ def plot_signal(
         print(f'# window: {row['# window']}',)
         display(predict_and_plot(model, ds, i))
 
-def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame, fig=None):
+def plot_graph(nodes: pd.DataFrame, edges: pd.DataFrame, analysis: pd.DataFrame | None = None, edges_line_alpha: float = 0.01, fig=None):
 
     if fig is None:
 
-        fig = figure(
-            title="Latent space",
-            width=1_200, height=1024,
-            # x_range=(-1.1,1.1), y_range=(-1.1,1.1),
-            # tools="", toolbar_location=None
-        )
+        fig = figure(title="Latent space", width=1_200, height=1024)
 
     graph = GraphRenderer()
 
@@ -134,17 +130,23 @@ def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame,
         ]].to_dict(orient='list')
 
     graph.node_renderer.data_source.data['community'] = nodes['community'].to_list()
-    graph.node_renderer.data_source.data['main_type'] = analysis['main_type'].to_list()
-    hover_tool = HoverTool(
-        tooltips=[
-            ("Community", "@community"),
-            ("main_type", "@main_type"),
-            ("index", "@index"),
-        ]
-    )
+
+    tooltips=[
+        ("Community", "@community"),
+        ("index", "@index"),
+    ]
+
+    # if an *analysis* `DataFrame` was passed...
+    if analysis is not None:
+        
+        graph.node_renderer.data_source.data['main_type'] = analysis['main_type'].to_list()
+        
+        tooltips.append(("main_type", "@main_type"))
+    
+    hover_tool = HoverTool(tooltips=tooltips)
 
     graph.edge_renderer.data_source.data = edges.to_dict('list')
-    graph.edge_renderer.glyph = MultiLine(line_color="black", line_alpha=0.01)
+    graph.edge_renderer.glyph = MultiLine(line_color="black", line_alpha=edges_line_alpha)
 
     graph.layout_provider = StaticLayoutProvider(graph_layout=nodes[['x', 'y']].apply(lambda row: row.tolist(), axis=1).to_dict())
 
@@ -152,3 +154,55 @@ def plot_graph(analysis: pd.DataFrame, nodes: pd.DataFrame, edges: pd.DataFrame,
     fig.add_tools(hover_tool)
 
     return fig
+
+def inspect_regions(fig, n_samples, x_range_list, y_range_list, labels, model, ds, nodes, analysis_df):
+
+    # an auxiliary function to frame a certain region with a rectangle.
+    def mark_rectangle(x_range, y_range, fig, text: str):
+        
+        x_center = np.mean(x_range)
+        y_center = np.mean(y_range)
+        width = -np.subtract(*x_range)
+        height = -np.subtract(*y_range)
+
+        fig.rect(x=x_center, y=y_center, width=width, height=height, line_color='red', line_width=2, fill_alpha=0)
+
+        label = Label(x=x_range[1] + 0.3, y=y_center, text=text, text_font_size="12pt", text_color='black')
+        fig.add_layout(label)
+
+        return fig
+    
+
+    # another auxiliary function (relying on the previous one) for plotting a few random points in a region
+    def sample_and_plot_range(n: int, x_range, y_range):
+
+        belong = (x_range[0]< nodes['x']) & (nodes['x'] < x_range[1]) &\
+            (y_range[0]< nodes['y']) & (nodes['y'] < y_range[1])
+        
+        selected = nodes[belong]
+
+        n = min(n, len(selected))
+
+        for i in selected.sample(n, random_state=42).index:
+            display(Markdown(f'### {i}'))
+            print(analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
+            display(trapallada.analysis.predict_and_plot(model, ds, i, display_metadata=False))
+    
+    
+    for x_range, y_range, label in zip(x_range_list, y_range_list, labels):
+        
+        fig = mark_rectangle(x_range, y_range, fig, label)
+
+    show(fig)
+
+    for x_range, y_range, label in zip(x_range_list, y_range_list, labels):
+
+        display(Markdown(f'### {label}'))
+        
+        fig.x_range.start, fig.x_range.end = x_range
+        fig.y_range.start, fig.y_range.end = y_range
+        
+        show(fig)
+
+        sample_and_plot_range(n_samples, x_range, y_range)
+
