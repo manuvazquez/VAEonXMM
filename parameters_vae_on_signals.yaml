@@ -10,9 +10,9 @@ PRNG seeds:
 encoder: &encoder
   input_size:
   - 1
-  - 10000
+  - 10000 # <---- FFT
 loss:
-  x_sd: 0.5 # <----
+  x_sd: 0.5 # <---- FFT
 model: &model
   channels:
   - 12
@@ -26,7 +26,7 @@ model: &model
   stride: 2
 data:
     normalize: true
-    fft: false # <----
+    fft: false # <---- FFT
 training:
   batch_size: 32
   dl_rng_key: 43
@@ -40,6 +40,6 @@ VAE:
     parameters:
       << : [*model, *encoder]
   decoder:
-    class: Decoder # <----
+    class: Decoder # <---- FFT (NonNegativeDecoder)
     parameters:
       << : [*model]

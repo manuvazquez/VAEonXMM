@@ -112,6 +112,8 @@ class Encoder(eqx.Module):
             # the length of the feature map for the next layer
             conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
 
+            # TODO: give a name to the 0-th value that is used below
+
             self.layers.extend([
                 eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=key),
                 jax.nn.relu,
@@ -120,6 +122,7 @@ class Encoder(eqx.Module):
 
             self.layers_spatial_sizes.append(conv_output_len[0].item())
 
+        # print(f'{out_channels=}, {conv_output_len=}')
         
         self.layers_spatial_sizes.append((out_channels * conv_output_len[0]).item())
 

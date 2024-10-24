@@ -24,13 +24,19 @@ papermill FILE:
 
 test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "util.ipynb")
 
-# STEM: the path to a results directory (containing the eqx, yaml, and parquet files)
-run_results_notebook STEM:
+# run_results_notebook STEM:
+#   #!/usr/bin/env bash
+#   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+#   conda activate {{conda_environment}}
+#   papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{file_stem(STEM)}}.ipynb -p input_files_stem {{STEM}}
+#   # echo papermill {{join(trapallada_dir, 'experiments', 'results.ipynb')}} {{join(invocation_directory(), parent_directory(STEM), file_stem(STEM) + ".ipynb")}} -p input_files_stem {{STEM}}
+
+[doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
+run_parameterized_notebook NOTEBOOK DIR:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{file_stem(STEM)}}.ipynb -p input_files_stem {{STEM}}
-  # echo papermill {{join(trapallada_dir, 'experiments', 'results.ipynb')}} {{join(invocation_directory(), parent_directory(STEM), file_stem(STEM) + ".ipynb")}} -p input_files_stem {{STEM}}
+  papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p input_files_stem {{DIR}}
 
 cuda:
   #!/usr/bin/env bash
@@ -64,7 +70,7 @@ fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_cl
 
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-fit_test: (fit_real "results/mini_good/parameters.yaml" "5_sources")
+fit_test PARAMETERS="mini.yaml": (fit_real "results"/PARAMETERS "5_sources")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash

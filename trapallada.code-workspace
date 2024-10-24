@@ -20,7 +20,9 @@
 			"**/*.tar": true,
 			"**/*.xlsx": true,
 			"**/iframe_figures": true,
-			"LICENSE": true
+			"LICENSE": true,
+			"results/*.yaml": true,
+			"results/new/logs": true
 		}
 	},
 }
