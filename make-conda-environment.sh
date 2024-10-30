@@ -9,7 +9,7 @@ LIBRARIES=(
     ipdb # debugging
     nbdime
     jupyterlab">"4
-    astropy astroquery
+    astropy astroquery"="0.4.6 # seemingly, astroquery 0.4.7's XMMNewton.download_data does not support full paths in "filename" argument
     matplotlib
     plotly ipywidgets python-kaleido
     altair

@@ -1,4 +1,5 @@
 import pathlib
+import re
 
 import yaml
 
@@ -192,9 +193,17 @@ class Graph:
             
             display(Markdown(f'### {i}'))
             
-            print(self.nodes_df.filter(regex=self.re_columns_to_show).loc[i])
+            # print(self.nodes_df.filter(regex=self.re_columns_to_show).loc[i])
             
-            display(trapallada.analysis.predict_and_plot(model, ds, i, display_metadata=False))
+            # display(trapallada.analysis.predict_and_plot(model, ds, i, display_metadata=False))
+
+            self.display_selected(model, ds, i)
+
+    def display_selected(self, model: eqx.Module, ds: Dataset, i: int):
+
+        print(self.nodes_df.filter(regex=self.re_columns_to_show).loc[i])
+        
+        display(predict_and_plot(model, ds, i, display_metadata=False))
 
     def inspect_regions(self, n_samples, regions: list[dict[str, tuple[float, float]]], labels, model: eqx.Module, ds: Dataset):
 
@@ -260,6 +269,27 @@ def plot_graph(nodes: pd.DataFrame, edges: pd.DataFrame, analysis: pd.DataFrame 
     fig.add_tools(hover_tool)
 
     return fig
+
+class SignalsGraph(Graph):
+
+    # a regular expression to extract the names of the `.tar` file and inner `.FTZ` from some `Id`
+    re_tar_fit = re.compile(r'(\w+)/(\w+)')
+
+    def __init__(self, nodes: pd.DataFrame, edges: pd.DataFrame, data_dir: str | pathlib.Path, fig=None):
+
+        super().__init__(nodes, edges, fig)
+
+        self.data_dir = pathlib.Path(data_dir)
+
+    def get_signal_by_id(self, id: str):
+        
+        tar, fit = self.re_tar_fit.match(id).groups()
+        
+        return pd.read_parquet(self.data_dir / 'full_signals' / (tar + '.parquet'))[fit + '.FTZ']
+
+    def display_selected(self, model: eqx.Module, ds: Dataset, i: int):
+
+        display(trapallada.plot.signal(self.get_signal_by_id(i).values))
 
 # def display_selected_window(model, ds, index, analysis_df):
 
@@ -361,3 +391,15 @@ def get_base_directory():
         base_dir = base_dir.parent
 
     return base_dir
+
+def save_regions(regions: list[dict], output_file: pathlib.Path | str) -> pathlib.Path:
+
+    with open(output_file, 'w') as f:
+        
+        yaml.dump(regions, f, default_flow_style=False)
+
+def load_regions(regions_file: pathlib.Path) -> list[dict]:
+    
+    with regions_file.open() as f:
+        
+        return yaml.load(f, Loader=yaml.FullLoader)

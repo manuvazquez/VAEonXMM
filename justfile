@@ -70,7 +70,7 @@ fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_cl
 
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-fit_test PARAMETERS="mini.yaml": (fit_real "results"/PARAMETERS "5_sources")
+fit_test PARAMETERS="test.yaml": (fit_real "results"/PARAMETERS "mini_rate_background")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
@@ -83,7 +83,10 @@ pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
   trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}}
-  cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}.log
+  # cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}.log
+  cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
+
+pack_obs_test: (pack_obs "mini_rate_background" "63" "225" "10" "4" "0" data_dir/"sample" trapallada_data_dir)
 
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
@@ -106,6 +109,7 @@ connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   {{BROWSER}} http://localhost:10000
   kill $SSH_PID
 
+[doc("FILE: the name of the notebook; SERVER: remote server where the notebook will be published")]
 publish_on_cluster FILE SERVER="meiga04": (export_notebook_to_html FILE)
   chmod go+r {{without_extension(FILE)}}.html
   rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
@@ -115,3 +119,6 @@ publish_on_cluster FILE SERVER="meiga04": (export_notebook_to_html FILE)
 clean_cache DIR=".":
   # rm experiments/*.parquet
   fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
+
+mount_supergraph:
+  rclone mount uc3m: {{trapallada_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
