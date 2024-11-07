@@ -1,0 +1,5 @@
+bin_size: 63
+max_n_sources: 4
+min_power: 0.0
+step: 10
+window_size: 225

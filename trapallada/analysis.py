@@ -13,7 +13,7 @@ from jaxtyping import PRNGKeyArray
 
 import plotly.express as px
 
-from bokeh.models import Scatter
+from bokeh.models import Scatter, Circle, IndexFilter, CDSView, LabelSet, ColumnDataSource
 from bokeh.plotting import figure, show
 from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine, Label
 
@@ -224,6 +224,49 @@ class Graph:
 
             self.sample_and_plot_range(n_samples, **r, model=model, ds=ds)
 
+    def highlight_nodes(self, nodes_labels: list[tuple[str, str]]):
+
+        highlight_renderer = GraphRenderer()
+
+        highlighted_nodes, highlighted_nodes_labels = list(zip(*nodes_labels))
+
+        # data already in the graph
+        data = dict(self.fig.renderers[0].node_renderer.data_source.data)
+
+        highlight_renderer.node_renderer.data_source.data = data
+        highlight_renderer.layout_provider = self.fig.renderers[0].layout_provider
+        highlight_renderer.node_renderer.glyph = Circle(radius=20, fill_color="yellow", line_color="black", line_width=3)
+
+        # so that only the highlighted nodes are shown
+        highlighted_indices = [data['index'].index(node) for node in highlighted_nodes if node in data['index']]
+        highlight_filter = IndexFilter(indices=highlighted_indices)
+        highlight_view = CDSView(filter=highlight_filter)
+        highlight_renderer.node_renderer.view = highlight_view
+
+        self.fig.renderers.append(highlight_renderer)
+
+        # data for labels
+        highlighted_positions = {'x': [], 'y': [], 'node': []}
+        for node, label in zip(highlighted_nodes, highlighted_nodes_labels):
+            if node in data['index']:
+                # index = data['index'].index(node)
+                x, y = highlight_renderer.layout_provider.graph_layout[node]
+                highlighted_positions['x'].append(x)
+                highlighted_positions['y'].append(y)
+                highlighted_positions['node'].append(label)
+
+        # Create a ColumnDataSource for the labels
+        label_source = ColumnDataSource(data=highlighted_positions)
+
+        # Add the labels using LabelSet
+        labels = LabelSet(x='x', y='y', text='node', source=label_source, text_font_size='10pt',
+                        text_color='black', background_fill_color='white', background_fill_alpha=0.7)
+
+        # Add labels to the figure
+        self.fig.add_layout(labels)
+
+        show(self.fig)
+
 
 def plot_graph(nodes: pd.DataFrame, edges: pd.DataFrame, analysis: pd.DataFrame | None = None, edges_line_alpha: float = 0.01, fig=None):
 
@@ -290,75 +333,6 @@ class SignalsGraph(Graph):
     def display_selected(self, model: eqx.Module, ds: Dataset, i: int):
 
         display(trapallada.plot.signal(self.get_signal_by_id(i).values))
-
-# def display_selected_window(model, ds, index, analysis_df):
-
-#     print(analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[index])
-#     display(predict_and_plot(model, ds, index, display_metadata=False))
-
-
-# def get_signal_by_id(id: str):
-    
-#     tar, fit = re_tar_fit.match(id).groups()
-    
-#     return pd.read_parquet(data_dir / 'full_signals' / (tar + '.parquet'))[fit + '.FTZ']
-
-
-# def display_selected_signal(model, ds, index, analysis_df):
-
-#     display(trapallada.plot.signal(get_signal_by_id(id).values))
-
-
-def inspect_regions(fig, n_samples, x_range_list, y_range_list, labels, model, ds, nodes, analysis_df):
-
-    # an auxiliary function to frame a certain region with a rectangle.
-    def mark_rectangle(x_range, y_range, fig, text: str):
-        
-        x_center = np.mean(x_range)
-        y_center = np.mean(y_range)
-        width = -np.subtract(*x_range)
-        height = -np.subtract(*y_range)
-
-        fig.rect(x=x_center, y=y_center, width=width, height=height, line_color='red', line_width=2, fill_alpha=0)
-
-        label = Label(x=x_range[1] + 0.3, y=y_center, text=text, text_font_size="12pt", text_color='black')
-        fig.add_layout(label)
-
-        return fig
-    
-
-    # another auxiliary function (relying on the previous one) for plotting a few random points in a region
-    def sample_and_plot_range(n: int, x_range, y_range):
-
-        belong = (x_range[0]< nodes['x']) & (nodes['x'] < x_range[1]) &\
-            (y_range[0]< nodes['y']) & (nodes['y'] < y_range[1])
-        
-        selected = nodes[belong]
-
-        n = min(n, len(selected))
-
-        for i in selected.sample(n, random_state=42).index:
-            display(Markdown(f'### {i}'))
-            print(analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
-            display(trapallada.analysis.predict_and_plot(model, ds, i, display_metadata=False))
-    
-    
-    for x_range, y_range, label in zip(x_range_list, y_range_list, labels):
-        
-        fig = mark_rectangle(x_range, y_range, fig, label)
-
-    show(fig)
-
-    for x_range, y_range, label in zip(x_range_list, y_range_list, labels):
-
-        display(Markdown(f'### {label}'))
-        
-        fig.x_range.start, fig.x_range.end = x_range
-        fig.y_range.start, fig.y_range.end = y_range
-        
-        show(fig)
-
-        sample_and_plot_range(n_samples, x_range, y_range)
 
 def make_combo_widget(results_dir: pathlib.Path):
     

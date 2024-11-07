@@ -217,7 +217,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     @eqx.filter_jit
     def loss(
             model: eqx.Module,
-            x: Float[Array, 'batch 1 length'],
+            x: Float[Array, 'batch channel length'],
             x_sd: float,
             key: PRNGKeyArray
             ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:

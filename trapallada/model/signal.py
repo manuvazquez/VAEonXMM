@@ -94,13 +94,15 @@ class Encoder(eqx.Module):
         # for the sake of readability
         n_input_maps, input_maps_len = input_size
 
-        # the number of input channels is given by the data
+        # the *first* number of input channels is determined by the data
         channels = [n_input_maps] + channels
 
         self.layers = []
 
+        # the initial length of the feature map
         conv_output_len = input_maps_len
 
+        # it is recorded for the decoder
         self.layers_spatial_sizes = [input_maps_len]
 
         for in_channels, out_channels, key, kernel_size in zip(
@@ -156,7 +158,7 @@ class Decoder(eqx.Module):
 
     layers: list
 
-    def __init__(self, dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
 
         # for the sake of readability
         n_conv_layers = len(channels)
@@ -167,8 +169,9 @@ class Decoder(eqx.Module):
 
         padding = 0
 
-        # the final number of output channels must be 1
-        channels = list(reversed(channels)) + [1]
+        # the final number of output channels must be that at the input of the encoder
+        # channels = list(reversed(channels)) + [1]
+        channels = list(reversed(channels)) + input_size[0:1]
 
         # the architecture of the encoder is reversed
         kernel_sizes = list(reversed(kernel_sizes))
@@ -233,9 +236,9 @@ class Decoder(eqx.Module):
 
 class NonNegativeDecoder(Decoder):
 
-    def __init__(self, dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
 
-        super().__init__(dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
+        super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 
         # a RELU layer is added at the end
         self.layers.append(jax.nn.relu)

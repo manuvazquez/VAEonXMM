@@ -40,7 +40,7 @@ class SignalsDataset(Dataset):
 
     def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False, fft: bool = False):
 
-        self.signals: Float[Array, 'signal 1 length'] = torch.load(signals_filename, weights_only=False)
+        self.signals: Float[Array, 'signal channel length'] = torch.load(signals_filename, weights_only=False)
 
         # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
         if type(self.signals) == np.ndarray:
@@ -100,11 +100,12 @@ class SignalsDataset(Dataset):
             
             self.labels, self.labels_names = make_labels_and_labels_names()
 
+        # TODO: use rfft instead of fft
         if fft:
 
             logger.info('computing the FFT of each signal...')
         
-            self.signals = torch.abs(torch.fft.fft(self.signals))
+            self.signals = torch.abs(torch.fft.fft(self.signals, norm='forward'))
 
             new_length = self.signals.shape[-1]//2
             

@@ -57,7 +57,7 @@ def bin_fits_df(df: pd.DataFrame, bin_size: int = 63) -> pd.DataFrame:
     return df.rolling(window=bin_size, center=False, step=bin_size).sum().iloc[1:]
 
 
-def read_fits_file(file: pathlib.Path | str) -> pd.DataFrame:
+def read_fits_file(file: pathlib.Path | str, return_mask: bool = False) -> pd.DataFrame:
     """
     Read a FITS file and return its content as a DataFrame.
 
@@ -83,14 +83,107 @@ def read_fits_file(file: pathlib.Path | str) -> pd.DataFrame:
     # df.index = pd.to_datetime(time_dates.to_datetime())
     df['TIME'] = pd.to_datetime(time_dates.to_datetime())
 
-    return df
+    to_be_returned = df
+
+    if return_mask:
+        # gti_df = Table.read(file, format='fits', hdu=2, unit_parse_strict="silent").to_pandas()
+        gti_time_dates = time_ref +\
+              Table.read(file, format='fits', hdu=2, unit_parse_strict="silent").to_pandas().values * u.s
+        gti_df = pd.DataFrame(
+            pd.to_datetime(
+                gti_time_dates.to_datetime().ravel()
+            ).values.reshape((-1, 2)),
+            columns=['start', 'end']
+        )
+        
+        mask = pd.Series([False] * len(df), index=df['TIME'])
+        for _, row in gti_df.iterrows():
+            mask[(mask.index > row['start']) & (mask.index < row['end'])] = True
+        
+        # to_be_returned = df, gti_df
+        to_be_returned = df, mask.values
+
+    # return df
+    return to_be_returned
 
     # # 'TIME' column is converted to datetime
     # df['date'] = pd.to_datetime(df['TIME'], unit='s')
 
     # return df
 
-def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
+# def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
+#     """
+#     Read a list of FITS files and return their content as a single DataFrame.
+
+#     Args:
+#         files (list[pathlib.Path | str]): The files to be read.
+
+#     Returns:
+#         tuple[pd.DataFrame, list[pathlib.Path | str], pd.DataFrame]: 
+#             - The content of the FITS files.
+#             - The list of files that have been skipped.
+#             - A DataFrame containing the header information.
+#     """
+
+#     series_list = []
+#     skipped_files_list = []
+#     index = None
+#     first_file = None
+#     headers_list = []
+    
+#     for f in files:
+
+#         df = read_fits_file(f)
+        
+#         if 'TIME' in df:
+
+#             series = df['RATE']
+#             series.index = df['TIME']
+
+#             # if this is the first file...
+#             if index is None:
+                
+#                 # ...the reference index...
+#                 index = series.index
+
+#                 # ...and file are set
+#                 first_file = f
+            
+#             # if this is NOT the first file
+#             else:
+
+#                 if not index.equals(series.index):
+
+#                     logger.warning((f'Time stamps for file "{f.relative_to(f.parents[1])}" don\'t match '
+#                             f'those for "{first_file.relative_to(first_file.parents[1])}" (the first file, taken as reference), skipping...'))
+                    
+#                     skipped_files_list.append(f)
+                    
+#                     continue
+
+#                 # assert index.equals(series.index), 'The indexes of the time series do not match.'
+            
+#             series.name = f.name
+#             series_list.append(series)
+#             headers_list.append(get_position_from_header(f))
+            
+#         # if `TIME` column is NOT present...
+#         else:
+            
+#             logger.warning(f'{f.relative_to(f.parents[1])} does not look like a light curve, skipping...')
+            
+#             skipped_files_list.append(f)
+
+#     signals_df = pd.concat(series_list, axis=1)
+#     header_df = pd.concat(headers_list, axis=1).T
+#     header_df.index = signals_df.columns
+
+#     return signals_df, skipped_files_list, header_df
+
+def read_fits_files(
+        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
+        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
+    ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
 
@@ -104,26 +197,26 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             - A DataFrame containing the header information.
     """
 
-    series_list = []
+    df_list = []
     skipped_files_list = []
     index = None
     first_file = None
     headers_list = []
-    
+
     for f in files:
 
         df = read_fits_file(f)
         
         if 'TIME' in df:
 
-            series = df['RATE']
-            series.index = df['TIME']
+            cols_of_interest_df = df[columns_of_interest + ['TIME']].set_index('TIME')
+            cols_of_interest_df.columns = pd.MultiIndex.from_tuples([(f.name,c) for c in cols_of_interest_df.columns])
 
             # if this is the first file...
             if index is None:
                 
                 # ...the reference index...
-                index = series.index
+                index = df['TIME']
 
                 # ...and file are set
                 first_file = f
@@ -131,7 +224,7 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             # if this is NOT the first file
             else:
 
-                if not index.equals(series.index):
+                if not index.equals(df['TIME']):
 
                     logger.warning((f'Time stamps for file "{f.relative_to(f.parents[1])}" don\'t match '
                             f'those for "{first_file.relative_to(first_file.parents[1])}" (the first file, taken as reference), skipping...'))
@@ -142,8 +235,7 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
 
                 # assert index.equals(series.index), 'The indexes of the time series do not match.'
             
-            series.name = f.name
-            series_list.append(series)
+            df_list.append(cols_of_interest_df)
             headers_list.append(get_position_from_header(f))
             
         # if `TIME` column is NOT present...
@@ -153,9 +245,11 @@ def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list
             
             skipped_files_list.append(f)
 
-    signals_df = pd.concat(series_list, axis=1)
+    signals_df = pd.concat(df_list, axis=1)
+    signals_df.columns.names = ['file', 'data']
+
     header_df = pd.concat(headers_list, axis=1).T
-    header_df.index = signals_df.columns
+    header_df.index = signals_df.columns.get_level_values('file').unique()
 
     return signals_df, skipped_files_list, header_df
 
@@ -407,14 +501,17 @@ def slice(
     """
     
     # data is sliced...
-    slices = np.lib.stride_tricks.sliding_window_view(df.values, window_shape=window_size, axis=0)[::step]
+    slices: Float[Array, 'window channel time'] = np.lib.stride_tricks.sliding_window_view(df.values, window_shape=window_size, axis=0)[::step]
 
     # ...and so are the time indexes
-    index_slices = np.lib.stride_tricks.sliding_window_view(df.index.values, window_shape=window_size)[::step]
+    index_slices: Float[Array, 'window time'] = np.lib.stride_tricks.sliding_window_view(df.index.values, window_shape=window_size)[::step]
+
+    n_columns_per_signal = len(df.columns.get_level_values('data').unique())
 
     # the 1st window for the first signal, then the 1st for the 2nd signal...
     # then the 2nd window for the 1st signal, and so forth and so on
-    stacked_slices = slices.reshape((-1, slices.shape[-1]))
+    # stacked_slices = slices.reshape((-1, slices.shape[-1]))
+    stacked_slices: Float[Array, 'window channel time'] = slices.reshape((-1, n_columns_per_signal, slices.shape[-1]))
 
     # the number of resulting windows
     n_windows = slices.shape[0]
@@ -422,13 +519,15 @@ def slice(
     # if a last window with (most likely including leftovers) is to be considered...
     if tail_as_window:
 
-        stacked_slices = np.vstack((stacked_slices, df.values[-window_size:].T))
+        # stacked_slices = np.vstack((stacked_slices, df.values[-window_size:].T))
+        stacked_slices = np.vstack((stacked_slices, df.values[-window_size:].T.reshape((-1, n_columns_per_signal, slices.shape[-1]))))
 
         index_slices = np.vstack((index_slices, df.index.values[-window_size:][None, :]))
 
         n_windows += 1
 
-    index_slices = np.repeat(index_slices, len(df.columns), axis=0)
+    # index_slices = np.repeat(index_slices, len(df.columns), axis=0)
+    index_slices = np.repeat(index_slices, len(df.columns) // n_columns_per_signal, axis=0)
 
     res = stacked_slices, index_slices
 
@@ -443,7 +542,7 @@ def slice(
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
         max_n_sources: int = 4, min_power: float = 0.
-        ) -> tuple[Float[Array, 'window time'], pd.DataFrame, pd.DataFrame]:
+        ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
     
@@ -479,6 +578,8 @@ def tars_to_array(
         # ...is read into a `DataFrame`
         df, header_df = read_tar(tar_file, max_n_sources=max_n_sources)
 
+        # n_columns_per_signal = len(df.columns.get_level_values('data').unique())
+
         # if something was actually read...
         if df is not None:
 
@@ -503,14 +604,18 @@ def tars_to_array(
             # ---
 
             # power of the (binned) signals
-            power = (binned_df**2).mean(axis=0)
+            # power = (binned_df**2).mean(axis=0)
+            power = (binned_df.filter(like='RATE', axis=1)**2).mean(axis=0).droplevel('data')
+
+            # print(power)
 
             # a `Series` with the columns (i.e., signals) whose power is below the threshold
             low_power_columns = power[(power < min_power)].index
             n_low_power_columns = len(low_power_columns)
 
             # if every signal has low power...
-            if n_low_power_columns == len(binned_df.columns):
+            if n_low_power_columns == len(power):
+            # if n_low_power_columns == len(binned_df.columns):
 
                 logger.warning(f'every signal has power below {min_power} in "{tar_file}", skipping...')
                 
@@ -556,18 +661,27 @@ def tars_to_array(
                 
                 continue
 
+            normalized_df = binned_df.apply(lambda x: (x- x.mean()) / x.std())
+
             # signals are "sliced"
             sliced_signals, sliced_times, n_windows = slice(
-                binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
+                normalized_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
 
             signals_list.append(sliced_signals)
             start_list.append(sliced_times[:, 0])
             end_list.append(sliced_times[:, -1])
             f_list.append(np.full(len(sliced_signals), tar_file.name))
-            names_list.append(np.tile(binned_df.columns, n_windows))
+            # names_list.append(np.tile(normalized_df.columns, n_windows))
+            names_list.append(np.tile(power.index.tolist(), n_windows))
             header_df_list.append(header_df)
 
-            full_signals_dict[tar_file.name] = binned_df
+            # n_signals = len(power.index)
+            # i_window = 0
+            # i_signal = 0
+            # i_signal_col = 0
+            # assert np.allclose(sliced_signals[i_window*n_signals + i_signal, i_signal_col, :], normalized_df.iloc[(i_window*step):i_window*step + window_size, 2*i_signal + i_signal_col].values)
+
+            full_signals_dict[tar_file.name] = normalized_df
 
     metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
@@ -623,7 +737,8 @@ def cl_tars_to_array(args: list = None):
     full_signals_dir = output_subdirectory / 'full_signals'
 
     # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
-    torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
+    # torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
+    torch.save(signals, torch_file) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
     headers_df.to_parquet(headers_file)
 

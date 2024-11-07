@@ -22,7 +22,7 @@ papermill FILE:
   conda activate {{conda_environment}}
   cd "nbs" && papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "util.ipynb")
+test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
 
 # run_results_notebook STEM:
 #   #!/usr/bin/env bash
@@ -70,7 +70,7 @@ fit_synthetic PARAMETERS: (fit PARAMETERS "4_classes_modulated_signals.pt" "4_cl
 
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-fit_test PARAMETERS="test.yaml": (fit_real "results"/PARAMETERS "mini_rate_background")
+fit_test PARAMETERS="vanilla_mini.yaml": (fit_real "results"/PARAMETERS "mini_rate_background")
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
@@ -121,4 +121,4 @@ clean_cache DIR=".":
   fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
 
 mount_supergraph:
-  rclone mount uc3m: {{trapallada_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
+  rclone mount uc3m: {{home_dir}}/drive/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5

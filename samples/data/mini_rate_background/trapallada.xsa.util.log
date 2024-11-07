@@ -1,0 +1,3 @@
+29-Oct-24 17:16:47 - trapallada.xsa.util - INFO - Requested a window size of, effectively, duration 20695.5 seconds (period is 91.98 seconds, step is 919.8 seconds)
+29-Oct-24 17:16:48 - trapallada.xsa.util - WARNING - No relevant files in "/home/manu/data/trapallada/sample/0401180101.tar"
+29-Oct-24 17:16:48 - trapallada.xsa.util - INFO - 148 signals of length 2 samples (20603.52 seconds)
