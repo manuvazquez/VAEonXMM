@@ -256,10 +256,13 @@ class VAE(eqx.Module):
 
     def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> PyTree:
 
+        # mean and standard deviation are broken apart...
         z_mean, z_sd = jnp.split(self.encoder(x), 2, axis=-1)
 
+        # ...and used to draw a sample...
         z = dist.Normal(loc=z_mean, scale=z_sd).sample(key)
 
+        # ...which is "decoded" and returned along with the mean and standard deviation
         return self.decoder(z), z_mean, z_sd
 
 def assemble_vae(parameters: dict) -> eqx.Module:

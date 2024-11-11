@@ -1,4 +1,5 @@
 home_dir := env_var('HOME')
+google_drive_dir := join(home_dir, 'drive')
 tmp_dir := '/tmp/'
 
 light_curves_dir := join(home_dir, 'Sync/research/light curves')
@@ -36,7 +37,7 @@ run_parameterized_notebook NOTEBOOK DIR:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p input_files_stem {{DIR}}
+  papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
 
 cuda:
   #!/usr/bin/env bash
@@ -102,6 +103,12 @@ mlflow_ui:
   echo {{env_var('MLFLOW_TRACKING_URI')}}
   mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
+mlflow_server:
+  #!/usr/bin/env bash
+  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+  conda activate {{conda_environment}}
+  mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+
 connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   #!/usr/bin/env bash
   ssh -N -L 10000:localhost:8080 {{SERVER}} &
@@ -121,4 +128,9 @@ clean_cache DIR=".":
   fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
 
 mount_supergraph:
-  rclone mount uc3m: {{home_dir}}/drive/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
+  rclone mount uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
+
+mount_trapallada:
+  rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
+
+  

@@ -7,25 +7,24 @@ PRNG seeds:
     validation set: 15
   training dataloader: 43
   training-validation splitting: 42
-encoder: &encoder
-  input_size:
-  - 1
-  - 10000 # <---- FFT
 loss:
   x_sd: 0.5 # <---- FFT
 model: &model
+  input_size:
+  - 1
+  - 10000 # <---- FFT (due to redundancy)
   channels:
   - 12
   - 12
   - 12
   dim_z: 10
-  kernel_sizes:
+  kernel_sizes: # <---- FFT (due to redundancy)
   - 128
   - 64
   - 32
   stride: 2
 data:
-    normalize: true
+    normalize: false
     fft: false # <---- FFT
 training:
   batch_size: 32
@@ -38,7 +37,7 @@ VAE:
   encoder:
     class: Encoder
     parameters:
-      << : [*model, *encoder]
+      << : [*model]
   decoder:
     class: Decoder # <---- FFT (NonNegativeDecoder)
     parameters:

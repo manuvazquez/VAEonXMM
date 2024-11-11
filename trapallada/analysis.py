@@ -8,10 +8,14 @@ import pandas as pd
 
 from torch.utils.data import Dataset
 import equinox as eqx
+
+import jax
+import jax.numpy as jnp
 import jax.random as jr
 from jaxtyping import PRNGKeyArray
 
 import plotly.express as px
+import plotly.graph_objects as go
 
 from bokeh.models import Scatter, Circle, IndexFilter, CDSView, LabelSet, ColumnDataSource
 from bokeh.plotting import figure, show
@@ -377,3 +381,227 @@ def load_regions(regions_file: pathlib.Path) -> list[dict]:
     with regions_file.open() as f:
         
         return yaml.load(f, Loader=yaml.FullLoader)
+
+# def plot_window_within_signal(i_window: int, path_to_full_signals: str | pathlib.Path, metadata_df: pd.DataFrame):
+
+#     signal_metadata = metadata_df.loc[i_window]
+
+#     path_to_full_signals = pathlib.Path(path_to_full_signals)
+
+#     tar_file = signal_metadata['tar file'].split('.')[0]
+#     fit_file = signal_metadata['source'].split('.')[0]
+#     signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
+#     mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
+
+#     fig = go.Figure()
+#     fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
+#     belongs_to_window = (signal_series.index >= signal_metadata['start']) & (signal_series.index <= signal_metadata['end'])
+    
+#     window_series = signal_series[belongs_to_window]
+#     fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
+
+#     not_ok_signal = signal_series[~mask_series]
+#     fig.add_trace(
+#         go.Scatter(
+#             x=not_ok_signal.index, y=not_ok_signal, mode='markers', marker=dict(symbol='diamond', color='red', size=2), name='not OK'
+#         )
+#     )
+
+#     return fig
+
+class TSNE:
+    def __init__(self, analysis_df: pd.DataFrame, columns: list[str], full_signals_dir: str | pathlib.Path, on_plot_hover_columns: list[str]):
+
+        self.analysis_df = analysis_df
+        self.columns = columns
+        self.full_signals_dir = pathlib.Path(full_signals_dir)
+        self.on_plot_hover_columns = on_plot_hover_columns
+
+        self.fig = None
+
+    def make_fig(self):
+
+        self.fig = px.scatter(
+            self.analysis_df.reset_index(),
+            *self.columns,
+            color='main_type',
+            hover_data=self.on_plot_hover_columns, opacity=0.5,
+            width=1_200, height=800
+        )
+
+        return self.fig
+    
+    def mark_rectangle(self, x_range: list[float], y_range: list[float], text: str):
+
+        # the rectangle is overimposed on the picture
+        self.fig.add_shape(
+            type='rect',
+            x0=x_range[0], y1=y_range[0], 
+            x1=x_range[1], y0=y_range[1],
+            line=dict(color='RoyalBlue'),
+        )
+
+        self.fig.add_annotation(
+            x=x_range[1], y=y_range[1],
+            text=text,
+            showarrow=False,
+            # arrowhead=1
+        )
+
+        return self.fig
+    
+    def sample_and_plot_range(self, n: int, x_range, y_range):
+
+        # `True` if the tSNE coordinates of the corresponding point are inside the rectangle
+        belong = (self.analysis_df['tsne_1'] > x_range[0]) &\
+            (self.analysis_df['tsne_1'] < x_range[1]) &\
+            (self.analysis_df['tsne_2'] < y_range[1]) &\
+            (self.analysis_df['tsne_2'] > y_range[0])
+
+        # the original `DataFrame` is subset
+        selected_df = self.analysis_df[belong]
+
+        n = min(n, len(selected_df))
+
+        for i in selected_df.sample(n, random_state=42).index:
+            
+            display(Markdown(f'### {i}'))
+            
+            print(self.analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
+            
+            # display(predict_and_plot(model, ds, i, display_metadata=False))
+            # display(plot_window_within_signal(i, self.full_signals_dir, self.analysis_df))
+            signal_id, *start_end = self.analysis_df.loc[i, ['signal', 'start', 'end']]
+            display(plot_full_signal(signal_id, self.full_signals_dir, *start_end))
+
+    def inspect_regions(self, regions: list[dict[str, tuple[float, float]]], labels, n_samples: int = 5, dont_plot_signals: bool = False):
+        
+        for region, label in zip(regions, labels):
+            
+            self.fig = self.mark_rectangle(**region, text=label)
+
+        display(Markdown('## Regions'))
+        
+        self.fig.show()
+
+        if dont_plot_signals:
+
+            return 
+
+        zoomed_in_fig = go.Figure(self.fig)
+
+        for r, label in zip(regions, labels):
+
+            display(Markdown(f'### {label}'))
+
+            zoomed_in_fig.update_layout(xaxis=dict(range=r['x_range']), yaxis=dict(range=r['y_range']))
+
+            zoomed_in_fig.show()
+
+            self.sample_and_plot_range(n_samples, **r)
+
+    def highlight_windows(self, indexes: list[int], name: str):
+
+        self.fig.add_trace(go.Scatter(
+            self.analysis_df.loc[indexes, self.columns].
+            rename(columns={col: coord for col, coord in zip(self.columns, ['x', 'y'])}).to_dict(orient='list'),
+            mode='markers', marker=dict(size=20, symbol='star', color='blue'),
+            # customdata=self.analysis_df.loc[indexes, self.on_plot_hover_columns],
+            name=name
+        ))
+
+        return self.fig
+
+    def highlight_windows_of_interest(self):
+        
+        signals_of_interest = get_signals_of_interest()
+        
+        for signal, name in signals_of_interest:
+            
+            # self.highlight_windows(self.analysis_df[self.analysis_df['signal'] ==  signal].index, name)
+            self.highlight_windows(self.analysis_df[self.analysis_df['signal'] ==  signal].index, f'{signal.split("/")[1]} ({name})')
+
+def get_signals_of_interest():
+    
+    with (get_base_directory() / 'interesting.yaml').open() as f:
+        
+        return yaml.safe_load(f)['signals']
+    
+def plot_full_signal(
+        signal: str, path_to_full_signals: str | pathlib.Path, window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None
+    ):
+
+    assert ((window_start is None and window_end is None) or (window_start is not None and window_end is not None))
+
+    tar_file, fit_file = signal.split('/')
+
+    path_to_full_signals = pathlib.Path(path_to_full_signals)
+
+    signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
+    mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
+
+    if window_start is not None:
+
+        belongs_to_window = (signal_series.index >= window_start) & (signal_series.index <= window_end)
+        window_series = signal_series[belongs_to_window]
+        fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
+
+    not_ok_signal = signal_series[~mask_series]
+    fig.add_trace(
+        go.Scatter(
+            x=not_ok_signal.index, y=not_ok_signal, mode='markers', marker=dict(symbol='diamond', color='red', size=2), name='not OK'
+        )
+    )
+
+    return fig
+
+# def plot_latents_distribution(dl, encoder: eqx.Module, dim_z: int, i_z: int):
+
+#     z_s = []
+#     for _, x, _ in dl:
+#         z_s.append(jax.vmap(encoder)(x.numpy()))
+
+#     z_s = jnp.vstack(z_s)
+    
+#     fig = px.scatter(x=jnp.arange(dim_z), y=z_s[i_z, :dim_z], error_y=z_s[i_z, dim_z:])
+    
+#     return fig
+
+class Latents:
+
+    def __init__(self, dl, encoder: eqx.Module, dim_z: int):
+
+        self.dim_z = dim_z
+        
+        z_s = []
+        
+        for _, x, _ in dl:
+            z_s.append(jax.vmap(encoder)(x.numpy()))
+
+        self.z_s = jnp.vstack(z_s)
+
+    def plot_ith(self, i_z: int):
+
+        fig = px.scatter(x=jnp.arange(self.dim_z), y=self.z_s[i_z, :self.dim_z], error_y=self.z_s[i_z, self.dim_z:])
+    
+        return fig
+
+def make_save_button_widget(regions, regions_file):
+    
+    # Define the function to be called when the button is pressed
+    def on_button_click(b):
+        save_regions(regions, regions_file)
+        print("Regions saved to", regions_file)
+
+    # Create the button
+    button = widgets.Button(description="Save Regions")
+
+    # Set the button's on_click event to the function
+    button.on_click(on_button_click)
+
+    # Display the button
+    display(button)

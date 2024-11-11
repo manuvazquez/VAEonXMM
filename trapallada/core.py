@@ -222,7 +222,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             key: PRNGKeyArray
             ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:
 
-        # # for the sake of readability
+        # for the sake of readability
         batch_size = len(x)
 
         x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size))
