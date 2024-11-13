@@ -447,7 +447,7 @@ def download_extract_filter(
 
     return output_subdir
 
-def read_tar(file: str | pathlib.Path, max_n_sources: int = 3) -> tuple[pd.DataFrame | None, pd.Series | None]:
+def read_tar(file: str | pathlib.Path, max_n_sources: int = 4) -> tuple[pd.DataFrame | None, pd.Series | None]:
     """
     Reads a tar file containing FITS files, returning a number of sources.
 
@@ -590,13 +590,47 @@ def tars_to_array(
     # every tar file...
     for tar_file in files:
         
-        # ...is read into a `DataFrame`
+        # ...is read into 3 `DataFrame`s
         df, header_df, mask_df = read_tar(tar_file, max_n_sources=max_n_sources)
-
-        # n_columns_per_signal = len(df.columns.get_level_values('data').unique())
 
         # if something was actually read...
         if df is not None:
+
+            # breakpoint()
+
+            # if (tar_file.stem == '0764191301') and 'P0764191301PNS003SRCTSR8002.FTZ' in df.columns.get_level_values('file'):
+
+            #     # import trapallada.analysis
+            #     # path_to_full_signals = pathlib.Path.home() / 'data' / 'trapallada' / 'full_signals'
+            #     # trapallada.analysis.plot_full_signal('0764191301/P0764191301PNS003SRCTSR8002', path_to_full_signals)
+
+            #     import plotly.express as px
+            #     import webbrowser
+
+            #     signal_series = df[('P0764191301PNS003SRCTSR8002.FTZ', 'RATE')]
+
+            #     fig = px.line(x=signal_series.index,y=signal_series.values)
+            #     fig.write_html('plot.html')
+            #     webbrowser.open('plot.html')
+                
+            #     interpolated_df = df.interpolate(method='linear', axis=0)
+            #     interpolated_signal_series = interpolated_df[('P0764191301PNS003SRCTSR8002.FTZ', 'RATE')]
+            #     interpolated_fig = px.line(x=interpolated_signal_series.index,y=interpolated_signal_series.values)
+            #     interpolated_fig.write_html('interpolated_plot.html')
+            #     webbrowser.open('interpolated_plot.html')
+
+            #     breakpoint()
+
+            # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
+            #  `df` but removing the `file` level of the column index, so that it can be compared to `mask_df`
+            assert (
+                df.set_axis(df.columns.get_level_values('file'), axis=1).isna()\
+                      ==\
+                          (~mask_df)
+                    ).all().all()
+            
+            # negative values are clipped to zero
+            df = df.clip(lower=0)
 
             # if there is *any* `NaN` at all (in any column, at any time instant)...
             if df.isna().any().any():
@@ -613,27 +647,28 @@ def tars_to_array(
             # the period of the raw `DataFrame`
             period = df.index[1] - df.index[0]
             
-            # signals are binned
+            # signals are binned...
             binned_df = bin_fits_df(df, bin_size=bin_size)
 
+            # ...and so are masks
             binned_mask_df = mask_df.rolling(window=bin_size, center=False, step=bin_size).apply(lambda x: np.all(x)).iloc[1:].astype(bool)
+            
+            # indexes of both should match
             assert (binned_df.index == binned_mask_df.index).all()
 
             # ---
 
             # power of the (binned) signals
-            # power = (binned_df**2).mean(axis=0)
             power = (binned_df.filter(like='RATE', axis=1)**2).mean(axis=0).droplevel('data')
-
-            # print(power)
 
             # a `Series` with the columns (i.e., signals) whose power is below the threshold
             low_power_columns = power[(power < min_power)].index
+            
+            # their number
             n_low_power_columns = len(low_power_columns)
 
             # if every signal has low power...
             if n_low_power_columns == len(power):
-            # if n_low_power_columns == len(binned_df.columns):
 
                 logger.warning(f'every signal has power below {min_power} in "{tar_file}", skipping...')
                 
@@ -681,6 +716,8 @@ def tars_to_array(
 
             normalized_df = binned_df.apply(lambda x: (x- x.mean()) / x.std())
 
+            # breakpoint()
+
             # signals are "sliced"
             sliced_signals, sliced_times, n_windows = slice(
                 normalized_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
@@ -698,7 +735,6 @@ def tars_to_array(
             start_list.append(sliced_times[:, 0])
             end_list.append(sliced_times[:, -1])
             f_list.append(np.full(len(sliced_signals), tar_file.name))
-            # names_list.append(np.tile(normalized_df.columns, n_windows))
             names_list.append(np.tile(power.index.tolist(), n_windows))
             header_df_list.append(header_df)
 

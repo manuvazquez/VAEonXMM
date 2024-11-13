@@ -382,33 +382,6 @@ def load_regions(regions_file: pathlib.Path) -> list[dict]:
         
         return yaml.load(f, Loader=yaml.FullLoader)
 
-# def plot_window_within_signal(i_window: int, path_to_full_signals: str | pathlib.Path, metadata_df: pd.DataFrame):
-
-#     signal_metadata = metadata_df.loc[i_window]
-
-#     path_to_full_signals = pathlib.Path(path_to_full_signals)
-
-#     tar_file = signal_metadata['tar file'].split('.')[0]
-#     fit_file = signal_metadata['source'].split('.')[0]
-#     signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
-#     mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
-
-#     fig = go.Figure()
-#     fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
-#     belongs_to_window = (signal_series.index >= signal_metadata['start']) & (signal_series.index <= signal_metadata['end'])
-    
-#     window_series = signal_series[belongs_to_window]
-#     fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
-
-#     not_ok_signal = signal_series[~mask_series]
-#     fig.add_trace(
-#         go.Scatter(
-#             x=not_ok_signal.index, y=not_ok_signal, mode='markers', marker=dict(symbol='diamond', color='red', size=2), name='not OK'
-#         )
-#     )
-
-#     return fig
-
 class TSNE:
     def __init__(self, analysis_df: pd.DataFrame, columns: list[str], full_signals_dir: str | pathlib.Path, on_plot_hover_columns: list[str]):
 
@@ -531,6 +504,7 @@ def plot_full_signal(
         signal: str, path_to_full_signals: str | pathlib.Path, window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None
     ):
 
+    # either both ends of the window are given or none
     assert ((window_start is None and window_end is None) or (window_start is not None and window_end is not None))
 
     tar_file, fit_file = signal.split('/')
@@ -558,18 +532,6 @@ def plot_full_signal(
     )
 
     return fig
-
-# def plot_latents_distribution(dl, encoder: eqx.Module, dim_z: int, i_z: int):
-
-#     z_s = []
-#     for _, x, _ in dl:
-#         z_s.append(jax.vmap(encoder)(x.numpy()))
-
-#     z_s = jnp.vstack(z_s)
-    
-#     fig = px.scatter(x=jnp.arange(dim_z), y=z_s[i_z, :dim_z], error_y=z_s[i_z, dim_z:])
-    
-#     return fig
 
 class Latents:
 
