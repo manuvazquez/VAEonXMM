@@ -23,7 +23,8 @@ papermill FILE:
   conda activate {{conda_environment}}
   cd "nbs" && papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
+# test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
+test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
 
 # run_results_notebook STEM:
 #   #!/usr/bin/env bash
@@ -92,8 +93,8 @@ pack_obs_test: (pack_obs "mini_rate_background" "63" "225" "10" "4" "0" data_dir
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
 
-retrieve_from_cluster SERVER="meiga04" DIRECTORY="trapallada/experiments/results":
-  rsync {{SERVER}}:{{DIRECTORY}}/* {{tmp_dir}}/
+retrieve_from_cluster SERVER="meiga04" DIRECTORY="trapallada/results":
+  rsync --recursive {{SERVER}}:{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
 
 mlflow_ui:

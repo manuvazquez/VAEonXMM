@@ -243,6 +243,35 @@ class NonNegativeDecoder(Decoder):
         # a RELU layer is added at the end
         self.layers.append(jax.nn.relu)
 
+class ConditionalDecoder(eqx.Module):
+
+    z_decoder: Decoder
+    conv_layer: eqx.Module
+
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+
+        key, subkey = jr.split(key)
+
+        assert input_size[0] == 1, 'input size must be (1, length)'
+
+        self.z_decoder = Decoder(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
+        self.conv_layer = eqx.nn.Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1, key=subkey)
+
+    # def __init__(self, z_decoder, key: PRNGKeyArray):
+
+    #     key, subkey = jr.split(key)
+
+    #     # assert input_size[0] == 1, 'input size must be (1, length)'
+
+    #     self.z_decoder = z_decoder
+    #     self.conv_layer = eqx.nn.Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1, key=subkey)
+        
+    #     # a single output channel is expected
+    #     assert self.z_decoder.layers[-1].out_channels == 1
+
+    def __call__(self, z: Float[Array, 'dim_z'], x: Float[Array, '1 length']) -> Float[Array, '1 length']:
+
+        return self.z_decoder(z) + self.conv_layer(x)
 
 class VAE(eqx.Module):
 
@@ -254,7 +283,7 @@ class VAE(eqx.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> PyTree:
+    def __call__(self, x: Float[Array, 'channel length'], key: PRNGKeyArray) -> PyTree:
 
         # mean and standard deviation are broken apart...
         z_mean, z_sd = jnp.split(self.encoder(x), 2, axis=-1)

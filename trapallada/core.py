@@ -396,7 +396,7 @@ def cl_fit_vae_on_signals(args: list = None):
     )
 
     # the model is trained
-    model, results_df = trapallada.core.fit_vae_on_signals(train_dl, validation_dl, parameters)
+    model, results_df = fit_vae_on_signals(train_dl, validation_dl, parameters)
 
     logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
 

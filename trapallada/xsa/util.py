@@ -14,7 +14,7 @@ import yaml
 
 import torch
 
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Bool
 
 from astropy.table import Table
 import astropy.io.fits as fits
@@ -596,31 +596,6 @@ def tars_to_array(
         # if something was actually read...
         if df is not None:
 
-            # breakpoint()
-
-            # if (tar_file.stem == '0764191301') and 'P0764191301PNS003SRCTSR8002.FTZ' in df.columns.get_level_values('file'):
-
-            #     # import trapallada.analysis
-            #     # path_to_full_signals = pathlib.Path.home() / 'data' / 'trapallada' / 'full_signals'
-            #     # trapallada.analysis.plot_full_signal('0764191301/P0764191301PNS003SRCTSR8002', path_to_full_signals)
-
-            #     import plotly.express as px
-            #     import webbrowser
-
-            #     signal_series = df[('P0764191301PNS003SRCTSR8002.FTZ', 'RATE')]
-
-            #     fig = px.line(x=signal_series.index,y=signal_series.values)
-            #     fig.write_html('plot.html')
-            #     webbrowser.open('plot.html')
-                
-            #     interpolated_df = df.interpolate(method='linear', axis=0)
-            #     interpolated_signal_series = interpolated_df[('P0764191301PNS003SRCTSR8002.FTZ', 'RATE')]
-            #     interpolated_fig = px.line(x=interpolated_signal_series.index,y=interpolated_signal_series.values)
-            #     interpolated_fig.write_html('interpolated_plot.html')
-            #     webbrowser.open('interpolated_plot.html')
-
-            #     breakpoint()
-
             # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
             #  `df` but removing the `file` level of the column index, so that it can be compared to `mask_df`
             assert (
@@ -646,6 +621,8 @@ def tars_to_array(
 
             # the period of the raw `DataFrame`
             period = df.index[1] - df.index[0]
+            
+            # TODO: inline here the code of `binf_fits_df`
             
             # signals are binned...
             binned_df = bin_fits_df(df, bin_size=bin_size)
@@ -714,9 +691,8 @@ def tars_to_array(
                 
                 continue
 
+            # *full signals* are normalized
             normalized_df = binned_df.apply(lambda x: (x- x.mean()) / x.std())
-
-            # breakpoint()
 
             # signals are "sliced"
             sliced_signals, sliced_times, n_windows = slice(
@@ -747,24 +723,61 @@ def tars_to_array(
             # i_signal_col = 0
             # assert np.allclose(sliced_signals[i_window*n_signals + i_signal, i_signal_col, :], normalized_df.iloc[(i_window*step):i_window*step + window_size, 2*i_signal + i_signal_col].values)
 
+            # breakpoint()
+
+            n_overall_windows = len(sliced_signals)
+
+            # count rates
+            unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
+
+            # min_count_rate = 0.01
+            min_count_rate = 0.05
+            
+            # this is assuming that the count rate is the first (0-th) channel of the signal
+            large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
+            
+            n_large_enough_count_rate_windows = large_enough_count_rate.sum()
+            signals_list[-1] = signals_list[-1][large_enough_count_rate]
+            start_list[-1] = start_list[-1][large_enough_count_rate]
+            end_list[-1] = end_list[-1][large_enough_count_rate]
+            f_list[-1] = f_list[-1][large_enough_count_rate]
+            names_list[-1] = names_list[-1][large_enough_count_rate]
+            masks_list[-1] = masks_list[-1][large_enough_count_rate]
+            
+            # if there are windows to be dismissed here on account of low count rate...
+            if n_large_enough_count_rate_windows < n_overall_windows:
+                
+                logger.warning(f'{len(large_enough_count_rate) - large_enough_count_rate.sum()} windows dismissed (out of {len(large_enough_count_rate)}) on account of low count rate...')
+
+                # if ALL the windows are to be dismissed...
+                if n_large_enough_count_rate_windows == 0:
+                    
+                    # ...the header is dismissed as well
+                    del header_df_list[-1]
+
+            # breakpoint()
+
             full_signals_dict[tar_file.name] = normalized_df, binned_mask_df
 
     metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
     
+    # `metadata_df['tar file']`is exactly `np.hstack(f_list)` but it is more convenient to use Pandas' `unique`
+    # since it keeps the order of the unique values
     all_headers_df = pd.concat(header_df_list, keys=metadata_df['tar file'].unique().astype(pd.StringDtype))
     all_headers_df.index.names = ['tar file', 'source']
+
+    # breakpoint()
 
     all_signals = np.vstack(signals_list)
     all_masks = np.vstack(masks_list)
 
-    min_ratio_ok = 0.9
-    to_be_kept = (all_masks.sum(axis=-1) >= min_ratio_ok)
-    logger.warning(f'{len(all_masks) - to_be_kept.sum()} windows dismissed on account of bad time intervals...')
+    # min_ratio_ok = 0.9
+    # to_be_kept = (all_masks.sum(axis=-1) >= min_ratio_ok)
+    # logger.warning(f'{len(all_masks) - to_be_kept.sum()} windows dismissed on account of bad time intervals...')
     
-    # return all_signals, metadata_df, all_headers_df, full_signals_dict, all_masks
-    # return all_signals[to_be_kept], metadata_df.iloc[to_be_kept], all_headers_df, full_signals_dict, all_masks[to_be_kept]
-    return all_signals[to_be_kept], metadata_df.iloc[to_be_kept].reset_index(drop=True), all_headers_df, full_signals_dict, all_masks[to_be_kept]
+    return all_signals, metadata_df, all_headers_df, full_signals_dict, all_masks
+    # return all_signals[to_be_kept], metadata_df.iloc[to_be_kept].reset_index(drop=True), all_headers_df, full_signals_dict, all_masks[to_be_kept]
 
 
 def cl_tars_to_array(args: list = None):
