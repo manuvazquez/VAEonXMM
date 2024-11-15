@@ -23,15 +23,7 @@ papermill FILE:
   conda activate {{conda_environment}}
   cd "nbs" && papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-# test: (papermill "plot.ipynb") (papermill "data.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
 test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
-
-# run_results_notebook STEM:
-#   #!/usr/bin/env bash
-#   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-#   conda activate {{conda_environment}}
-#   papermill experiments/results.ipynb {{parent_directory(STEM)}}/{{file_stem(STEM)}}.ipynb -p input_files_stem {{STEM}}
-#   # echo papermill {{join(trapallada_dir, 'experiments', 'results.ipynb')}} {{join(invocation_directory(), parent_directory(STEM), file_stem(STEM) + ".ipynb")}} -p input_files_stem {{STEM}}
 
 [doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
 run_parameterized_notebook NOTEBOOK DIR:

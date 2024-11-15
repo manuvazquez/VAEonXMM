@@ -730,8 +730,9 @@ def tars_to_array(
             # count rates
             unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
 
-            # min_count_rate = 0.01
-            min_count_rate = 0.05
+            min_count_rate = 0.01
+            # min_count_rate = 0.025
+            # min_count_rate = 0.05
             
             # this is assuming that the count rate is the first (0-th) channel of the signal
             large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)

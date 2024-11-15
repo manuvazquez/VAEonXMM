@@ -23,7 +23,6 @@ setuptools.setup(
     python_requires='>=3.10',
     entry_points={
         'console_scripts': [
-            'trap_fit.py=trapallada.core:cl_fit',
             'trap_fit_vae_on_signals.py=trapallada.core:cl_fit_vae_on_signals',
             'trap_download_obs.py=trapallada.xsa.util:cl_download_observations',
             'trap_pack_obs.py=trapallada.xsa.util:cl_tars_to_array'

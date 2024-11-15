@@ -328,4 +328,8 @@ def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Pa
     with weights_file.open('rb') as f:
         return eqx.tree_deserialise_leaves(f, model)
 
-# `save_vae` is identical to `save_model` in `model/image.py`
+def save_vae(file: str | pathlib.Path, model: eqx.Module):
+    
+    with open(file, 'wb') as f:
+        
+        eqx.tree_serialise_leaves(f, model)
