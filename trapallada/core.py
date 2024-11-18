@@ -95,7 +95,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
         log_likelihood_acc = 0.
         kl_value_acc = 0.
 
-        for _, x, _ in dataloader:
+        for _, x, mask, _ in dataloader:
 
             key, subkey = jr.split(key)
 
@@ -134,7 +134,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     while (epoch < parameters['training']['n_epochs']) and not sigint_received:
     # for epoch in range(parameters['training']['n_epochs']):
 
-        for i_batch, (i_sample, x, _) in enumerate(train_dl):
+        for i_batch, (i_sample, x, mask, _) in enumerate(train_dl):
 
             key, subkey = jr.split(key)
 
@@ -183,6 +183,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
     parser.add_argument('parameters_file', type=pathlib.Path, help='parameters file')
     parser.add_argument('signals_file', type=pathlib.Path, help='signals file')
+    parser.add_argument('masks_file', type=pathlib.Path, help='masks file')
     parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
     parser.add_argument('signals_hyperparameters_file', type=pathlib.Path, nargs='?', default=None, help='hyperparameters used in assembling the signals')
     parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files',
@@ -218,7 +219,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # the dataset is loaded...
     ds = trapallada.data.SignalsDataset(
-        command_line_arguments.signals_file, command_line_arguments.metadata_file, **parameters['data']
+        command_line_arguments.signals_file, command_line_arguments.metadata_file, command_line_arguments.masks_file, **parameters['data']
     )
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
@@ -263,6 +264,7 @@ def cl_fit_vae_on_signals(args: list = None):
     # the files used for training are recorded
     parameters['dataset']['files'] = dict(
         signals_file=command_line_arguments.signals_file.relative_to(home_dir).as_posix(),
+        masks_file=command_line_arguments.masks_file.relative_to(home_dir).as_posix(),
         metadata_file=command_line_arguments.metadata_file.relative_to(home_dir).as_posix())
 
     # if a file with hyperparameters for the signals was passed...

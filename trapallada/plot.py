@@ -1,7 +1,7 @@
 from typing import Sequence
 
 import pandas as pd
-from jaxtyping import Array, Float, PRNGKeyArray
+from jaxtyping import Array, Float
 import jax.random as jr
 
 import altair as alt

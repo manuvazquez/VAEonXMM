@@ -139,7 +139,7 @@ def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_proj
     
     # the dataset associated with `dl` is encoded, and the corresponding indexes (in the full datset) recorded
     z_s, i_s = [], []
-    for i, x, _ in dl:
+    for i, x, *_ in dl:
         z_s.append(jax.vmap(encoder)(x.numpy()))
         i_s.append(i)
 

@@ -17,9 +17,16 @@ logger = log.setup_logging(__name__)
     
 class SignalsDataset(Dataset):
 
-    def __init__(self, signals_filename: str | pathlib.Path, metadata_filename: str | pathlib.Path | None, normalize: bool = False, fft: bool = False):
+    def __init__(
+            self,
+            signals_filename: str | pathlib.Path,
+            metadata_filename: str | pathlib.Path,
+            masks_filename: str | pathlib.Path,
+            normalize: bool = False, fft: bool = False
+        ):
 
         self.signals: Float[Array, 'signal channel length'] = torch.load(signals_filename, weights_only=False)
+        self.masks: Float[Array, 'signal 1 length'] = torch.load(masks_filename, weights_only=False)
 
         # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
         if type(self.signals) == np.ndarray:
@@ -58,25 +65,21 @@ class SignalsDataset(Dataset):
         # is not provided or doesn't contain labels
         make_labels_and_labels_names = lambda : (np.full((len(self.signals),), np.nan), {})
 
-        if metadata_filename:
-            
-            self.metadata_df = pd.read_parquet(metadata_filename)
+        # metadata is read
+        self.metadata_df = pd.read_parquet(metadata_filename)
 
-            if normalize:
-            
-                # only metadata for non-constant signals is kept
-                self.metadata_df = self.metadata_df.drop(i_constant).reset_index(drop=True)
+        if normalize:
+        
+            # only metadata for non-constant signals is kept
+            self.metadata_df = self.metadata_df.drop(i_constant).reset_index(drop=True)
 
-            if 'label' in self.metadata_df.columns:
+        if 'label' in self.metadata_df.columns:
 
-                self.labels = self.metadata_df['label'].cat.codes
-                self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
+            self.labels = self.metadata_df['label'].cat.codes
+            self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
 
-            else:
-                    
-                self.labels, self.labels_names = make_labels_and_labels_names()
         else:
-            
+                
             self.labels, self.labels_names = make_labels_and_labels_names()
 
         # TODO: use rfft instead of fft
@@ -98,7 +101,8 @@ class SignalsDataset(Dataset):
 
     def __getitem__(self, idx):
         
-        return idx, self.signals[idx], self.labels[idx]
+        return idx, self.signals[idx], self.masks[idx], self.labels[idx]
+        # return idx, self.signals[idx], self.labels[idx]
     
 def dataloaders_from_dataset(
         ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False

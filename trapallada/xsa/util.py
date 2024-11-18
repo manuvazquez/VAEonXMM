@@ -554,7 +554,7 @@ def slice(
 
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
-        max_n_sources: int = 4, min_power: float = 0.
+        max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0.
         ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
@@ -566,6 +566,7 @@ def tars_to_array(
         step (int, optional): The step size (in bins) for signal slicing. Defaults to 50.
         max_n_sources (int, optional): The maximum number of sources to read from each tar file. Defaults to 4.
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
+        min_count_rate (float, optional): The minimum count rate of a window. Defaults to 0 (i.e., no window is dismissed on account of count rate).
     
     Returns:
         tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame, dict, Float[Array, 'window time']]:
@@ -707,6 +708,7 @@ def tars_to_array(
             assert n_windows == re_n_windows
             assert sliced_signals.shape[::2] == sliced_masks.shape[::2]
 
+            # results for this tar file are stored
             signals_list.append(sliced_signals)
             start_list.append(sliced_times[:, 0])
             end_list.append(sliced_times[:, -1])
@@ -725,38 +727,39 @@ def tars_to_array(
 
             # breakpoint()
 
-            n_overall_windows = len(sliced_signals)
+            # if a minimum count rate is set...
+            if min_count_rate != 0.:
 
-            # count rates
-            unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
+                # count rates
+                unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
 
-            min_count_rate = 0.01
-            # min_count_rate = 0.025
-            # min_count_rate = 0.05
-            
-            # this is assuming that the count rate is the first (0-th) channel of the signal
-            large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
-            
-            n_large_enough_count_rate_windows = large_enough_count_rate.sum()
-            signals_list[-1] = signals_list[-1][large_enough_count_rate]
-            start_list[-1] = start_list[-1][large_enough_count_rate]
-            end_list[-1] = end_list[-1][large_enough_count_rate]
-            f_list[-1] = f_list[-1][large_enough_count_rate]
-            names_list[-1] = names_list[-1][large_enough_count_rate]
-            masks_list[-1] = masks_list[-1][large_enough_count_rate]
-            
-            # if there are windows to be dismissed here on account of low count rate...
-            if n_large_enough_count_rate_windows < n_overall_windows:
+                # this is assuming that the count rate is the first (0-th) channel of the signal
+                large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
                 
-                logger.warning(f'{len(large_enough_count_rate) - large_enough_count_rate.sum()} windows dismissed (out of {len(large_enough_count_rate)}) on account of low count rate...')
+                # some windows *in the current tar* (`-1`-th element in the lists) are dismissed
+                signals_list[-1] = signals_list[-1][large_enough_count_rate]
+                start_list[-1] = start_list[-1][large_enough_count_rate]
+                end_list[-1] = end_list[-1][large_enough_count_rate]
+                f_list[-1] = f_list[-1][large_enough_count_rate]
+                names_list[-1] = names_list[-1][large_enough_count_rate]
+                masks_list[-1] = masks_list[-1][large_enough_count_rate]
 
-                # if ALL the windows are to be dismissed...
-                if n_large_enough_count_rate_windows == 0:
+                # for the sake of readability
+                n_overall_windows = len(sliced_signals)
+                n_large_enough_count_rate_windows = large_enough_count_rate.sum()
+                
+                # if there are windows to be dismissed here on account of low count rate...
+                if n_large_enough_count_rate_windows < n_overall_windows:
                     
-                    # ...the header is dismissed as well
-                    del header_df_list[-1]
+                    logger.warning(
+                        f'{len(large_enough_count_rate) - large_enough_count_rate.sum()} '
+                        'windows dismissed (out of {n_overall_windows}) on account of low count rate...')
 
-            # breakpoint()
+                    # if ALL the windows are to be dismissed...
+                    if n_large_enough_count_rate_windows == 0:
+                        
+                        # ...the header is dismissed as well
+                        del header_df_list[-1]
 
             full_signals_dict[tar_file.name] = normalized_df, binned_mask_df
 
@@ -766,6 +769,7 @@ def tars_to_array(
     # `metadata_df['tar file']`is exactly `np.hstack(f_list)` but it is more convenient to use Pandas' `unique`
     # since it keeps the order of the unique values
     all_headers_df = pd.concat(header_df_list, keys=metadata_df['tar file'].unique().astype(pd.StringDtype))
+    
     all_headers_df.index.names = ['tar file', 'source']
 
     # breakpoint()
@@ -797,6 +801,7 @@ def cl_tars_to_array(args: list = None):
     parser.add_argument('-s', '--step', type=int, default=None, help='Step (in bins) for the sliding window')
     parser.add_argument('-M', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
     parser.add_argument('-m', '--min-power', type=float, default=None, help='Minimum power')
+    parser.add_argument('-c', '--min-count-rate', type=float, default=None, help='Minimum count rate')
 
     command_line_arguments = parser.parse_args(args)
     

@@ -10,3 +10,4 @@ iframe_figures
 *.FTZ
 *.PNG
 logs
+.directory

@@ -44,9 +44,12 @@ def load_results_dir(dir, analysis_also: bool=False):
     # ---
 
     signals_file = pathlib.Path.home() / parameters['dataset']['files']['signals_file']
+    # FIXME: this is a temporary fix
+    # masks_file = pathlib.Path.home() / parameters['dataset']['files']['masks_file']
+    masks_file = signals_file.with_stem('masks')
     metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
 
-    ds = trapallada.data.SignalsDataset(signals_file, metadata_file, **parameters['data'])
+    ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
 
     headers_file = signals_file.with_name('headers.parquet')
     headers_df = pd.read_parquet(headers_file)
