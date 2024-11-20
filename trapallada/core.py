@@ -51,20 +51,28 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     def loss(
             model: eqx.Module,
             x: Float[Array, 'batch channel length'],
+            mask: Float[Array, 'batch 1 length'],
             x_sd: float,
             key: PRNGKeyArray
             ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:
 
         # for the sake of readability
         batch_size = len(x)
+        overall_good_times = mask.sum()
 
         x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size))
 
+        # breakpoint()
+
+        assert mask.ndim == 2
+
         # reconstruction term
-        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
+        # loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
+        loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
 
         # KL divergence
-        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+        # kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
 
         return -loglikelihood + kl, (loglikelihood, kl)
     
@@ -72,12 +80,13 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     def take_step(
         model: eqx.Module,
         opt_state: PyTree,
-        x: Float[Array, 'batch 1 length'],
+        x: Float[Array, 'batch channel length'],
+        mask: Float[Array, 'batch 1 length'],
         x_sd: float,
         key: PRNGKeyArray
     ) -> tuple[tuple[eqx.Module], PyTree, Float[Array, '']]:
 
-        value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, x_sd, key)
+        value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, key)
 
         # it returns transformed/processed gradients, and the optimizer state
         updates, opt_state = optim.update(grads, opt_state, model)
@@ -100,8 +109,9 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             key, subkey = jr.split(key)
 
             x = x.numpy()
+            mask = mask.numpy()
         
-            loss_value, (log_likelihood_value, kl_value) = loss(model, x, x_sd, subkey)
+            loss_value, (log_likelihood_value, kl_value) = loss(model, x, mask, x_sd, subkey)
             
             # adding up *averages*
             loss_acc += loss_value.item()
@@ -132,15 +142,15 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
     epoch = 0
 
     while (epoch < parameters['training']['n_epochs']) and not sigint_received:
-    # for epoch in range(parameters['training']['n_epochs']):
 
         for i_batch, (i_sample, x, mask, _) in enumerate(train_dl):
 
             key, subkey = jr.split(key)
 
             x = x.numpy()
+            mask = mask.numpy()
 
-            model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, parameters['loss']['x_sd'], subkey)
+            model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, mask, parameters['loss']['x_sd'], subkey)
 
             # adding up *averages* (of both the loss and the accuracy)
             results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
@@ -159,7 +169,6 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             model, validation_dl, parameters['loss']['x_sd'], evaluation_key)
 
         print(results_df.loc[epoch].to_frame().T)
-        # display(results_df.loc[epoch].to_frame().T)
 
         epoch += 1
 

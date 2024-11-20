@@ -83,6 +83,8 @@ pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="
 # pack_obs_test: (pack_obs "mini_rate_background" "63" "225" "10" "4" "0" data_dir/"sample" trapallada_data_dir)
 pack_obs_test: (pack_obs "mini_rate" "63" "225" "10" "4" "0" "0" data_dir/"sample" trapallada_data_dir)
 
+pack_obs_min_count_rate OUTPUT_SUBDIR MIN_COUNT_RATE: (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE data_dir trapallada_data_dir)
+
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
 

@@ -12,10 +12,12 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-from jaxtyping import PRNGKeyArray
+from jaxtyping import Float, Array, PRNGKeyArray
 
 import plotly.express as px
 import plotly.graph_objects as go
+
+import altair as alt
 
 from bokeh.models import Scatter, Circle, IndexFilter, CDSView, LabelSet, ColumnDataSource
 from bokeh.plotting import figure, show
@@ -395,12 +397,12 @@ class TSNE:
 
         self.fig = None
 
-    def make_fig(self):
+    def make_fig(self, color_column: str = 'main_type'):
 
         self.fig = px.scatter(
             self.analysis_df.reset_index(),
             *self.columns,
-            color='main_type',
+            color=color_column,
             hover_data=self.on_plot_hover_columns, opacity=0.5,
             width=1_200, height=800
         )
@@ -504,7 +506,9 @@ def get_signals_of_interest():
         return yaml.safe_load(f)['signals']
     
 def plot_full_signal(
-        signal: str, path_to_full_signals: str | pathlib.Path, window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None
+        signal: str, path_to_full_signals: str | pathlib.Path,
+        window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None,
+        predicted_window: Float[Array, 'length'] = None
     ):
 
     # either both ends of the window are given or none
@@ -526,6 +530,16 @@ def plot_full_signal(
         belongs_to_window = (signal_series.index >= window_start) & (signal_series.index <= window_end)
         window_series = signal_series[belongs_to_window]
         fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
+
+        if predicted_window is not None:
+
+            assert len(predicted_window) == len(window_series)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=window_series.index, y=predicted_window, mode='lines', line=dict(color='purple', width=2), name='prediction'
+                )
+            )
 
     not_ok_signal = signal_series[~mask_series]
     fig.add_trace(
@@ -570,3 +584,45 @@ def make_save_button_widget(regions, regions_file):
 
     # Display the button
     display(button)
+
+def check_window(i: int, model: eqx.Module, ds: Dataset, analysis_df: pd.DataFrame, full_signals_dir: str | pathlib.Path) -> go.Figure:
+    
+    x = ds[i][1].numpy()
+    
+    x_pred, z_mean, z_sd = model(x, jr.PRNGKey(42))
+    
+    signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
+    
+    return plot_full_signal(signal_id, full_signals_dir, *start_end, x_pred.squeeze())
+
+def metric_chart(results_df: pd.DataFrame, metric: str, n_rows: int = 4_000):
+
+    sub_df = results_df.loc[:n_rows,[('training', metric), ('validation', metric)]]
+    sub_df.columns = sub_df.columns.get_level_values(0)
+    chart = alt.Chart(
+        sub_df.reset_index()
+    ).transform_fold(
+        sub_df.columns.to_list(), ['dataset', metric]
+    ).mark_line().encode(
+        x='index:Q', y=f'{metric}:Q', color='dataset:N'
+    ).properties(width=600, height=400)
+
+    return chart
+
+
+def plot_samples_from_cluster(analysis_df: pd.DataFrame, full_signals_dir: str | pathlib.Path, cluster_column: str = 'cluster in z', n: int = 5):
+    
+    for i_cluster in analysis_df['cluster in z'].value_counts()[1:].index:
+
+        display(Markdown(f'## Cluster {i_cluster}'))
+
+        selected_df = analysis_df[analysis_df[cluster_column] == i_cluster]
+        
+        for i in selected_df.sample(n, random_state=42).index:
+            
+            display(Markdown(f'### {i}'))
+            
+            print(analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
+            
+            signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
+            display(trapallada.analysis.plot_full_signal(signal_id, full_signals_dir, *start_end))
