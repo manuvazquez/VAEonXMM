@@ -87,17 +87,10 @@ class SignalsDataset(Dataset):
 
             logger.info('computing the FFT of each signal...')
         
-            # self.signals = torch.abs(torch.fft.fft(self.signals, norm='forward'))
-
-            # new_length = self.signals.shape[-1]//2
-            
-            # self.signals = self.signals[..., :new_length]
-
             self.signals = torch.abs(torch.fft.rfft(self.signals, norm='forward'))
 
             logger.info(f'dismissing the right half of each FFT (length is now {self.signals.shape[-1]})...')
 
-            # breakpoint()
 
     def __len__(self):
 
@@ -106,7 +99,6 @@ class SignalsDataset(Dataset):
     def __getitem__(self, idx):
         
         return idx, self.signals[idx], self.masks[idx], self.labels[idx]
-        # return idx, self.signals[idx], self.labels[idx]
     
 def dataloaders_from_dataset(
         ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False

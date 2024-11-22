@@ -105,8 +105,8 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
         return df, mask
 
 def read_fits_files(
-        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
-        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
+        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
+        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
     ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
@@ -534,7 +534,6 @@ def tars_to_array(
             # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
             #  `df` with only the 'RATE' columns and removing the `file` level of the column index, so that it can be compared to `mask_df`
             assert (
-                # df.set_axis(df.columns.get_level_values('file'), axis=1).isna()\
                 df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
                       ==\
                           (~mask_df)

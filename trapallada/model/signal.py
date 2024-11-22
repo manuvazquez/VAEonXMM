@@ -11,72 +11,6 @@ from jaxtyping import Array, Float, PyTree, PRNGKeyArray
 import numpyro.distributions as dist
 import trapallada.util
 
-class Classifier(eqx.Module):
-
-    layers: list
-
-    def __init__(self, input_size: int, n_classes: int, kernel_sizes: List[int], channels: List[int], stride: int, dropout_rate: float, key: PRNGKeyArray):
-
-        padding = 0
-
-        self.layers = []
-
-        conv_output_len = input_size
-
-        for in_channels, out_channels, key, kernel_size in zip(
-            channels[:-1], channels[1:],
-            jr.split(key, len(channels) - 1),
-            kernel_sizes
-        ):
-            
-            # the length of the feature map for the next layer
-            conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-
-            key, subkey = jr.split(key)
-            
-            self.layers.extend([
-                eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=subkey),
-                jax.nn.relu,
-                eqx.nn.LayerNorm((out_channels, conv_output_len[0]))
-            ])
-
-            self.layers.append(eqx.nn.Dropout(p=dropout_rate))
-
-        self.layers.append(jnp.ravel)
-
-        key, subkey = jr.split(key)
-
-        # after `raveling`, the output from the previous layer (now `in_features`) is flattened
-        self.layers.append(eqx.nn.Linear(in_features=out_channels * conv_output_len[0], out_features=n_classes, key=subkey))
-
-    def __call__(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
-
-        for layer in self.layers:
-
-            if isinstance(layer, eqx.nn.Dropout):
-                
-                x = layer(x, key=key)
-
-            else:
-
-                x = layer(x)
-
-        return x
-
-    def debug_call(self, x: Float[Array, '1 length'], key: PRNGKeyArray) -> Float[Array, 'twice_dim_z']:
-
-        for layer in self.layers:
-
-            if isinstance(layer, eqx.nn.Dropout):
-                
-                x = layer(x, key=key)
-
-            else:
-
-                x = layer(x)
-
-            print(f'after {layer.__module__}: {x.shape}')
-
 class Encoder(eqx.Module):
 
     layers: list
@@ -124,8 +58,6 @@ class Encoder(eqx.Module):
 
             self.layers_spatial_sizes.append(conv_output_len[0].item())
 
-        # print(f'{out_channels=}, {conv_output_len=}')
-
         self.layers_spatial_sizes.append((out_channels * conv_output_len[0]).item())
 
         # the last PRNG key from the loop is split again
@@ -170,7 +102,6 @@ class Decoder(eqx.Module):
         padding = 0
 
         # the final number of output channels must be that at the input of the encoder
-        # channels = list(reversed(channels)) + [1]
         channels = list(reversed(channels)) + input_size[0:1]
 
         # the architecture of the encoder is reversed
@@ -256,18 +187,6 @@ class ConditionalDecoder(eqx.Module):
 
         self.z_decoder = Decoder(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
         self.conv_layer = eqx.nn.Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1, key=subkey)
-
-    # def __init__(self, z_decoder, key: PRNGKeyArray):
-
-    #     key, subkey = jr.split(key)
-
-    #     # assert input_size[0] == 1, 'input size must be (1, length)'
-
-    #     self.z_decoder = z_decoder
-    #     self.conv_layer = eqx.nn.Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1, key=subkey)
-        
-    #     # a single output channel is expected
-    #     assert self.z_decoder.layers[-1].out_channels == 1
 
     def __call__(self, z: Float[Array, 'dim_z'], x: Float[Array, '1 length']) -> Float[Array, '1 length']:
 
