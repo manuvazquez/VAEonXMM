@@ -43,9 +43,14 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # --------
 
-def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.Module, pd.DataFrame]:
+def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_intervals: bool = True) -> tuple[eqx.Module, pd.DataFrame]:
 
     global sigint_received
+
+    if parameters['data']['fft'] and mask_non_gti_intervals:
+
+        logger.warning('non-GTI intervals cannot be masked in the frequency domain, disregarding the mask...')
+        mask_non_gti_intervals = False
 
     @eqx.filter_jit
     def loss(
@@ -53,6 +58,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             x: Float[Array, 'batch channel length'],
             mask: Float[Array, 'batch 1 length'],
             x_sd: float,
+            mask_non_gti_intervals: bool,
             key: PRNGKeyArray
             ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:
 
@@ -67,12 +73,16 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
         assert mask.ndim == 2
 
         # reconstruction term
-        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
-        # loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
+        if mask_non_gti_intervals:
+            loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
+        else:
+            loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
 
         # KL divergence
-        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
-        # kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
+        if mask_non_gti_intervals:
+            kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
+        else:
+            kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
 
         return -loglikelihood + kl, (loglikelihood, kl)
     
@@ -83,10 +93,11 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
         x: Float[Array, 'batch channel length'],
         mask: Float[Array, 'batch 1 length'],
         x_sd: float,
+        mask_non_gti_intervals: bool,
         key: PRNGKeyArray
     ) -> tuple[tuple[eqx.Module], PyTree, Float[Array, '']]:
 
-        value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, key)
+        value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, mask_non_gti_intervals, key)
 
         # it returns transformed/processed gradients, and the optimizer state
         updates, opt_state = optim.update(grads, opt_state, model)
@@ -95,7 +106,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         return model, opt_state, value_aux
     
-    def evaluate(model: eqx.Module, dataloader: torch.utils.data.DataLoader, x_sd: float, key: PRNGKeyArray):
+    def evaluate(model: eqx.Module, dataloader: torch.utils.data.DataLoader, x_sd: float, mask_non_gti_intervals: bool, key: PRNGKeyArray):
 
         # # in case, there are layers that behave differently in training and inference modes
         # model = eqx.nn.inference_mode(model)
@@ -111,7 +122,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             x = x.numpy()
             mask = mask.numpy()
         
-            loss_value, (log_likelihood_value, kl_value) = loss(model, x, mask, x_sd, subkey)
+            loss_value, (log_likelihood_value, kl_value) = loss(model, x, mask, x_sd, mask_non_gti_intervals, subkey)
             
             # adding up *averages*
             loss_acc += loss_value.item()
@@ -157,7 +168,8 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             x = x.numpy()
             mask = mask.numpy()
 
-            model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(model, opt_state, x, mask, parameters['loss']['x_sd'], subkey)
+            model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = take_step(
+                model, opt_state, x, mask, parameters['loss']['x_sd'], mask_non_gti_intervals, subkey)
 
             # adding up *averages* (of both the loss and the accuracy)
             results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
@@ -173,7 +185,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         # validation
         results_df.loc[epoch, [('validation', 'loss'), ('validation', 'loglikelihood'), ('validation', 'kl')]] = evaluate(
-            model, validation_dl, parameters['loss']['x_sd'], evaluation_key)
+            model, validation_dl, parameters['loss']['x_sd'], mask_non_gti_intervals, evaluation_key)
 
         print(results_df.loc[epoch].to_frame().T)
 

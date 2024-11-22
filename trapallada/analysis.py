@@ -525,13 +525,6 @@ def plot_full_signal(
     # either both ends of the window are given or none
     assert ((window_start is None and window_end is None) or (window_start is not None and window_end is not None))
 
-    # tar_file, fit_file = signal.split('/')
-
-    # path_to_full_signals = pathlib.Path(path_to_full_signals)
-
-    # signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
-    # mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
-
     signal_series, mask_series = get_full_signal(signal, path_to_full_signals)
 
     fig = go.Figure()

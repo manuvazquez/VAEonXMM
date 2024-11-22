@@ -104,78 +104,9 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
     else:
         return df, mask
 
-# def read_fits_files(files: list[pathlib.Path | str]) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
-#     """
-#     Read a list of FITS files and return their content as a single DataFrame.
-
-#     Args:
-#         files (list[pathlib.Path | str]): The files to be read.
-
-#     Returns:
-#         tuple[pd.DataFrame, list[pathlib.Path | str], pd.DataFrame]: 
-#             - The content of the FITS files.
-#             - The list of files that have been skipped.
-#             - A DataFrame containing the header information.
-#     """
-
-#     series_list = []
-#     skipped_files_list = []
-#     index = None
-#     first_file = None
-#     headers_list = []
-    
-#     for f in files:
-
-#         df = read_fits_file(f)
-        
-#         if 'TIME' in df:
-
-#             series = df['RATE']
-#             series.index = df['TIME']
-
-#             # if this is the first file...
-#             if index is None:
-                
-#                 # ...the reference index...
-#                 index = series.index
-
-#                 # ...and file are set
-#                 first_file = f
-            
-#             # if this is NOT the first file
-#             else:
-
-#                 if not index.equals(series.index):
-
-#                     logger.warning((f'Time stamps for file "{f.relative_to(f.parents[1])}" don\'t match '
-#                             f'those for "{first_file.relative_to(first_file.parents[1])}" (the first file, taken as reference), skipping...'))
-                    
-#                     skipped_files_list.append(f)
-                    
-#                     continue
-
-#                 # assert index.equals(series.index), 'The indexes of the time series do not match.'
-            
-#             series.name = f.name
-#             series_list.append(series)
-#             headers_list.append(get_position_from_header(f))
-            
-#         # if `TIME` column is NOT present...
-#         else:
-            
-#             logger.warning(f'{f.relative_to(f.parents[1])} does not look like a light curve, skipping...')
-            
-#             skipped_files_list.append(f)
-
-#     signals_df = pd.concat(series_list, axis=1)
-#     header_df = pd.concat(headers_list, axis=1).T
-#     header_df.index = signals_df.columns
-
-#     return signals_df, skipped_files_list, header_df
-
 def read_fits_files(
-        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
-        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
+        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
+        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
     ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
@@ -598,10 +529,13 @@ def tars_to_array(
         # if something was actually read...
         if df is not None:
 
+            df.loc[:, df.columns.get_level_values('data') == 'RATE']
+
             # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
-            #  `df` but removing the `file` level of the column index, so that it can be compared to `mask_df`
+            #  `df` with only the 'RATE' columns and removing the `file` level of the column index, so that it can be compared to `mask_df`
             assert (
-                df.set_axis(df.columns.get_level_values('file'), axis=1).isna()\
+                # df.set_axis(df.columns.get_level_values('file'), axis=1).isna()\
+                df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
                       ==\
                           (~mask_df)
                     ).all().all()

@@ -2,7 +2,7 @@ home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
 tmp_dir := '/tmp/'
 
-light_curves_dir := join(home_dir, 'Sync/research/light curves')
+# light_curves_dir := join(home_dir, 'Sync/research/light curves')
 
 trapallada_dir := join(home_dir, 'Sync/git/trapallada')
 trapallada_data_dir := join(trapallada_dir, 'data')

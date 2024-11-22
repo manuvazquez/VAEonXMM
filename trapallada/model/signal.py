@@ -335,3 +335,24 @@ def save_vae(file: str | pathlib.Path, model: eqx.Module):
     with open(file, 'wb') as f:
         
         eqx.tree_serialise_leaves(f, model)
+
+class CVAE(eqx.Module):
+
+    encoder: Encoder
+    decoder: ConditionalDecoder
+
+    def __init__(self, encoder: Encoder, decoder: ConditionalDecoder):
+
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def __call__(self, x: Float[Array, 'channel length'], key: PRNGKeyArray) -> PyTree:
+
+        # mean and standard deviation are broken apart...
+        z_mean, z_sd = jnp.split(self.encoder(x), 2, axis=-1)
+
+        # ...and used to draw a sample...
+        z = dist.Normal(loc=z_mean, scale=z_sd).sample(key)
+
+        # ...which is "decoded" and returned along with the mean and standard deviation
+        return self.decoder(z, x[-1:]), z_mean, z_sd
