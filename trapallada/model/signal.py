@@ -125,7 +125,7 @@ class Encoder(eqx.Module):
             self.layers_spatial_sizes.append(conv_output_len[0].item())
 
         # print(f'{out_channels=}, {conv_output_len=}')
-        
+
         self.layers_spatial_sizes.append((out_channels * conv_output_len[0]).item())
 
         # the last PRNG key from the loop is split again
@@ -137,7 +137,7 @@ class Encoder(eqx.Module):
             lambda x: x.at[dim_z:].set(jax.nn.softplus(x[dim_z:]) + 1e-3)
             # lambda x: x.at[dim_z:].set(jax.nn.softplus(x[dim_z:]))
         ])
-        
+
     def __call__(self, x: Float[Array, '1 length']) -> Float[Array, 'twice_dim_z']:
 
         for layer in self.layers:
@@ -298,6 +298,8 @@ def assemble_vae(parameters: dict) -> eqx.Module:
 
     encoder_class = globals()[parameters['VAE']['encoder']['class']]
     decoder_class = globals()[parameters['VAE']['decoder']['class']]
+
+    # breakpoint()
 
     encoder = encoder_class(
         **parameters['VAE']['encoder']['parameters'],

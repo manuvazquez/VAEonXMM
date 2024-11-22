@@ -8,20 +8,17 @@ PRNG seeds:
   training dataloader: 43
   training-validation splitting: 42
 loss:
-  x_sd: 0.5 # <---- FFT
+  x_sd: 0.15 # <---- FFT
 model: &model
-  input_size:
-  - 1
-  - 10000 # <---- FFT (due to redundancy)
   channels:
   - 12
   - 12
   - 12
-  dim_z: 10
+  dim_z: 50
   kernel_sizes: # <---- FFT (due to redundancy)
-  - 128
   - 64
   - 32
+  - 16
   stride: 2
 data:
     normalize: false
@@ -30,7 +27,7 @@ training:
   batch_size: 32
   dl_rng_key: 43
   learning_rate: 3.0e-05
-  n_epochs: 3
+  n_epochs: 2
   train_test_split:
     test_size: 0.2
 VAE:

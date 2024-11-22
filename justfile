@@ -65,7 +65,14 @@ fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
 
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-fit_test PARAMETERS="vanilla_mini.yaml": (fit_real "samples"/PARAMETERS "mini_rate")
+# fit_test PARAMETERS="vanilla_mini.yaml": (fit_real "samples"/PARAMETERS "mini_rate")
+[doc("PARAMETERS: a YAML file")]
+fit_test PARAMETERS="parameters.yaml": && (fit_real tmp_dir/PARAMETERS "mini_rate")
+  cp {{PARAMETERS}} {{tmp_dir}}
+
+fit_test_fft PARAMETERS="parameters.yaml": && (fit_real tmp_dir/"fft_" + PARAMETERS "mini_rate")
+  cp {{PARAMETERS}} {{tmp_dir}}/"fft_"{{PARAMETERS}}
+  patch {{tmp_dir}}/"fft_"{{PARAMETERS}} < "samples/fft.patch"
 
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
@@ -73,17 +80,16 @@ download_obs DIR=data_dir:
   conda activate {{conda_environment}}
   trap_download_obs.py {{DIR}}
 
-pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
+pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0" MIN_GTI_RATIO="0" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}}
+  trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}}
   cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
 
-# pack_obs_test: (pack_obs "mini_rate_background" "63" "225" "10" "4" "0" data_dir/"sample" trapallada_data_dir)
-pack_obs_test: (pack_obs "mini_rate" "63" "225" "10" "4" "0" "0" data_dir/"sample" trapallada_data_dir)
+pack_obs_test: (pack_obs "mini_rate" "63" "225" "10" "4" "0" "0" "0" data_dir/"sample" trapallada_data_dir)
 
-pack_obs_min_count_rate OUTPUT_SUBDIR MIN_COUNT_RATE: (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE data_dir trapallada_data_dir)
+pack_obs_min_count_rate_gti_ratio OUTPUT_SUBDIR MIN_COUNT_RATE MIN_GTI_RATIO: (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE MIN_GTI_RATIO data_dir trapallada_data_dir)
 
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."

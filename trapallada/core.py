@@ -67,12 +67,12 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
         assert mask.ndim == 2
 
         # reconstruction term
-        # loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
-        loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
+        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
+        # loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
 
         # KL divergence
-        # kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
-        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
+        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+        # kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
 
         return -loglikelihood + kl, (loglikelihood, kl)
     
@@ -123,9 +123,16 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         return loss_acc / len(dataloader), log_likelihood_acc / len(dataloader), kl_value_acc / len(dataloader)
     
+    # the input size is inferred from the first sample in the validation set...
+    input_size = list(validation_dl.dataset[0][1].shape)
+
+    # ...and set in the parameters for both the encoder and the decoder
+    for m in ['encoder', 'decoder']:
+        parameters['VAE'][m]['parameters']['input_size'] = input_size
+
     # the VAE is assembled according to the given parameters
     model = trapallada.model.signal.assemble_vae(parameters)
-    
+
     # optimizer
     optim = optax.adamw(parameters['training']['learning_rate'])
     opt_state = optim.init(eqx.filter(model, eqx.is_array))

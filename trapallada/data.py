@@ -61,6 +61,7 @@ class SignalsDataset(Dataset):
 
                 logger.warning(f'dismissed {n_constant_signals} constant signals (that cannot be normalized); {len(self.signals)} left')
 
+        # TODO: no need...
         # factored out code to initialize `labels` and `labels_names` when `metadata_filename`
         # is not provided or doesn't contain labels
         make_labels_and_labels_names = lambda : (np.full((len(self.signals),), np.nan), {})
@@ -82,18 +83,21 @@ class SignalsDataset(Dataset):
                 
             self.labels, self.labels_names = make_labels_and_labels_names()
 
-        # TODO: use rfft instead of fft
         if fft:
 
             logger.info('computing the FFT of each signal...')
         
-            self.signals = torch.abs(torch.fft.fft(self.signals, norm='forward'))
+            # self.signals = torch.abs(torch.fft.fft(self.signals, norm='forward'))
 
-            new_length = self.signals.shape[-1]//2
+            # new_length = self.signals.shape[-1]//2
             
-            logger.info(f'dismissing the right half of each FFT (length is now {new_length})...')
+            # self.signals = self.signals[..., :new_length]
 
-            self.signals = self.signals[..., :new_length]
+            self.signals = torch.abs(torch.fft.rfft(self.signals, norm='forward'))
+
+            logger.info(f'dismissing the right half of each FFT (length is now {self.signals.shape[-1]})...')
+
+            # breakpoint()
 
     def __len__(self):
 

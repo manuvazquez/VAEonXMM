@@ -554,7 +554,7 @@ def slice(
 
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
-        max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0.
+        max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0., min_gti_ratio: float = 0.,
         ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
@@ -567,6 +567,7 @@ def tars_to_array(
         max_n_sources (int, optional): The maximum number of sources to read from each tar file. Defaults to 4.
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
         min_count_rate (float, optional): The minimum count rate of a window. Defaults to 0 (i.e., no window is dismissed on account of count rate).
+        min_gti_ratio (float, optional): The minimum "good time interval" ratio of a window. Defaults to 0 (i.e., no window is dismissed on account of a low GTI).
     
     Returns:
         tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame, dict, Float[Array, 'window time']]:
@@ -753,7 +754,7 @@ def tars_to_array(
                     
                     logger.warning(
                         f'{len(large_enough_count_rate) - large_enough_count_rate.sum()} '
-                        'windows dismissed (out of {n_overall_windows}) on account of low count rate...')
+                        f'windows dismissed (out of {n_overall_windows}) on account of low count rate...')
 
                     # if ALL the windows are to be dismissed...
                     if n_large_enough_count_rate_windows == 0:
@@ -770,19 +771,43 @@ def tars_to_array(
     # since it keeps the order of the unique values
     all_headers_df = pd.concat(header_df_list, keys=metadata_df['tar file'].unique().astype(pd.StringDtype))
     
+    # (row) indexes are named
     all_headers_df.index.names = ['tar file', 'source']
 
-    # breakpoint()
+    # the signals, on one hand, and the masks, on the other, are stacked
+    all_signals: Float[Array, 'batch channel length'] = np.vstack(signals_list)
+    all_masks: Float[Array, 'batch length'] = np.vstack(masks_list)
 
-    all_signals = np.vstack(signals_list)
-    all_masks = np.vstack(masks_list)
+    # GTI
+    to_be_kept = (all_masks.mean(axis=-1) >= min_gti_ratio)
+    n_to_be_kept = to_be_kept.sum()
 
-    # min_ratio_ok = 0.9
-    # to_be_kept = (all_masks.sum(axis=-1) >= min_ratio_ok)
-    # logger.warning(f'{len(all_masks) - to_be_kept.sum()} windows dismissed on account of bad time intervals...')
+    # TODO: compute this just once
+    n_overall_windows = len(all_masks)
+
+    n_dismissed_windows = n_overall_windows - n_to_be_kept
+
+    if n_dismissed_windows > 0:
+
+        logger.warning(f'{n_overall_windows - n_to_be_kept} windows dismissed on account of bad time intervals...')
+
+        # tar files will that will not show up in `metadata_df` after keeping only the windows designated by `to_be_kept`
+        dismissed_tar_files = set(all_headers_df.index.get_level_values('tar file')) - set(metadata_df.iloc[to_be_kept]['tar file'])
+        
+        all_headers_df.drop(index=list(dismissed_tar_files), level='tar file', inplace=True)
+
+        for f in dismissed_tar_files:
+
+            del full_signals_dict[f]
+
+        # both `all_headers_df` and `metadata_df`, after keeping only the windows designated by `to_be_kept`, "mention" the same tar files
+        assert set(all_headers_df.index.get_level_values('tar file')) == set(metadata_df.iloc[to_be_kept]['tar file'])
+
+        return all_signals[to_be_kept], metadata_df.iloc[to_be_kept].reset_index(drop=True), all_headers_df, full_signals_dict, all_masks[to_be_kept]
     
-    return all_signals, metadata_df, all_headers_df, full_signals_dict, all_masks
-    # return all_signals[to_be_kept], metadata_df.iloc[to_be_kept].reset_index(drop=True), all_headers_df, full_signals_dict, all_masks[to_be_kept]
+    else:
+    
+        return all_signals, metadata_df, all_headers_df, full_signals_dict, all_masks
 
 
 def cl_tars_to_array(args: list = None):
@@ -802,6 +827,7 @@ def cl_tars_to_array(args: list = None):
     parser.add_argument('-M', '--max-n-sources', type=int, default=None, help='Maximum number of sources')
     parser.add_argument('-m', '--min-power', type=float, default=None, help='Minimum power')
     parser.add_argument('-c', '--min-count-rate', type=float, default=None, help='Minimum count rate')
+    parser.add_argument('-g', '--min-gti-ratio', type=float, default=None, help='Minimum GTI ratio')
 
     command_line_arguments = parser.parse_args(args)
     
