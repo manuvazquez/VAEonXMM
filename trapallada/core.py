@@ -12,7 +12,7 @@ import equinox as eqx
 
 import trapallada.data
 import trapallada.model
-import trapallada.model.signal
+import trapallada.model.nn
 import trapallada.model.training
 import trapallada.util
 
@@ -55,7 +55,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_i
         parameters['VAE'][m]['parameters']['input_size'] = input_size
 
     # the VAE is assembled according to the given parameters
-    model = trapallada.model.signal.assemble_vae(parameters)
+    model = trapallada.model.nn.assemble_vae(parameters)
 
     # optimizer
     optim = optax.adamw(parameters['training']['learning_rate'])
@@ -183,7 +183,7 @@ def cl_fit_vae_on_signals(args: list = None):
     yaml_filename = output_dir / 'extended_parameters.yaml'
     
     # the weights of the model are saved...
-    trapallada.model.signal.save_vae(eqx_filename, model)
+    trapallada.model.nn.save_vae(eqx_filename, model)
 
     # ...and so are the results
     results_df.to_parquet(parquet_filename)

@@ -27,7 +27,7 @@ from IPython.display import display, Markdown
 import ipywidgets as widgets
 
 import trapallada.data
-import trapallada.model.signal
+import trapallada.model.nn
 import trapallada.plot
 
 def load_results_dir(dir, analysis_also: bool=False):
@@ -61,7 +61,7 @@ def load_results_dir(dir, analysis_also: bool=False):
     weights_file = dir / 'model.eqx'
     assert weights_file.exists()
 
-    model = trapallada.model.signal.load_vae(weights_file, parameters_file)
+    model = trapallada.model.nn.load_vae(weights_file, parameters_file)
 
     # ================
     
