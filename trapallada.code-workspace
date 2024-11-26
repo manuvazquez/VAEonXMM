@@ -23,6 +23,8 @@
 			"LICENSE": true,
 			"results/*.yaml": true,
 			"results/new/logs": true
-		}
+		},
+		"editor.wordWrap": "on",
+		"outline.collapseItems": "alwaysCollapse"
 	},
 }

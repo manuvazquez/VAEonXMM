@@ -1,14 +1,18 @@
 from typing import Callable
 
+import numpyro.distributions as dist
+
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-import numpyro.distributions as dist
 import optax
+
 import equinox as eqx
 from jaxtyping import Array, Float, PyTree, PRNGKeyArray
 
 import torch
+
+import trapallada.model.nn
 
 def evaluate(
         model: eqx.Module, dataloader: torch.utils.data.DataLoader, loss_function: Callable,
@@ -58,6 +62,12 @@ def loss(
 
     # breakpoint()
 
+    # if this is a Conditional VAE...
+    if isinstance(model, trapallada.model.nn.CVAE):
+        
+        # ...it is assumed that the last channel is the condition, and hence must not be reconstructed
+        x = x.at[:, :-1, :].get()
+
     assert mask.ndim == 2
 
     # reconstruction term
@@ -86,6 +96,7 @@ def take_step(
     key: PRNGKeyArray
 ) -> tuple[tuple[eqx.Module], PyTree, Float[Array, '']]:
 
+    # the value (plus some auxiliary variables) and gradient of the model
     value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, mask_non_gti_intervals, key)
 
     # it returns transformed/processed gradients, and the optimizer state

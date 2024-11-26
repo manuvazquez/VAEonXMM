@@ -23,7 +23,7 @@ papermill FILE:
   conda activate {{conda_environment}}
   cd "nbs" && papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_signal.ipynb")
+test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb")
 
 [doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
 run_parameterized_notebook NOTEBOOK DIR:
@@ -60,12 +60,10 @@ fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
       echo "nvidia-smi not found. CUDA_VISIBLE_DEVICES not set."
   fi
   
-  # trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
   trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
-# fit_test PARAMETERS="vanilla_mini.yaml": (fit_real "samples"/PARAMETERS "mini_rate")
 [doc("PARAMETERS: a YAML file")]
 fit_test PARAMETERS="parameters.yaml": && (fit_real tmp_dir/PARAMETERS "mini_rate")
   cp {{PARAMETERS}} {{tmp_dir}}
@@ -87,15 +85,15 @@ pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="
   trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}}
   cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
 
-pack_obs_test: (pack_obs "mini_rate" "63" "225" "10" "4" "0" "0" "0" data_dir/"sample" trapallada_data_dir)
+pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" "0" "0" data_dir/"sample" trapallada_data_dir)
 
-pack_obs_min_count_rate_gti_ratio OUTPUT_SUBDIR MIN_COUNT_RATE MIN_GTI_RATIO: (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE MIN_GTI_RATIO data_dir trapallada_data_dir)
+pack_obs_min_count_rate_gti_ratio OUTPUT_SUBDIR MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE MIN_GTI_RATIO data_dir trapallada_data_dir)
 
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
 
-retrieve_from_cluster SERVER="meiga04" DIRECTORY="trapallada/results":
-  rsync --recursive {{SERVER}}:{{DIRECTORY}} {{tmp_dir}}/
+retrieve_from_cluster SERVER="meiga04" DIRECTORY="results":
+  rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
 
 mlflow_ui:

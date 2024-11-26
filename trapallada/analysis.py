@@ -97,10 +97,23 @@ def predict_and_plot(
     ):
     
     x = ds[i][1].numpy()
+    
     x_pred, z_mean, z_sd = model(x, rng_key)
+    
     if display_metadata:
+        
         display(ds.metadata_df.loc[i])
-    df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
+    
+    # if the model is a Conditional-VAE...
+    if isinstance(model, trapallada.model.nn.CVAE):
+        
+        # ...it is assumed the last channel is the condition, and hence it's not to be predicted
+        df = pd.DataFrame({'prediction': x_pred[0], 'actual': x[:-1, :].ravel()})
+
+    # if the model is NOT a Conditional-VAE...
+    else:
+    
+        df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
     
     return trapallada.plot.df(df.iloc[:n_samples])
 
@@ -441,14 +454,15 @@ class TSNE:
 
         n = min(n, len(selected_df))
 
-        for i in selected_df.sample(n, random_state=42).index:
+        distinct_signals = selected_df['signal'].drop_duplicates()
+
+        for i in distinct_signals.sample(min(n, len(distinct_signals))).index:
+        # for i in selected_df.sample(n, random_state=42).index:
             
             display(Markdown(f'### {i}'))
             
             print(self.analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
             
-            # display(predict_and_plot(model, ds, i, display_metadata=False))
-            # display(plot_window_within_signal(i, self.full_signals_dir, self.analysis_df))
             signal_id, *start_end = self.analysis_df.loc[i, ['signal', 'start', 'end']]
             display(plot_full_signal(signal_id, self.full_signals_dir, *start_end))
 
@@ -496,7 +510,6 @@ class TSNE:
         
         for signal, name in signals_of_interest:
             
-            # self.highlight_windows(self.analysis_df[self.analysis_df['signal'] ==  signal].index, name)
             self.highlight_windows(self.analysis_df[self.analysis_df['signal'] ==  signal].index, f'{signal.split("/")[1]} ({name})')
 
 def get_signals_of_interest():
@@ -539,7 +552,6 @@ def plot_full_signal(
 
         if predicted_window is not None:
 
-            # assert len(predicted_window) == len(window_series)
             if len(window_series) > len(predicted_window):
                 print('The predicted window is shorter than the actual window (mixing time- and frequency-domain?), prediction won\'t be plotted...')
             else:

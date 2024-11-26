@@ -3,12 +3,15 @@ from typing import Sequence, List
 
 import yaml
 
+import numpyro.distributions as dist
+
 import jax.nn
 import jax.random as jr
 import jax.numpy as jnp
+
 import equinox as eqx
 from jaxtyping import Array, Float, PyTree, PRNGKeyArray
-import numpyro.distributions as dist
+
 import trapallada.util
 
 class Encoder(eqx.Module):
@@ -89,6 +92,8 @@ class Encoder(eqx.Module):
 class Decoder(eqx.Module):
 
     layers: list
+
+    # TODO: `input_size` should probably be rename to `output_size`
 
     def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
 
@@ -183,14 +188,21 @@ class ConditionalDecoder(eqx.Module):
 
         key, subkey = jr.split(key)
 
-        assert input_size[0] == 1, 'input size must be (1, length)'
-
         self.z_decoder = Decoder(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
         self.conv_layer = eqx.nn.Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1, key=subkey)
 
     def __call__(self, z: Float[Array, 'dim_z'], x: Float[Array, '1 length']) -> Float[Array, '1 length']:
 
         return self.z_decoder(z) + self.conv_layer(x)
+    
+class NonNegativeConditionalDecoder(ConditionalDecoder):
+
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+
+        super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
+
+        # a RELU layer is added at the end
+        self.z_decoder.layers.append(jax.nn.relu)
 
 class VAE(eqx.Module):
 
@@ -215,10 +227,10 @@ class VAE(eqx.Module):
 
 def assemble_vae(parameters: dict) -> eqx.Module:
 
+    # vae_class = globals()[parameters['VAE']['class']]
+    vae_class = globals()[parameters['VAE'].get('class', 'VAE')]
     encoder_class = globals()[parameters['VAE']['encoder']['class']]
     decoder_class = globals()[parameters['VAE']['decoder']['class']]
-
-    # breakpoint()
 
     encoder = encoder_class(
         **parameters['VAE']['encoder']['parameters'],
@@ -231,7 +243,7 @@ def assemble_vae(parameters: dict) -> eqx.Module:
         key=jr.PRNGKey(parameters['PRNG seeds']['model initialization']['decoder'])
     )
     
-    return VAE(encoder, decoder)
+    return vae_class(encoder, decoder)
 
 def load_vae(weights_file: str | pathlib.Path, parameters_file: str | pathlib.Path) -> eqx.Module:
 
@@ -265,6 +277,8 @@ class CVAE(eqx.Module):
         self.encoder = encoder
         self.decoder = decoder
 
+        assert self.encoder.layers[0].in_channels > 1, 'at least 2 input channels are expected'
+
     def __call__(self, x: Float[Array, 'channel length'], key: PRNGKeyArray) -> PyTree:
 
         # mean and standard deviation are broken apart...
@@ -273,5 +287,6 @@ class CVAE(eqx.Module):
         # ...and used to draw a sample...
         z = dist.Normal(loc=z_mean, scale=z_sd).sample(key)
 
-        # ...which is "decoded" and returned along with the mean and standard deviation
+        # ...which is "decoded" and returned along with the mean and standard deviation;
+        # only the last channel is used as a condition
         return self.decoder(z, x[-1:]), z_mean, z_sd

@@ -50,9 +50,17 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_i
     # the input size is inferred from the first sample in the validation set...
     input_size = list(validation_dl.dataset[0][1].shape)
 
-    # ...and set in the parameters for both the encoder and the decoder
+    # --- inferring of the input size for both the encoder and the decoder
+
+    # ...and set in the parameters for both the encoder and the decoder (different copies!!)
     for m in ['encoder', 'decoder']:
-        parameters['VAE'][m]['parameters']['input_size'] = input_size
+        parameters['VAE'][m]['parameters']['input_size'] = input_size.copy()
+    
+    # TODO: tweaking the input size for the decoder should be done in a more elegant way
+    if parameters['VAE']['class'] == 'CVAE':
+        parameters['VAE'][m]['parameters']['input_size'][0] -= 1
+
+    # --- redoced eht dna redocne eht htob rof ezis tupni eht fo gnirrefni
 
     # the VAE is assembled according to the given parameters
     model = trapallada.model.nn.assemble_vae(parameters)
@@ -74,10 +82,11 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_i
 
     while (epoch < parameters['training']['n_epochs']) and not sigint_received:
 
-        for i_batch, (i_sample, x, mask, _) in enumerate(train_dl):
+        for _, x, mask, _ in train_dl:
 
             key, subkey = jr.split(key)
 
+            # jax cannot work with PyTorch tensors
             x = x.numpy()
             mask = mask.numpy()
 
@@ -131,7 +140,7 @@ def cl_fit_vae_on_signals(args: list = None):
     parser.add_argument('signals_hyperparameters_file', type=pathlib.Path, nargs='?', default=None, help='hyperparameters used in assembling the signals')
     parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files',
         nargs='?')
-
+    
     command_line_arguments = parser.parse_args(args)
 
     # for the sake of readability
@@ -154,6 +163,10 @@ def cl_fit_vae_on_signals(args: list = None):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         print(f'output directory: {output_dir}')
+    
+    else:
+
+        output_dir = pathlib.Path(command_line_arguments.output_dir)
         
     # parameters file is read
     with command_line_arguments.parameters_file.open() as f:
@@ -173,6 +186,7 @@ def cl_fit_vae_on_signals(args: list = None):
     )
 
     # the model is trained
+    # `fit_vae_on_signals` might modify the `parameters` dictionary
     model, results_df = fit_vae_on_signals(train_dl, validation_dl, parameters)
 
     logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')

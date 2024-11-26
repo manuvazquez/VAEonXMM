@@ -532,7 +532,7 @@ def tars_to_array(
             df.loc[:, df.columns.get_level_values('data') == 'RATE']
 
             # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
-            #  `df` with only the 'RATE' columns and removing the `file` level of the column index, so that it can be compared to `mask_df`
+            #  `df` with keeping only 'RATE' columns, and removing the `file` level of the column index, so that it can be compared to `mask_df`
             assert (
                 df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
                       ==\
