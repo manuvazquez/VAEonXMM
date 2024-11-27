@@ -696,7 +696,7 @@ def tars_to_array(
                         del header_df_list[-1]
 
             full_signals_dict[tar_file.name] = normalized_df, binned_mask_df
-
+            
     metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
     
@@ -803,7 +803,7 @@ def cl_tars_to_array(args: list = None):
     (full_signals_dir / masks_subdir).mkdir(exist_ok=True, parents=True)
 
     for f, (df, mask_df) in full_signals.items():
-        
+
         df.to_parquet(full_signals_dir / f'{pathlib.Path(f).stem}.parquet')
         mask_df.to_parquet(full_signals_dir / masks_subdir / f'{pathlib.Path(f).stem}.parquet')
 

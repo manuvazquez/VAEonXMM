@@ -518,13 +518,19 @@ def get_signals_of_interest():
         
         return yaml.safe_load(f)['signals']
 
-def get_full_signal(signal: str, path_to_full_signals: str | pathlib.Path) -> tuple[pd.Series, pd.Series]:
+def get_full_signal(
+        signal: str, path_to_full_signals: str | pathlib.Path,
+        # columns: list[str] = ['RATE']
+        column: str = 'RATE'
+    ) -> tuple[pd.Series, pd.Series]:
     
     tar_file, fit_file = signal.split('/')
 
     path_to_full_signals = pathlib.Path(path_to_full_signals)
 
-    signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
+    # signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
+    # signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[[(f'{fit_file}.FTZ', c) for c in columns]]
+    signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', column)]
     mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
 
     return signal_series, mask_series
@@ -543,6 +549,15 @@ def plot_full_signal(
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
+
+    try:
+        background_series, _ = trapallada.analysis.get_full_signal(signal, path_to_full_signals, column='BACKV')
+    except KeyError:
+        pass
+    else:
+        fig.add_trace(go.Scatter(
+            x=background_series.index, y=background_series, mode='lines', line=dict(dash='dash', width=2, color='gray'), name='background'
+        ))
 
     if window_start is not None:
 
@@ -646,3 +661,22 @@ def plot_samples_from_cluster(analysis_df: pd.DataFrame, full_signals_dir: str |
             
             signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
             display(trapallada.analysis.plot_full_signal(signal_id, full_signals_dir, *start_end))
+
+def plot_fit_file_window(model: eqx.Module, ds: Dataset, fit_file: str, i_window: int = -1):
+
+    df = ds.metadata_df[ds.metadata_df['source'] == fit_file]
+
+    try:
+        series = df.iloc[i_window]
+    
+    except IndexError:
+
+        print('not found')
+
+        return None
+    
+    index = series.name
+
+    display(trapallada.analysis.predict_and_plot(model, ds, index))
+    
+    return series
