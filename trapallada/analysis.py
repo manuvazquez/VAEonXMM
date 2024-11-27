@@ -16,6 +16,7 @@ from jaxtyping import Float, Array, PRNGKeyArray
 
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.subplots
 
 import altair as alt
 
@@ -643,6 +644,34 @@ def metric_chart(results_df: pd.DataFrame, metric: str, n_rows: int = 4_000):
     ).properties(width=600, height=400)
 
     return chart
+
+def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'loglikelihood', 'kl']):
+
+    fig = plotly.subplots.make_subplots(rows=1, cols=len(metrics), subplot_titles=metrics)
+
+    for i_m, m in enumerate(metrics):
+
+        for dataset, color in zip(['training', 'validation'], ['blue', 'red']):
+
+            fig.add_trace(
+                go.Scatter(
+                    x=results_df[(dataset, m)].index, y=results_df[(dataset, m)], mode='lines', name=dataset,
+                    line=dict(color=color),
+                    showlegend=(i_m == 0),
+                ), row=1, col=i_m + 1
+            )
+    
+    fig.update_layout(
+        title="Training metrics",
+        legend=dict(
+            # x=0.5,  # Position legend horizontally centered
+            # y=-0.2,  # Position legend below the plots
+            orientation="h"  # Horizontal legend
+        ),
+        showlegend=True  # Show a single legend
+    )
+
+    return fig
 
 
 def plot_samples_from_cluster(analysis_df: pd.DataFrame, full_signals_dir: str | pathlib.Path, cluster_column: str = 'cluster in z', n: int = 5):

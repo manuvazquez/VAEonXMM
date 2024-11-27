@@ -36,27 +36,6 @@ file_types = ['SRCTSR']
 # re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
 re_filename = re.compile(r'^P(\d{10})PN(S\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
 
-def bin_fits_df(df: pd.DataFrame, bin_size: int = 63) -> pd.DataFrame:
-    """
-    Bin all the columns in a FITS DataFrame.
-
-    Args:
-        df (pd.DataFrame): The DataFrame to be processed.
-        bin_size (int, optional): The size of the rolling window. Defaults to 63.
-
-    Returns:
-        pd.DataFrame: The measurements.
-    """
-
-    # one could also exploit the dates...but then no `step` is allowed
-    # ts = df.set_index('date')['RATE'].rolling(window=pd.Timedelta(100, unit='s')).sum()
-    
-    # a *rolling window* is used to bin-collapse together different measurements;
-    # the *label* (within the index) of every window is that of the last element in the window;
-    # the very first element is dismissed because there is not enough elememts (going backwards) to fill the window
-    return df.rolling(window=bin_size, center=False, step=bin_size).sum().iloc[1:]
-
-
 def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Read a FITS file and return its content as a DataFrame.
@@ -557,10 +536,10 @@ def tars_to_array(
             # the period of the raw `DataFrame`
             period = df.index[1] - df.index[0]
             
-            # TODO: inline here the code of `binf_fits_df`
-            
-            # signals are binned...
-            binned_df = bin_fits_df(df, bin_size=bin_size)
+            # signals are binned: a *rolling window* is used to bin-collapse together different measurements;
+            # the *label* (within the index) of every window is that of the last element in the window; the very
+            # first element is dismissed because there is not enough elememts (going backwards) to fill the window
+            binned_df = df.rolling(window=bin_size, center=False, step=bin_size).sum().iloc[1:]
 
             # ...and so are masks
             binned_mask_df = mask_df.rolling(window=bin_size, center=False, step=bin_size).apply(lambda x: np.all(x)).iloc[1:].astype(bool)

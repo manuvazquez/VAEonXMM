@@ -103,7 +103,10 @@ def make_results_df(n_epochs: int, metrics: List[str]=['loss', 'accuracy']) -> p
         >>> make_results_df(2)   
     """
     
-    return pd.DataFrame({ (data, metric): [0.] * n_epochs for data in ['training', 'validation'] for metric in metrics})
+    df = pd.DataFrame({ (data, metric): [0.] * n_epochs for data in ['training', 'validation'] for metric in metrics})
+    df.index.name = 'epoch'
+
+    return df
 
 
 def get_layers_n_parameters(model: PyTree) -> dict:
