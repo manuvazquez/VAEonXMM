@@ -19,12 +19,19 @@ class Encoder(eqx.Module):
     layers: list
     layers_spatial_sizes: List[int]
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, kernel_sizes: List[int], channels: List[int], stride: int | list[int], key: PRNGKeyArray):
 
         # for the sake of readability
         n_conv_layers = len(channels)
+
+        # for backward compatibility
+        if isinstance(stride, int):
+            stride = [stride] * n_conv_layers
         
-        assert len(kernel_sizes) == n_conv_layers, f'number of kernel sizes ({len(kernel_sizes)}) must match number of channels ({n_conv_layers})'
+        assert len(kernel_sizes) == n_conv_layers,\
+              f'number of kernel sizes ({len(kernel_sizes)}) must match number of channels ({n_conv_layers})'
+        assert len(stride) == n_conv_layers,\
+              f'number of strides ({len(stride)}) must match number of channels ({n_conv_layers})'
 
         padding = 0
 
@@ -42,19 +49,19 @@ class Encoder(eqx.Module):
         # it is recorded for the decoder
         self.layers_spatial_sizes = [input_maps_len]
 
-        for in_channels, out_channels, key, kernel_size in zip(
+        for in_channels, out_channels, key, kernel_size, stride_value in zip(
             channels[:-1], channels[1:],
             jr.split(key, n_conv_layers),
-            kernel_sizes
+            kernel_sizes, stride
         ):
             
             # the length of the feature map for the next layer
-            conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
+            conv_output_len = trapallada.util.conv_output_size(conv_output_len, (kernel_size,), (stride_value,), (padding,))
 
             # TODO: give a name to the 0-th value that is used below
 
             self.layers.extend([
-                eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, key=key),
+                eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value, key=key),
                 jax.nn.relu,
                 eqx.nn.LayerNorm((out_channels, conv_output_len[0]))
             ])
@@ -95,12 +102,19 @@ class Decoder(eqx.Module):
 
     # TODO: `input_size` should probably be rename to `output_size`
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: list[int], kernel_sizes: list[int], channels: list[int], stride: int | list[int], key: PRNGKeyArray):
 
         # for the sake of readability
         n_conv_layers = len(channels)
 
-        assert len(kernel_sizes) == n_conv_layers, f'number of kernel sizes ({len(kernel_sizes)}) must match number of channels ({n_conv_layers})'
+        # for backward compatibility
+        if isinstance(stride, int):
+            stride = [stride] * n_conv_layers
+
+        assert len(kernel_sizes) == n_conv_layers,\
+              f'number of kernel sizes ({len(kernel_sizes)}) must match number of channels ({n_conv_layers})'
+        assert len(stride) == n_conv_layers,\
+              f'number of strides ({len(stride)}) must match number of channels ({n_conv_layers})'
         assert len(kernel_sizes) == len(layers_spatial_sizes) - 2,\
             f'number of kernel sizes and channels ({len(kernel_sizes)}) must match that of spatial sizes ({len(layers_spatial_sizes)}) minus 2'
 
@@ -111,6 +125,7 @@ class Decoder(eqx.Module):
 
         # the architecture of the encoder is reversed
         kernel_sizes = list(reversed(kernel_sizes))
+        stride = list(reversed(stride))
         layers_spatial_sizes = list(reversed(layers_spatial_sizes))
 
         self.layers = []
@@ -126,16 +141,14 @@ class Decoder(eqx.Module):
         # after the `reshape`ing
         conv_output_len = layers_spatial_sizes[1]
 
-        for in_channels, out_channels, key, kernel_size, expected_len in zip(
+        for in_channels, out_channels, key, kernel_size, stride_value, expected_len in zip(
             channels[:-1], channels[1:],
             jr.split(key, n_conv_layers),
-            kernel_sizes,
+            kernel_sizes, stride,
             layers_spatial_sizes[2:],
         ):
-            
 
-            conv_output_len = trapallada.util.transp_conv_output_size(conv_output_len, (kernel_size,), (stride,), (padding,))
-            # print(f'{conv_output_len=}, {expected_len=}')
+            conv_output_len = trapallada.util.transp_conv_output_size(conv_output_len, (kernel_size,), (stride_value,), (padding,))
 
             output_padding = expected_len - conv_output_len[0]
             
@@ -143,7 +156,7 @@ class Decoder(eqx.Module):
             
             self.layers.extend([
                 eqx.nn.ConvTranspose1d(
-                    in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
+                    in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value,
                     output_padding=output_padding, key=subkey),
                 jax.nn.relu,
                 eqx.nn.LayerNorm((out_channels, expected_len))
@@ -172,7 +185,7 @@ class Decoder(eqx.Module):
 
 class NonNegativeDecoder(Decoder):
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int | list[int], key: PRNGKeyArray):
 
         super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 
@@ -184,7 +197,7 @@ class ConditionalDecoder(eqx.Module):
     z_decoder: Decoder
     conv_layer: eqx.Module
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int | list[int], key: PRNGKeyArray):
 
         key, subkey = jr.split(key)
 
@@ -197,7 +210,7 @@ class ConditionalDecoder(eqx.Module):
     
 class NonNegativeConditionalDecoder(ConditionalDecoder):
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int, key: PRNGKeyArray):
+    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: List[int], kernel_sizes: List[int], channels: List[int], stride: int | list[int], key: PRNGKeyArray):
 
         super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 

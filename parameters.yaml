@@ -19,7 +19,11 @@ model: &model
   - 64
   - 32
   - 16
-  stride: 2
+  # stride: 2
+  stride:
+  - 2
+  - 2
+  - 2
 data:
     normalize: false
     fft: false # <---- FFT
