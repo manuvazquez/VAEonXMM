@@ -5,6 +5,7 @@ from jaxtyping import Array, Float
 import jax.random as jr
 
 import altair as alt
+import plotly.graph_objects as go
 
 def signal(signal: Float[Array, 'length']):
 
@@ -14,22 +15,30 @@ def signal(signal: Float[Array, 'length']):
         x='x', y='y'
     ).properties(width=1_200, height=400)
 
-def df(df: pd.DataFrame, width: int = 1_200, height: int = 400, columns: Sequence[str] | None = None, index_type: str = 'Q'):
-
+def df(df: pd.DataFrame, columns: Sequence[str] | None = None):
+    
+    # if no columns names are provided...
     if columns is None:
-        columns = df.columns.to_list()
+        
+        # ...the original ones are used
+        columns = df.columns
+    
     else:
+        
         assert len(columns) == df.shape[1], 'The number of columns must match that in the DataFrame.'
 
-    chart = alt.Chart(
-        df.rename(columns=dict(zip(df.columns, columns))).reset_index(names='index')
-    ).transform_fold(
-        columns
-    ).mark_line().encode(
-        x=f'index:{index_type}', y='value:Q', color='key:N'
-    ).properties(width=width, height=height)
+    fig = go.Figure()
 
-    return chart
+    for col, series in df.set_axis(columns, axis=1).items():
+
+        fig.add_trace(go.Scatter(
+            x=series.index,
+            y=series,
+            mode='lines',
+            name=col
+        ))
+
+    return fig
 
 def signals_array(signals: Float[Array, 'signal length'], columns: Sequence[str] | None = None):
     """

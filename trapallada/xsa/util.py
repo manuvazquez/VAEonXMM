@@ -85,8 +85,8 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
         return df, mask
 
 def read_fits_files(
-        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
-        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
+        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
+        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
     ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
@@ -358,13 +358,16 @@ def download_extract_filter(
 
     return output_subdir
 
-def read_tar(file: str | pathlib.Path, max_n_sources: int = 4) -> tuple[pd.DataFrame | None, pd.Series | None]:
+def read_tar(
+        file: str | pathlib.Path, max_n_sources: int = 4, signals_to_extract: list[str] = ['RATE']
+    ) -> tuple[pd.DataFrame | None, pd.Series | None]:
     """
     Reads a tar file containing FITS files, returning a number of sources.
 
     Args:
         file (str or pathlib.Path): The path to the tar file.
-        max_n_sources (int, optional): The maximum number of top ranked files to read. Defaults to 3.
+        max_n_sources (int, optional): The maximum number of top ranked files to read. Defaults to 4.
+        signals_to_extract (list[str], optional): The signals to be extracted. Defaults to ['RATE'].
 
     Returns:
         tuple[pd.DataFrame or None, pd.Series or None]: A tuple containing the DataFrame with the top ranked FITS files
@@ -388,7 +391,7 @@ def read_tar(file: str | pathlib.Path, max_n_sources: int = 4) -> tuple[pd.DataF
         ranked_files_df = rank_obs_files(extracted_files_dir).iloc[:max_n_sources]['full path']
 
         # the top ranked files are read into a DataFrame
-        fits_df, skipped_files_list, header_df, mask_df = read_fits_files(ranked_files_df.tolist())
+        fits_df, skipped_files_list, header_df, mask_df = read_fits_files(ranked_files_df.tolist(), columns_of_interest=signals_to_extract)
 
     return fits_df, header_df, mask_df
 
@@ -466,7 +469,7 @@ def slice(
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
         max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0., min_gti_ratio: float = 0.,
-        # full_signals_dir: str | pathlib.Path | None = None, full_signals_masks_dir: str | pathlib.Path | None = None
+        signals_to_extract: list[str] = ['RATE'],
         output_directory: str | pathlib.Path | None = None
         ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
     """
@@ -481,6 +484,7 @@ def tars_to_array(
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
         min_count_rate (float, optional): The minimum count rate of a window. Defaults to 0 (i.e., no window is dismissed on account of count rate).
         min_gti_ratio (float, optional): The minimum "good time interval" ratio of a window. Defaults to 0 (i.e., no window is dismissed on account of a low GTI).
+        signals_to_extract (list[str], optional): The signals to be extracted. Defaults to ['RATE'].
         output_directory (str | pathlib.Path, optional): The output directory where the files for the full signals will be saved. If `None`, they will be returned directly (instead of just paths to the corresponding files). Defaults to None.
     
     Returns:
@@ -519,7 +523,7 @@ def tars_to_array(
     for tar_file in files:
         
         # ...is read into 3 `DataFrame`s
-        df, header_df, mask_df = read_tar(tar_file, max_n_sources=max_n_sources)
+        df, header_df, mask_df = read_tar(tar_file, max_n_sources=max_n_sources, signals_to_extract=signals_to_extract)
 
         # if something was actually read...
         if df is not None:
@@ -788,8 +792,11 @@ def cl_tars_to_array(args: list = None):
     parser.add_argument('-m', '--min-power', type=float, default=None, help='Minimum power')
     parser.add_argument('-c', '--min-count-rate', type=float, default=None, help='Minimum count rate')
     parser.add_argument('-g', '--min-gti-ratio', type=float, default=None, help='Minimum GTI ratio')
+    parser.add_argument('-S', '--signals-to-extract', nargs='+', default=None, help='Signals to be extracted')
 
     command_line_arguments = parser.parse_args(args)
+
+    # breakpoint()
     
     tar_files = list(command_line_arguments.download_directory.glob('*.tar'))
 
