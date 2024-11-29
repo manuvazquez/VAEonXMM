@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 import shutil
 import re
+import pickle
 from typing import Sequence
 
 import pandas as pd
@@ -84,8 +85,8 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
         return df, mask
 
 def read_fits_files(
-        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
-        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
+        files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
+        # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
     ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
@@ -465,6 +466,8 @@ def slice(
 def tars_to_array(
         files: Sequence[str | pathlib.Path], bin_size: int = 63, window_size: int = 200, step: int = 50,
         max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0., min_gti_ratio: float = 0.,
+        # full_signals_dir: str | pathlib.Path | None = None, full_signals_masks_dir: str | pathlib.Path | None = None
+        output_directory: str | pathlib.Path | None = None
         ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
@@ -478,6 +481,7 @@ def tars_to_array(
         min_power (float, optional): The minimum power of a source to be kept. Defaults to 0 (i.e., no signal is dismissed on account of low power).
         min_count_rate (float, optional): The minimum count rate of a window. Defaults to 0 (i.e., no window is dismissed on account of count rate).
         min_gti_ratio (float, optional): The minimum "good time interval" ratio of a window. Defaults to 0 (i.e., no window is dismissed on account of a low GTI).
+        output_directory (str | pathlib.Path, optional): The output directory where the files for the full signals will be saved. If `None`, they will be returned directly (instead of just paths to the corresponding files). Defaults to None.
     
     Returns:
         tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame, dict, Float[Array, 'window time']]:
@@ -498,6 +502,18 @@ def tars_to_array(
     header_df_list = []
 
     full_signals_dict = {}
+
+    # if the full signals (and masks) are to be saved...
+    if output_directory is not None:
+
+        # in case a `str` was passed...
+        output_directory = pathlib.Path(output_directory)
+            
+        full_signals_dir = output_directory / 'full_signals'
+        full_signals_masks_dir = full_signals_dir / 'mask'
+
+        full_signals_dir.mkdir(exist_ok=True)
+        full_signals_masks_dir.mkdir(exist_ok=True)
 
     # every tar file...
     for tar_file in files:
@@ -535,17 +551,24 @@ def tars_to_array(
 
             # the period of the raw `DataFrame`
             period = df.index[1] - df.index[0]
-            
-            # signals are binned: a *rolling window* is used to bin-collapse together different measurements;
-            # the *label* (within the index) of every window is that of the last element in the window; the very
-            # first element is dismissed because there is not enough elememts (going backwards) to fill the window
-            binned_df = df.rolling(window=bin_size, center=False, step=bin_size).sum().iloc[1:]
 
-            # ...and so are masks
-            binned_mask_df = mask_df.rolling(window=bin_size, center=False, step=bin_size).apply(lambda x: np.all(x)).iloc[1:].astype(bool)
+            if bin_size == 1:
+
+                binned_df = df
+                binned_mask_df = mask_df
+
+            else:
             
-            # indexes of both should match
-            assert (binned_df.index == binned_mask_df.index).all()
+                # signals are binned: a *rolling window* is used to bin-collapse together different measurements;
+                # the *label* (within the index) of every window is that of the last element in the window; the very
+                # first element is dismissed because there is not enough elememts (going backwards) to fill the window
+                binned_df = df.rolling(window=bin_size, center=False, step=bin_size).sum().iloc[1:]
+
+                # ...and so are masks
+                binned_mask_df = mask_df.rolling(window=bin_size, center=False, step=bin_size).apply(lambda x: np.all(x)).iloc[1:].astype(bool)
+                
+                # indexes of both should match
+                assert (binned_df.index == binned_mask_df.index).all()
 
             # ---
 
@@ -601,7 +624,7 @@ def tars_to_array(
 
             if len(binned_df) < window_size:
 
-                logger.warning(f'skipping "{tar_file}" because it is too short after binning')
+                logger.warning(f'skipping "{tar_file}" because it is too short after (also before?) binning')
                 
                 continue
 
@@ -638,8 +661,6 @@ def tars_to_array(
             # i_signal_col = 0
             # assert np.allclose(sliced_signals[i_window*n_signals + i_signal, i_signal_col, :], normalized_df.iloc[(i_window*step):i_window*step + window_size, 2*i_signal + i_signal_col].values)
 
-            # breakpoint()
-
             # if a minimum count rate is set...
             if min_count_rate != 0.:
 
@@ -648,6 +669,8 @@ def tars_to_array(
 
                 # this is assuming that the count rate is the first (0-th) channel of the signal
                 large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
+
+                # TODO: this can be avoided if the above check is done right before the above `append`s
                 
                 # some windows *in the current tar* (`-1`-th element in the lists) are dismissed
                 signals_list[-1] = signals_list[-1][large_enough_count_rate]
@@ -674,7 +697,22 @@ def tars_to_array(
                         # ...the header is dismissed as well
                         del header_df_list[-1]
 
-            full_signals_dict[tar_file.name] = normalized_df, binned_mask_df
+            # if the full signals (and masks) are to be saved...
+            if output_directory is not None:
+
+                signals_file = full_signals_dir / f'{tar_file.stem}.parquet'
+                masks_file = full_signals_masks_dir / f'{tar_file.stem}.parquet'
+
+                normalized_df.to_parquet(signals_file)
+                binned_mask_df.to_parquet(masks_file)
+
+                full_signals_dict[tar_file.name] = signals_file, masks_file
+
+            # if the full signals (and masks) are NOT to be saved...
+            else:
+                
+                # ...just the paths to the corresponding files are stored
+                full_signals_dict[tar_file.name] = normalized_df, binned_mask_df
             
     metadata_df = pd.DataFrame(
         {'start': np.hstack(start_list), 'end': np.hstack(end_list), 'tar file': np.hstack(f_list), 'source': np.hstack(names_list)})
@@ -690,7 +728,7 @@ def tars_to_array(
     all_signals: Float[Array, 'batch channel length'] = np.vstack(signals_list)
     all_masks: Float[Array, 'batch length'] = np.vstack(masks_list)
 
-    # GTI
+    # Good Time Intervals (GTI) are computed
     to_be_kept = (all_masks.mean(axis=-1) >= min_gti_ratio)
     n_to_be_kept = to_be_kept.sum()
 
@@ -711,6 +749,16 @@ def tars_to_array(
         for f in dismissed_tar_files:
 
             del full_signals_dict[f]
+
+            # if saving the full signals (and masks) was requested...
+            if output_directory is not None:
+
+                # ...the corresponding files...
+                parquet_file = pathlib.Path(f).with_suffix('.parquet')
+
+                # ...are deleted
+                (full_signals_dir / parquet_file).unlink()
+                (full_signals_masks_dir / parquet_file).unlink()
 
         # both `all_headers_df` and `metadata_df`, after keeping only the windows designated by `to_be_kept`, "mention" the same tar files
         assert set(all_headers_df.index.get_level_values('tar file')) == set(metadata_df.iloc[to_be_kept]['tar file'])
@@ -743,7 +791,6 @@ def cl_tars_to_array(args: list = None):
 
     command_line_arguments = parser.parse_args(args)
     
-    # tar_files = list(command_line_arguments.download_directory.glob('*.tar'))[:4]
     tar_files = list(command_line_arguments.download_directory.glob('*.tar'))
 
     # arguments that are `None` and command line-only ones are trimmed
@@ -752,14 +799,20 @@ def cl_tars_to_array(args: list = None):
         if (v is not None) and (k not in ['download_directory', 'output_directory', 'output_files_stem'])
     }
 
-    signals, metadata_df, headers_df, full_signals, masks = tars_to_array(tar_files, **not_none_args)
+    # ---
+
+    output_subdirectory = command_line_arguments.output_directory / command_line_arguments.output_files_stem
+
+    # it is created if necessary
+    output_subdirectory.mkdir(exist_ok=True)
+
+    # ---
+
+    signals, metadata_df, headers_df, _, masks = tars_to_array(tar_files, **not_none_args, output_directory=output_subdirectory)
 
     duration = (metadata_df['end'] - metadata_df['start']).iloc[0].total_seconds()
 
     logger.info(f'{signals.shape[0]} signals of length {signals.shape[-1]} samples ({duration} seconds)')
-
-    output_subdirectory = command_line_arguments.output_directory / command_line_arguments.output_files_stem
-    output_subdirectory.mkdir(exist_ok=True)
     
     torch_file = output_subdirectory / 'signals.pt'
     parquet_file = output_subdirectory / 'metadata.parquet'
@@ -767,32 +820,26 @@ def cl_tars_to_array(args: list = None):
     headers_file = output_subdirectory / 'headers.parquet'
     masks_file = output_subdirectory / 'masks.pt'
 
-    full_signals_dir = output_subdirectory / 'full_signals'
-    masks_subdir = 'mask'
-
-    # torch.save(torch.from_numpy(np.expand_dims(signals, 1)), torch_file)
-    # torch.save(np.expand_dims(signals, 1), torch_file) # saved as numpy array
     torch.save(signals, torch_file) # saved as numpy array
+    # torch.save(signals, torch_file, pickle_protocol=pickle.HIGHEST_PROTOCOL) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
     headers_df.to_parquet(headers_file)
     torch.save(masks, masks_file)
+    # torch.save(masks, masks_file, pickle_protocol=pickle.HIGHEST_PROTOCOL)
 
-    # the required directory structure is created if necessary
-    # full_signals_dir.mkdir(exist_ok=True)
-    (full_signals_dir / masks_subdir).mkdir(exist_ok=True, parents=True)
+    # for f, (df, mask_df) in full_signals.items():
 
-    for f, (df, mask_df) in full_signals.items():
-
-        df.to_parquet(full_signals_dir / f'{pathlib.Path(f).stem}.parquet')
-        mask_df.to_parquet(full_signals_dir / masks_subdir / f'{pathlib.Path(f).stem}.parquet')
+    #     df.to_parquet(full_signals_dir / f'{pathlib.Path(f).stem}.parquet')
+    #     mask_df.to_parquet(full_signals_masks_dir / f'{pathlib.Path(f).stem}.parquet')
 
     # --- parameters file
 
     # the default arguments of the function doing the actual work...
     default_args = trapallada.util.func_args_with_defaults(trapallada.xsa.util.tars_to_array)
     
-    # ...minus the `files` argument
+    # ...minus the `files` and `output_directory` arguments
     default_args.pop('files')
+    default_args.pop('output_directory')
     
     with open(yaml_file, 'w') as f:
         

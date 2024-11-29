@@ -706,6 +706,6 @@ def plot_fit_file_window(model: eqx.Module, ds: Dataset, fit_file: str, i_window
     
     index = series.name
 
-    display(trapallada.analysis.predict_and_plot(model, ds, index))
+    display(predict_and_plot(model, ds, index))
     
     return series
