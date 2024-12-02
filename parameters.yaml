@@ -10,11 +10,12 @@ PRNG seeds:
 loss:
   x_sd: 0.15 # <---- FFT
 model: &model
+  # channels: [12, 12, 12]
   channels:
-  - 12
-  - 12
-  - 12
-  dim_z: 50
+  - 8
+  - 16
+  - 32
+  dim_z: 40
   kernel_sizes: # <---- FFT (due to redundancy)
   - 64
   - 32
@@ -32,8 +33,13 @@ training:
   dl_rng_key: 43
   learning_rate: 3.0e-05
   n_epochs: 2
+  
+  # ratio of the dataset to use for validation
   train_test_split:
     test_size: 0.2
+  
+  # whether or not to ignore non "good time intervals" (GTIs) in the loss function
+  mask_non_gti_intervals: true
 VAE:
   class: VAE
   encoder:

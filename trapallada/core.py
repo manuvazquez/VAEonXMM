@@ -38,9 +38,13 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # --------
 
-def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_intervals: bool = True) -> tuple[eqx.Module, pd.DataFrame]:
+def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.Module, pd.DataFrame]:
 
     global sigint_received
+
+    # TODO: replace with the line below when backward compatibility is not a concern
+    mask_non_gti_intervals = parameters['training'].get('mask_non_gti_intervals', True)
+    # mask_non_gti_intervals = parameters['training']['mask_non_gti_intervals']
 
     if parameters['data']['fft'] and mask_non_gti_intervals:
 
@@ -64,6 +68,8 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict, mask_non_gti_i
 
     # the VAE is assembled according to the given parameters
     model = trapallada.model.nn.assemble_vae(parameters)
+
+    logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values()):,} parameters')
 
     # optimizer
     optim = optax.adamw(parameters['training']['learning_rate'])
@@ -189,7 +195,7 @@ def cl_fit_vae_on_signals(args: list = None):
     # `fit_vae_on_signals` might modify the `parameters` dictionary
     model, results_df = fit_vae_on_signals(train_dl, validation_dl, parameters)
 
-    logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values())} parameters')
+    # logger.info(f'model has {sum(trapallada.util.get_layers_n_parameters(model).values()):,} parameters')
 
     # for the sake of convenience
     eqx_filename = output_dir / 'model.eqx'
