@@ -693,7 +693,7 @@ def tars_to_array(
                     
                     logger.warning(
                         f'{len(large_enough_count_rate) - large_enough_count_rate.sum()} '
-                        f'windows dismissed (out of {n_overall_windows}) on account of low count rate...')
+                        f'windows dismissed (out of {n_overall_windows}) on account of low count rate in "{tar_file.name}"...')
 
                     # if ALL the windows are to be dismissed...
                     if n_large_enough_count_rate_windows == 0:

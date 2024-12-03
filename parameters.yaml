@@ -38,7 +38,8 @@ training:
   train_test_split:
     test_size: 0.2
   
-  # whether or not to ignore non "good time intervals" (GTIs) in the loss function
+  # whether or not to ignore non "good time intervals" (GTIs) in the loss function; it only
+  # makes sense when working with time-domain signals, and will be ignored for frequency-domain ones
   mask_non_gti_intervals: true
 VAE:
   class: VAE

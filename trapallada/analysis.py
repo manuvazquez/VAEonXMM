@@ -216,19 +216,22 @@ class Graph:
             
             display(Markdown(f'### {i}'))
             
-            # print(self.nodes_df.filter(regex=self.re_columns_to_show).loc[i])
-            
-            # display(trapallada.analysis.predict_and_plot(model, ds, i, display_metadata=False))
-
             self.display_selected(model, ds, i)
 
-    def display_selected(self, model: eqx.Module, ds: Dataset, i: int):
+    def display_selected(self, model: eqx.Module, ds: Dataset, i: int | str):
 
         print(self.nodes_df.filter(regex=self.re_columns_to_show).loc[i])
         
         display(predict_and_plot(model, ds, i, display_metadata=False))
 
-    def inspect_regions(self, n_samples, regions: list[dict[str, tuple[float, float]]], labels, model: eqx.Module, ds: Dataset):
+    def inspect_regions(
+            self, n_samples, regions: list[dict[str, tuple[float, float]]], model: eqx.Module, ds: Dataset,
+            labels: list[str] | None = None
+        ):
+
+        if labels is None:
+                
+                labels = [f'Region {i}' for i in range(len(regions))]
 
         for r, l in zip(regions, labels):
 
@@ -247,11 +250,12 @@ class Graph:
 
             self.sample_and_plot_range(n_samples, **r, model=model, ds=ds)
 
-    def highlight_nodes(self, nodes_labels: list[tuple[str, str]]):
+    def highlight_nodes(self, nodes_labels: dict[str, str]):
 
         highlight_renderer = GraphRenderer()
 
-        highlighted_nodes, highlighted_nodes_labels = list(zip(*nodes_labels))
+        # highlighted_nodes, highlighted_nodes_labels = list(zip(*nodes_labels))
+        highlighted_nodes, highlighted_nodes_labels = nodes_labels.keys(), nodes_labels.values()
 
         # data already in the graph
         data = dict(self.fig.renderers[0].node_renderer.data_source.data)
@@ -350,12 +354,23 @@ class SignalsGraph(Graph):
     def get_signal_by_id(self, id: str):
         
         tar, fit = self.re_tar_fit.match(id).groups()
+
+        df = pd.read_parquet(self.data_dir / 'full_signals' / (tar + '.parquet'))
+
+        try:
+            series = df[(fit + '.FTZ', 'RATE')]
+        except KeyError:
+            series = df[fit + '.FTZ']
         
-        return pd.read_parquet(self.data_dir / 'full_signals' / (tar + '.parquet'))[fit + '.FTZ']
+        return series
 
-    def display_selected(self, model: eqx.Module, ds: Dataset, i: int):
+    def display_selected(self, model: eqx.Module, ds: Dataset, i: int | str):
 
-        display(trapallada.plot.signal(self.get_signal_by_id(i).values))
+        # signal = ds.metadata_df.loc[i][['tar file', 'source']].str.split('.').str[0].str.cat(sep='/')
+
+        display(plot_full_signal(i, self.data_dir / 'full_signals'))
+
+        # display(trapallada.plot.signal(self.get_signal_by_id(i).values))
 
 def make_combo_widget(results_dir: pathlib.Path):
     
@@ -493,7 +508,7 @@ class TSNE:
 
             self.sample_and_plot_range(n_samples, **r)
 
-    def highlight_windows(self, indexes: list[int], name: str):
+    def highlight_window(self, indexes: list[int], name: str):
 
         self.fig.add_trace(go.Scatter(
             self.analysis_df.loc[indexes, self.columns].
@@ -507,17 +522,68 @@ class TSNE:
 
     def highlight_windows_of_interest(self):
         
-        signals_of_interest = get_signals_of_interest()
+        # signals_of_interest = get_signals_of_interest()
+        signals_of_interest = GroundTruth().signals_and_labels
         
         for signal, name in signals_of_interest:
+
+            index = self.analysis_df[self.analysis_df['signal'] ==  signal].index
+
+            if index.empty:
+                print(f'{signal} not found')
+                continue
             
-            self.highlight_windows(self.analysis_df[self.analysis_df['signal'] ==  signal].index, f'{signal.split("/")[1]} ({name})')
+            self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
+
+class GroundTruth:
+
+    def __init__(self, data_file: str | pathlib.Path | None = None):
+
+        if data_file is None:
+            
+            self.data_file = get_base_directory() / 'interesting.yaml'
+
+        else:
+            
+            # just in case a `str` was passed...
+            self.data_file = pathlib.Path(data_file)
+        
+        with self.data_file.open() as f:
+
+            self.data = yaml.safe_load(f)
+        
+    @property
+    def signals(self):
+        
+        return list(self.data['signals of interest'].keys())
+    @property
+    def signals_to_labels(self):
+        
+        return self.data['signals of interest']
+    
+    @property
+    def signals_and_labels(self):
+        
+        return list(map(list, self.data['signals of interest'].items()))
+    
+    def __str__(self):
+        
+        return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
+    
+    def __repr__(self):
+        
+        return self.__str__()
 
 def get_signals_of_interest():
+
+    return GroundTruth().signals_and_labels
     
-    with (get_base_directory() / 'interesting.yaml').open() as f:
+    # with (get_base_directory() / 'interesting.yaml').open() as f:
+
+    #     return yaml.safe_load(f)['signals of interest']
         
-        return yaml.safe_load(f)['signals']
+    #     # return yaml.safe_load(f)['signals']
+
 
 def get_full_signal(
         signal: str, path_to_full_signals: str | pathlib.Path,
