@@ -34,6 +34,12 @@ run_parameterized_notebook NOTEBOOK DIR:
 
 run_analysis DIR: (run_parameterized_notebook "results" DIR) (run_parameterized_notebook "analysis" DIR)
 
+run_graphs_notebook MODEL_DIR GRAPH_DIR:
+  #!/usr/bin/env bash
+  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+  conda activate {{conda_environment}}
+  papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processinG_{{file_stem(MODEL_DIR)}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
+
 cuda:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
@@ -132,7 +138,7 @@ clean_cache DIR=".":
   fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
 
 mount_supergraph:
-  rclone mount uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
+  rclone mount --read-only uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
 
 mount_trapallada:
   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R

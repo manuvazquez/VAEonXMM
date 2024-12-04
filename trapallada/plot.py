@@ -15,18 +15,6 @@ def signal(signal: Float[Array, 'length']):
         x='x', y='y'
     ).properties(width=1_200, height=400)
 
-    # fig = go.Figure()
-    
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=series.index,
-    #         y=series,
-    #         mode='lines',
-    #         name=col
-    #     )
-    # )
-
-
 def df(df: pd.DataFrame, columns: Sequence[str] | None = None):
     
     # if no columns names are provided...

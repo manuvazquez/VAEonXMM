@@ -225,8 +225,10 @@ class Graph:
         display(predict_and_plot(model, ds, i, display_metadata=False))
 
     def inspect_regions(
-            self, n_samples, regions: list[dict[str, tuple[float, float]]], model: eqx.Module, ds: Dataset,
-            labels: list[str] | None = None
+            self, n_samples, regions: list[dict[str, tuple[float, float]]],
+            model: eqx.Module, ds: Dataset,
+            labels: list[str] | None = None,
+            show_regions: bool = True
         ):
 
         if labels is None:
@@ -242,11 +244,17 @@ class Graph:
         for r, l in zip(regions, labels):
 
             display(Markdown(f'### {l}'))
+
+            if show_regions:
             
-            fig.x_range.start, fig.x_range.end = r['x_range']
-            fig.y_range.start, fig.y_range.end = r['y_range']
+                fig.x_range.start, fig.x_range.end = r['x_range']
+                fig.y_range.start, fig.y_range.end = r['y_range']
+                
+                show(fig)
             
-            show(fig)
+            else:
+
+                display(Markdown('---'))
 
             self.sample_and_plot_range(n_samples, **r, model=model, ds=ds)
 
