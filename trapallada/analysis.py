@@ -23,6 +23,7 @@ import altair as alt
 from bokeh.models import Scatter, Circle, IndexFilter, CDSView, LabelSet, ColumnDataSource
 from bokeh.plotting import figure, show
 from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine, Label
+from bokeh.palettes import Category20
 
 from IPython.display import display, Markdown
 import ipywidgets as widgets
@@ -375,11 +376,42 @@ class SignalsGraph(Graph):
 
     def display_selected(self, model: eqx.Module, ds: Dataset, i: int | str):
 
-        # signal = ds.metadata_df.loc[i][['tar file', 'source']].str.split('.').str[0].str.cat(sep='/')
-
         display(trapallada.plot.full_signal(i, self.data_dir / 'full_signals'))
 
-        # display(trapallada.plot.signal(self.get_signal_by_id(i).values))
+class SignalsSuperGraph(SignalsGraph):
+
+    def __init__(self, nodes: pd.DataFrame, edges: pd.DataFrame, data_dir: str | pathlib.Path, fig=None):
+
+        super().__init__(nodes, edges, data_dir, fig)
+
+        # whether a signal is *UNKNOWN* or not...
+        unknown_series = (self.nodes_df['main_type'] == 'UNKNOWN')
+        
+        # ...determines the marker
+        self.nodes_df.loc[unknown_series, 'marker'] = 'square'
+        self.nodes_df.loc[~unknown_series, 'marker'] = 'diamond'
+
+        # color palette for the communities
+        palette = Category20[20]
+
+        # `leiden` is renamed to `community`, the column name expected by the grandparent class
+        self.nodes_df.rename(columns={'leiden': 'community'}, inplace=True)
+        
+        # the color of the nodes is determined by the community
+        self.nodes_df['fill_color'] = [palette[c % 20]for c in self.nodes_df['community']]
+        
+        # more attributes for the nodes
+        self.nodes_df['size'] = 8
+        self.nodes_df['alpha'] = 1.
+
+        # the signal identifier, `Id`, is expected as index...
+        self.nodes_df.set_index('Id', inplace=True)
+        
+        #  ...with NO name (a requirement of the plotting function)
+        self.nodes_df.index.name = None
+
+        # more renaming to match the column names expected by the grandparent class
+        self.edges_df.rename(columns={'Source': 'start', 'Target': 'end'}, inplace=True)
 
 def make_combo_widget(results_dir: pathlib.Path):
     

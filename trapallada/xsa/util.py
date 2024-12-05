@@ -857,6 +857,25 @@ def get_full_signal(
         signal: str, path_to_full_signals: str | pathlib.Path,
         column: str = 'RATE'
     ) -> tuple[pd.Series, pd.Series]:
+    """
+    Retrieve the full signal and its corresponding mask from parquet files.
+
+    Parameters:
+    -----------
+    signal : str
+        The signal identifier in the format '<tar file without extension>/<FTZ file without extension>'.
+    path_to_full_signals : str or pathlib.Path
+        The path to the directory containing the full signals in parquet format.
+    column : str, optional
+        The column name to retrieve from the signal parquet file. Default is 'RATE'.
+
+    Returns:
+    --------
+    tuple[pd.Series, pd.Series]
+        A tuple containing two pandas Series:
+        - The signal series from the specified column.
+        - The mask series indicating valid data points.
+    """
     
     tar_file, fit_file = signal.split('/')
 
