@@ -1,4 +1,5 @@
 from typing import Sequence
+import pathlib
 
 import pandas as pd
 from jaxtyping import Array, Float
@@ -7,13 +8,15 @@ import jax.random as jr
 import altair as alt
 import plotly.graph_objects as go
 
-def signal(signal: Float[Array, 'length']):
+import trapallada.xsa.util
 
-    return alt.Chart(
-        pd.DataFrame({'y': signal}).reset_index(names='x')
-    ).mark_line().encode(
-        x='x', y='y'
-    ).properties(width=1_200, height=400)
+# def signal(signal: Float[Array, 'length']):
+
+#     return alt.Chart(
+#         pd.DataFrame({'y': signal}).reset_index(names='x')
+#     ).mark_line().encode(
+#         x='x', y='y'
+#     ).properties(width=1_200, height=400)
 
 def df(df: pd.DataFrame, columns: Sequence[str] | None = None):
     
@@ -55,3 +58,53 @@ def signals_array(signals: Float[Array, 'signal length'], columns: Sequence[str]
         assert len(columns) == len(signals), 'The number of columns must match the number of signals.'
 
     return df(pd.DataFrame(signals.T, columns=columns))
+
+def full_signal(
+        signal: str, path_to_full_signals: str | pathlib.Path,
+        window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None,
+        predicted_window: Float[Array, 'length'] = None
+    ):
+
+    # either both ends of the window are given or none
+    assert ((window_start is None and window_end is None) or (window_start is not None and window_end is not None))
+
+    signal_series, mask_series = trapallada.xsa.util.get_full_signal(signal, path_to_full_signals)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
+
+    try:
+        background_series, _ = trapallada.xsa.util.get_full_signal(signal, path_to_full_signals, column='BACKV')
+    except KeyError:
+        pass
+    else:
+        fig.add_trace(go.Scatter(
+            x=background_series.index, y=background_series, mode='lines', line=dict(dash='dash', width=2, color='gray'), name='background'
+        ))
+
+    if window_start is not None:
+
+        belongs_to_window = (signal_series.index >= window_start) & (signal_series.index <= window_end)
+        window_series = signal_series[belongs_to_window]
+        fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
+
+        if predicted_window is not None:
+
+            if len(window_series) > len(predicted_window):
+                print('The predicted window is shorter than the actual window (mixing time- and frequency-domain?), prediction won\'t be plotted...')
+            else:
+                fig.add_trace(
+                    go.Scatter(
+                        x=window_series.index, y=predicted_window, mode='lines', line=dict(color='purple', width=2), name='prediction'
+                    )
+                )
+
+    not_ok_signal = signal_series[~mask_series]
+    fig.add_trace(
+        go.Scatter(
+            x=not_ok_signal.index, y=not_ok_signal, mode='markers', marker=dict(symbol='diamond', color='red', size=2), name='not OK'
+        )
+    )
+
+    return fig

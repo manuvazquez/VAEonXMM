@@ -852,3 +852,18 @@ def cl_tars_to_array(args: list = None):
         
         # `default_args` are used only whenever a key is not present in `not_none_args`
         yaml.dump(default_args | not_none_args, f, default_flow_style=False)
+
+def get_full_signal(
+        signal: str, path_to_full_signals: str | pathlib.Path,
+        column: str = 'RATE'
+    ) -> tuple[pd.Series, pd.Series]:
+    
+    tar_file, fit_file = signal.split('/')
+
+    # in case a `str` was passed
+    path_to_full_signals = pathlib.Path(path_to_full_signals)
+
+    signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', column)]
+    mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
+
+    return signal_series, mask_series

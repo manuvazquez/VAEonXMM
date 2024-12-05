@@ -30,6 +30,7 @@ import ipywidgets as widgets
 import trapallada.data
 import trapallada.model.nn
 import trapallada.plot
+import trapallada.xsa.util
 
 def load_results_dir(dir, analysis_also: bool=False):
 
@@ -376,7 +377,7 @@ class SignalsGraph(Graph):
 
         # signal = ds.metadata_df.loc[i][['tar file', 'source']].str.split('.').str[0].str.cat(sep='/')
 
-        display(plot_full_signal(i, self.data_dir / 'full_signals'))
+        display(trapallada.plot.full_signal(i, self.data_dir / 'full_signals'))
 
         # display(trapallada.plot.signal(self.get_signal_by_id(i).values))
 
@@ -488,7 +489,7 @@ class TSNE:
             print(self.analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
             
             signal_id, *start_end = self.analysis_df.loc[i, ['signal', 'start', 'end']]
-            display(plot_full_signal(signal_id, self.full_signals_dir, *start_end))
+            display(trapallada.plot.full_signal(signal_id, self.full_signals_dir, *start_end))
 
     def inspect_regions(self, regions: list[dict[str, tuple[float, float]]], labels, n_samples: int = 5, dont_plot_signals: bool = False):
         
@@ -585,80 +586,6 @@ class GroundTruth:
 def get_signals_of_interest():
 
     return GroundTruth().signals_and_labels
-    
-    # with (get_base_directory() / 'interesting.yaml').open() as f:
-
-    #     return yaml.safe_load(f)['signals of interest']
-        
-    #     # return yaml.safe_load(f)['signals']
-
-
-def get_full_signal(
-        signal: str, path_to_full_signals: str | pathlib.Path,
-        # columns: list[str] = ['RATE']
-        column: str = 'RATE'
-    ) -> tuple[pd.Series, pd.Series]:
-    
-    tar_file, fit_file = signal.split('/')
-
-    path_to_full_signals = pathlib.Path(path_to_full_signals)
-
-    # signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'RATE')]
-    # signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[[(f'{fit_file}.FTZ', c) for c in columns]]
-    signal_series = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', column)]
-    mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
-
-    return signal_series, mask_series
-
-def plot_full_signal(
-        signal: str, path_to_full_signals: str | pathlib.Path,
-        window_start: pd.Timestamp | None = None, window_end: pd.Timestamp | None = None,
-        predicted_window: Float[Array, 'length'] = None
-    ):
-
-    # either both ends of the window are given or none
-    assert ((window_start is None and window_end is None) or (window_start is not None and window_end is not None))
-
-    signal_series, mask_series = get_full_signal(signal, path_to_full_signals)
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(x=signal_series.index, y=signal_series, mode='lines', name='signal'))
-
-    try:
-        background_series, _ = trapallada.analysis.get_full_signal(signal, path_to_full_signals, column='BACKV')
-    except KeyError:
-        pass
-    else:
-        fig.add_trace(go.Scatter(
-            x=background_series.index, y=background_series, mode='lines', line=dict(dash='dash', width=2, color='gray'), name='background'
-        ))
-
-    if window_start is not None:
-
-        belongs_to_window = (signal_series.index >= window_start) & (signal_series.index <= window_end)
-        window_series = signal_series[belongs_to_window]
-        fig.add_trace(go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'))
-
-        if predicted_window is not None:
-
-            if len(window_series) > len(predicted_window):
-                print('The predicted window is shorter than the actual window (mixing time- and frequency-domain?), prediction won\'t be plotted...')
-            else:
-                fig.add_trace(
-                    go.Scatter(
-                        x=window_series.index, y=predicted_window, mode='lines', line=dict(color='purple', width=2), name='prediction'
-                    )
-                )
-
-    not_ok_signal = signal_series[~mask_series]
-    fig.add_trace(
-        go.Scatter(
-            x=not_ok_signal.index, y=not_ok_signal, mode='markers', marker=dict(symbol='diamond', color='red', size=2), name='not OK'
-        )
-    )
-
-    return fig
 
 class Latents:
 
@@ -703,21 +630,7 @@ def check_window(i: int, model: eqx.Module, ds: Dataset, analysis_df: pd.DataFra
     
     signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
     
-    return plot_full_signal(signal_id, full_signals_dir, *start_end, x_pred.squeeze())
-
-def metric_chart(results_df: pd.DataFrame, metric: str, n_rows: int = 4_000):
-
-    sub_df = results_df.loc[:n_rows,[('training', metric), ('validation', metric)]]
-    sub_df.columns = sub_df.columns.get_level_values(0)
-    chart = alt.Chart(
-        sub_df.reset_index()
-    ).transform_fold(
-        sub_df.columns.to_list(), ['dataset', metric]
-    ).mark_line().encode(
-        x='index:Q', y=f'{metric}:Q', color='dataset:N'
-    ).properties(width=600, height=400)
-
-    return chart
+    return trapallada.plot.full_signal(signal_id, full_signals_dir, *start_end, x_pred.squeeze())
 
 def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'loglikelihood', 'kl']):
 
@@ -763,7 +676,7 @@ def plot_samples_from_cluster(analysis_df: pd.DataFrame, full_signals_dir: str |
             print(analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
             
             signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
-            display(trapallada.analysis.plot_full_signal(signal_id, full_signals_dir, *start_end))
+            display(trapallada.plot.full_signal(signal_id, full_signals_dir, *start_end))
 
 def plot_fit_file_window(model: eqx.Module, ds: Dataset, fit_file: str, i_window: int = -1):
 
