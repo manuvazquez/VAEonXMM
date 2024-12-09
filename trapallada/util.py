@@ -14,6 +14,10 @@ import jax.numpy as jnp
 import jax.tree_util
 from jaxtyping import PyTree
 
+import trapallada.logging as log
+
+logger = log.setup_logging(__name__)
+
 def conv_output_size(
         input_size: tuple | np.ndarray,
         filter_size: tuple | np.ndarray,
@@ -152,8 +156,19 @@ def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_proj
     # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
     z_s = jnp.vstack(z_s)[:, :dim_z]
 
-    # t-SNE is applied to the (means of the) `z`s
-    t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+    if dim_z > 2:
+
+        # t-SNE is applied to the (means of the) `z`s
+        t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+    
+    elif dim_z == 2:
+
+        t_sne_embeddings = z_s
+        logger.warning('The latent space has only two dimensions: setting t-SNE projections equal to it...')
+
+    else:
+
+        raise ValueError('The latent space must have at least two dimensions.')
 
     # names for columns
     z_s_names = [f'z_{i}' for i in range(1, 1 + dim_z)]

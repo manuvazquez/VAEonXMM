@@ -379,10 +379,16 @@ class SignalsGraph(Graph):
         display(trapallada.plot.full_signal(i, self.data_dir / 'full_signals'))
 
 class SignalsSuperGraph(SignalsGraph):
+    """
+    SignalsGraph adapted to the jcid's `supergraph` format
+    """
 
     def __init__(self, nodes: pd.DataFrame, edges: pd.DataFrame, data_dir: str | pathlib.Path, fig=None):
 
         super().__init__(nodes, edges, data_dir, fig)
+
+        self.nodes_df = self.nodes_df.copy()
+        self.edges_df = self.edges_df.copy()
 
         # whether a signal is *UNKNOWN* or not...
         unknown_series = (self.nodes_df['main_type'] == 'UNKNOWN')
