@@ -241,7 +241,10 @@ class Graph:
 
             fig = self.mark_rectangle(**r, text=l)
 
-        show(fig)
+        # if there is *any* region to show...
+        if regions:
+        
+            show(fig)
 
         for r, l in zip(regions, labels):
 
@@ -734,3 +737,13 @@ def plot_fit_file_window(model: eqx.Module, ds: Dataset, fit_file: str, i_window
     display(predict_and_plot(model, ds, index))
     
     return series
+
+def read_graph(dir: str | pathlib.Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+
+    # in case a `str` was passed...
+    dir = pathlib.Path(dir)
+
+    nodes_file = list(dir.glob('*_nodes.csv'))[0]
+    edges_file = list(dir.glob('*_edges.csv'))[0]
+
+    return pd.read_csv(nodes_file), pd.read_csv(edges_file)

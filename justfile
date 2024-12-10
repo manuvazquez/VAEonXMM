@@ -34,11 +34,19 @@ run_parameterized_notebook NOTEBOOK DIR:
 
 run_analysis DIR: (run_parameterized_notebook "results" DIR) (run_parameterized_notebook "analysis" DIR)
 
-run_graphs_notebook MODEL_DIR GRAPH_DIR:
+[doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
+run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
-  papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processinG_{{file_stem(MODEL_DIR)}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
+  papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
+
+[doc("MODEL_DIR: *absolute* path to a results directory (containing the eqx, yaml, and parquet files); GRAPH_DIR: *absolute* path to the directory with the graph files (nodes, edges); DATA_DIR: the path to the directory with the data; SUFFIX: optional suffix to append to the output file")]
+run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
+  #!/usr/bin/env bash
+  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
+  conda activate {{conda_environment}}
+  papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
 
 cuda:
   #!/usr/bin/env bash

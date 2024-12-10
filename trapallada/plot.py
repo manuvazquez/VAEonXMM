@@ -3,20 +3,10 @@ import pathlib
 
 import pandas as pd
 from jaxtyping import Array, Float
-import jax.random as jr
 
-import altair as alt
 import plotly.graph_objects as go
 
 import trapallada.xsa.util
-
-# def signal(signal: Float[Array, 'length']):
-
-#     return alt.Chart(
-#         pd.DataFrame({'y': signal}).reset_index(names='x')
-#     ).mark_line().encode(
-#         x='x', y='y'
-#     ).properties(width=1_200, height=400)
 
 def df(df: pd.DataFrame, columns: Sequence[str] | None = None):
     
