@@ -134,7 +134,7 @@ def plot_signal(
     fig.show()
 
     for i, row in df.iterrows():
-        print(f'# window: {row['# window']}',)
+        print(f'# window: {row["# window"]}')
         display(predict_and_plot(model, ds, i))
 
 class Graph:
@@ -305,7 +305,8 @@ class Graph:
         # Add labels to the figure
         self.fig.add_layout(labels)
 
-        show(self.fig)
+        # show(self.fig)
+        return self.fig
 
 
 def plot_graph(nodes: pd.DataFrame, edges: pd.DataFrame, analysis: pd.DataFrame | None = None, edges_line_alpha: float = 0.01, fig=None):
