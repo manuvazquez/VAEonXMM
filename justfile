@@ -86,12 +86,14 @@ fit_test_fft PARAMETERS="parameters.yaml": && (fit_real tmp_dir/"fft_" + PARAMET
   cp {{PARAMETERS}} {{tmp_dir}}/"fft_"{{PARAMETERS}}
   patch {{tmp_dir}}/"fft_"{{PARAMETERS}} < "samples/fft.patch"
 
+[group('data')]
 download_obs DIR=data_dir:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
   trap_download_obs.py {{DIR}}
 
+[group('data')]
 pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir +SIGNALS="RATE":
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
@@ -99,10 +101,13 @@ pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="
   trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}} -S {{SIGNALS}}
   cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
 
+[group('data')]
 pack_obs_with_background OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir: (pack_obs OUTPUT_SUBDIR BIN_SIZE WINDOW_SIZE STEP MAX_N_SOURCES MIN_POWER MIN_COUNT_RATE MIN_GTI_RATIO DOWNLOAD_DIR OUTPUT_DIR "RATE BACKV")
 
+[group('data')]
 pack_raw_obs OUTPUT_SUBDIR: (pack_obs OUTPUT_SUBDIR "1" "14175" "630")
 
+[group('data')]
 pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" "0" "0" data_dir/"sample" trapallada_data_dir)
 
 # pack_obs_min_count_rate_gti_ratio OUTPUT_SUBDIR MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE MIN_GTI_RATIO data_dir trapallada_data_dir)
@@ -110,10 +115,12 @@ pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10"
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit_real PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
 
+[group('infracstructure')]
 retrieve_from_cluster SERVER="meiga04" DIRECTORY="results":
   rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
 
+[group('infracstructure')]
 mlflow_ui:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
@@ -121,12 +128,14 @@ mlflow_ui:
   echo {{env_var('MLFLOW_TRACKING_URI')}}
   mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
+[group('infracstructure')]
 mlflow_server:
   #!/usr/bin/env bash
   source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
   conda activate {{conda_environment}}
   mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
+[group('infracstructure')]
 connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   #!/usr/bin/env bash
   ssh -N -L 10000:localhost:8080 {{SERVER}} &
@@ -135,6 +144,7 @@ connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":
   kill $SSH_PID
 
 [doc("FILE: the name of the notebook; SERVER: remote server where the notebook will be published")]
+[group('infracstructure')]
 publish_on_cluster FILE SERVER="meiga04": (export_notebook_to_html FILE)
   chmod go+r {{without_extension(FILE)}}.html
   rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
@@ -145,9 +155,11 @@ clean_cache DIR=".":
   # rm experiments/*.parquet
   fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
 
+[group('jesus')]
 mount_supergraph:
   rclone mount --read-only uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
 
+[group('jesus')]
 mount_trapallada:
   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
 

@@ -303,3 +303,43 @@ class CVAE(eqx.Module):
         # ...which is "decoded" and returned along with the mean and standard deviation;
         # only the last channel is used as a condition
         return self.decoder(z, x[-1:]), z_mean, z_sd
+
+class GMEncoder(eqx.Module):
+
+    # class_given_data: eqx.Module
+    # latent_given_class_and_data: eqx.Module
+    
+    data_processing: eqx.Module
+    processed_data_to_class: list
+    processed_data_and_class_to_latent: list
+
+    def __init__(self, input_size: Sequence[int], dim_y: int, kernel_sizes: List[int], channels: List[int], stride: int | list[int], key: PRNGKeyArray):
+
+        key, subkey = jr.split(key)
+
+        # parameter `dim_z`, set to 1, only affects the second-to-last layer...
+        self.data_processing = Encoder(input_size, 1, kernel_sizes, channels, stride, key)
+
+        # ...which is to be deleted...
+        self.data_processing = eqx.tree_at(lambda m: m.layers, self.data_processing, replace=self.data_processing.layers[:-2])
+
+        # two new layers that produces `dim_y` outputs
+        self.processed_data_to_class = [
+            eqx.nn.Linear(in_features=self.data_processing.layers_spatial_sizes[-1], out_features=dim_y, key=subkey),
+            jax.nn.softmax
+        ]
+
+        # ---
+
+    def __call__(self, x: Float[Array, '1 length']) -> Float[Array, 'dim_y']:
+
+        out = self.data_processing(x)
+        for l in self.processed_data_to_class:
+            out = l(out)
+        return out
+
+        # return self.class_given_data(x)
+
+    # def debug_call(self, x: Float[Array, '1 length']) -> Float[Array, 'dim_y']:
+
+    #     self.class_given_data.debug_call(x)
