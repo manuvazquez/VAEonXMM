@@ -19,6 +19,7 @@ import trapallada.util
 import trapallada.logging as log
 
 import mlflow
+import mlflow.exceptions
 
 logger = log.setup_logging(__name__)
 
@@ -212,10 +213,6 @@ def cl_fit_vae_on_signals(args: list = None):
 
     # ----- MLflow logging -----
 
-        # the URL for mlflow
-    # mlflow.set_tracking_uri(uri='http://127.0.0.1:8080')
-    # mlflow.set_tracking_uri(uri='http://meiga05:5000')
-
     # in order to obtain relative paths down below
     home_dir = pathlib.Path.home()
 
@@ -247,7 +244,15 @@ def cl_fit_vae_on_signals(args: list = None):
         
         yaml.dump(parameters, f, default_flow_style=False)
 
-    mlflow.set_experiment("VAE")
+    try:
+        
+        mlflow.set_experiment("VAE")
+    
+    except mlflow.exceptions.MlflowException:
+        
+        logger.warning('Experiment could not be recorded in MLflow')
+
+        return
 
     with mlflow.start_run():
             

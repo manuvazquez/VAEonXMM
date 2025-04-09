@@ -26,7 +26,7 @@ class SignalsDataset(Dataset):
         ):
 
         self.signals: Float[Array, 'signal channel length'] = torch.load(signals_filename, weights_only=False)
-        self.masks: Float[Array, 'signal 1 length'] = torch.load(masks_filename, weights_only=False)
+        self.masks: Float[Array, 'signal length'] = torch.load(masks_filename, weights_only=False)
 
         # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
         if type(self.signals) == np.ndarray:

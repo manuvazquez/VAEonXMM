@@ -1,0 +1,64 @@
+[project]
+name = "trapallada"
+version = "0.1.0"
+description = "Time-series Recognition and Analysis Platform for Astronomical Lightcurve Labeling and Data Analysis"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "altair",
+    "astropy",
+    "astroquery==0.4.6", # seemingly, astroquery 0.4.7's XMMNewton.download_data does not support full paths in "filename" argument
+    "equinox",
+    "ipywidgets",
+    # "jax[cuda12]==0.5", # <------------------ CUDA
+    "jax==0.5", # <------------------ CPU-only
+    "matplotlib",
+    "mlflow==2.17.2",
+    "numpyro",
+    "openpyxl",
+    "optax",
+    "pandas",
+    "plotly",
+    "pyarrow",
+    "scikit-learn",
+    "scipy",
+    "torch",
+    "torchvision",
+]
+
+[tool.setuptools.packages.find]
+where = ["./"]
+include = ["trapallada"]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+"trap_fit_vae_on_signals.py" = "trapallada.core:cl_fit_vae_on_signals"
+"trap_download_obs.py" = "trapallada.xsa.util:cl_download_observations"
+"trap_pack_obs.py" = "trapallada.xsa.util:cl_tars_to_array"
+
+# <------------------ CPU-only
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+
+# ===========================
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = [
+    "bokeh",
+    "ipykernel",
+    "nbconvert",
+    "nbformat",
+    "papermill",
+]

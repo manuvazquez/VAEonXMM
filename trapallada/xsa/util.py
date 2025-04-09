@@ -35,7 +35,13 @@ file_types = ['SRCTSR']
 
 # PN: Epic-pn camera
 # re_filename = re.compile(r'^P(\d{10})PN([SX]\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
-re_filename = re.compile(r'^P(\d{10})PN(S\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+# re_filename = re.compile(r'^P(\d{10})PN(S\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+re_filename = re.compile(r'^P(\d{10})PN(X\d{3})(' + '|'.join(file_types) + r')([0-9A-F]+)\.\w+$')
+
+# rates_columns = ['RATE'] + [f'RATE{i}' for i in range(1, 6)]
+# background_columns = ['BACKV'] + [f'BACK{i}V' for i in range(1, 6)]
+rates_columns = [f'RATE{i}' for i in range(1, 6)]
+background_columns = [f'BACK{i}V' for i in range(1, 6)]
 
 def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -43,9 +49,10 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
 
     Args:
         file (pathlib.Path | str): The file to be read.
+        return_gti (bool, optional): Whether to return the "good time intervals" as well. Defaults to False.
 
     Returns:
-        tuple: A DataFrame with the signals in the FITS file and a mask with the good time intervals.
+        tuple: A DataFrame with the signals in the FITS file and a mask with the good time intervals. Optionally, a DataFrame with the "good time intervals".
     """
 
     # file is read with the high-level interface (`unit_parse_strict="silent"` is used to avoid warnings in an irrelevant column)
@@ -207,6 +214,8 @@ def download_observations(
         duration_interval: Sequence[int] = (35_000, 45_000),
         sleep_time_between_requests: float = 5.) -> None:
 
+    logger.info(f'Requesting signals with duration between {duration_interval[0]} and {duration_interval[1]} seconds')
+    
     # metadata for the observations in the given interval
     obs_metadata = trapallada.xsa.access.get_observations_in_interval(duration_interval=duration_interval)
 
@@ -496,6 +505,11 @@ def tars_to_array(
         RuntimeError: If the period of a tar file does not match the previous period(s).
     """
 
+    # TODO: this should be a parameter
+    requested_period = pd.Timedelta(1.46, 'seconds')
+
+    first_file = True
+
     signals_list = []
     masks_list = []
     last_period = None
@@ -522,21 +536,77 @@ def tars_to_array(
     # every tar file...
     for tar_file in files:
         
-        # ...is read into 3 `DataFrame`s
-        df, header_df, mask_df = read_tar(tar_file, max_n_sources=max_n_sources, signals_to_extract=signals_to_extract)
-
+        try:
+            
+            # ...is read into 3 `DataFrame`s
+            df, header_df, mask_df = read_tar(tar_file, max_n_sources=max_n_sources, signals_to_extract=signals_to_extract)
+        
+        except KeyError:
+            
+            logger.warning(f'"{tar_file.name}" does not contain all the requested columns, skipping...')
+            
+            continue
+        
         # if something was actually read...
         if df is not None:
 
-            df.loc[:, df.columns.get_level_values('data') == 'RATE']
+            aggregated_rate_is_present = 'RATE' in df.columns.get_level_values('data')
 
-            # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
-            #  `df` with keeping only 'RATE' columns, and removing the `file` level of the column index, so that it can be compared to `mask_df`
-            assert (
-                df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
-                      ==\
-                          (~mask_df)
-                    ).all().all()
+            # if not (df.xs(
+            #     'RATE' if aggregated_rate_is_present else 'RATE1', 
+            #     axis=1, level='data').isna() == ~mask_df).all().all():
+
+            #     breakpoint()
+
+            # # CAVEAT: replacing `NaN`s and -infinity's  with infinity (`fillna`) is a workaround for the fact that `mean` applied
+            # #  on a *grouped* `DataFarme` treats `NaN`` values as 0s (and hence they are lost)
+            # # any_bad_rate = np.isinf(df.fillna(np.inf).loc[:, pd.IndexSlice[:, signals_to_extract]].T.groupby(level=0).mean()).T
+            # any_bad_rate = np.isinf(
+            #     df.replace(-np.inf, np.inf).
+            #     fillna(np.inf).loc[:, pd.IndexSlice[:, signals_to_extract]].T.groupby(level=0).mean()).T
+
+            # if not (any_bad_rate == ~mask_df).all().all():
+
+            #     not_matching = (~(any_bad_rate == ~mask_df)).stack()
+            #     mismatch = not_matching[not_matching==True]
+                
+            #     breakpoint()
+
+            ## OLD
+            #  # checking if the `NaN` values in the `DataFrame` are consistent with the mask (`True` when a value is valid);
+            #  # left-hand side is just `df` keeping only 'RATE' columns (renamed to the corresponding signal/file name), so
+            #  # that it can be compared to `mask_df`. NB: 'RATE1' is used as proxy for 'RATE' if the latter is not present
+            # assert (df.xs(
+            #     'RATE' if aggregated_rate_is_present else 'RATE1', 
+            #     axis=1, level='data').isna() == ~mask_df).all().all()
+
+            ## OLD OLD
+            # # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
+            # #  `df` keeping only 'RATE' columns (renamed to the corresponding signal/file name), and removing the 
+            # # `file` level of the column index, so that it can be compared to `mask_df`
+            # assert (
+            #     df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
+            #           ==\
+            #               (~mask_df)
+            #         ).all().all()
+
+            if np.isinf(df).any().any():
+
+                # `True` if any of the signals in a FTZ contains +/- infinity values
+                ftz_has_inftys = np.isinf(df).loc[:, pd.IndexSlice[:, trapallada.xsa.util.rates_columns]].T.groupby(level=0).any().T.any(axis=0)
+
+                # those that contain infinities are to be dismissed...
+                ftzs_to_be_dismissed = ftz_has_inftys.index[ftz_has_inftys].tolist()
+                
+                # ...i.e., `drop`ped from the `DataFrame`
+                df = df.drop(ftzs_to_be_dismissed, axis=1)
+                mask_df = mask_df.drop(ftzs_to_be_dismissed, axis=1)
+                header_df = header_df.drop(ftzs_to_be_dismissed, axis=0)
+
+                logger.warning(f'signals {ftzs_to_be_dismissed} in "{tar_file}" has +/- infinity values, skipping...')
+
+                # logger.warning(f'"{tar_file}" has +/- infinity values, skipping...')
+                # continue
             
             # negative values are clipped to zero
             df = df.clip(lower=0)
@@ -555,6 +625,12 @@ def tars_to_array(
 
             # the period of the raw `DataFrame`
             period = df.index[1] - df.index[0]
+
+            if period != requested_period:
+
+                logger.warning(f'the period of "{tar_file}", {period}, does not match the requested value, {requested_period}, skipping...')
+
+                continue
 
             if bin_size == 1:
 
@@ -577,8 +653,18 @@ def tars_to_array(
             # ---
 
             # power of the (binned) signals
-            power = (binned_df.filter(like='RATE', axis=1)**2).mean(axis=0).droplevel('data')
+            # power = (binned_df.filter(like='RATE', axis=1)**2).mean(axis=0).droplevel('data')
 
+            # if the aggregated 'RATE' signal is present...
+            if aggregated_rate_is_present:
+                
+                power = (binned_df.xs('RATE', axis=1, level='data')**2).mean(axis=0)
+            
+            # if the aggregated 'RATE' signal is NOT present...
+            else:
+                # ...it is *approximated* as the sum of all the 'RATE' signals
+                power = (binned_df.filter(like='RATE', axis=1).T.groupby(level='file').sum().T**2).mean(axis=0)
+                
             # a `Series` with the columns (i.e., signals) whose power is below the threshold
             low_power_columns = power[(power < min_power)].index
             
@@ -606,25 +692,34 @@ def tars_to_array(
             # the period of the *binned* `DataFrame`
             binned_period = binned_df.index[1] - binned_df.index[0]
 
-            # if this is not the first file (`last_period` is `None`)...
-            if last_period:
+            # # if this is not the first file (`last_period` is `None`)...
+            # if last_period:
 
-                if period != last_period:
+            #     if period != last_period:
 
-                    logger.critical(f'the period of "{tar_file}" does not match the previous period(s)')
+            #         logger.critical(f'the period of "{tar_file}", {period}, does not match the previous period(s), {last_period}')
                     
-                    raise RuntimeError('Period mismatch')
+            #         raise RuntimeError('Period mismatch')
 
-            # if this IS the first file...
-            else:
+            # # if this IS the first file...
+            # else:
 
+            #     window_size_in_seconds = (binned_period * window_size).total_seconds()
+
+            #     logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds '
+            #                 f'(period is {binned_period.total_seconds()} seconds, step is {(binned_period * step).total_seconds()} seconds)')
+
+            # last_period = period
+
+            # if this the first file being processed...
+            if first_file:
+                
                 window_size_in_seconds = (binned_period * window_size).total_seconds()
 
-                # print(step)
                 logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds '
                             f'(period is {binned_period.total_seconds()} seconds, step is {(binned_period * step).total_seconds()} seconds)')
-
-            last_period = period
+                
+                first_file = False
 
             if len(binned_df) < window_size:
 
@@ -667,6 +762,8 @@ def tars_to_array(
 
             # if a minimum count rate is set...
             if min_count_rate != 0.:
+
+                # TODO: careful in selecting the right channel for the count rate
 
                 # count rates
                 unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
@@ -796,8 +893,6 @@ def cl_tars_to_array(args: list = None):
 
     command_line_arguments = parser.parse_args(args)
 
-    # breakpoint()
-    
     tar_files = list(command_line_arguments.download_directory.glob('*.tar'))
 
     # arguments that are `None` and command line-only ones are trimmed
@@ -886,3 +981,34 @@ def get_full_signal(
     mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
 
     return signal_series, mask_series
+
+def get_full_signals(
+        signal: str, path_to_full_signals: str | pathlib.Path,
+    ) -> tuple[pd.Series, pd.Series]:
+    """
+    Retrieve the full signals and its corresponding mask from parquet files.
+
+    Parameters:
+    -----------
+    signal : str
+        The signal identifier in the format '<tar file without extension>/<FTZ file without extension>'.
+    path_to_full_signals : str or pathlib.Path
+        The path to the directory containing the full signals in parquet format.
+
+    Returns:
+    --------
+    tuple[pd.DataFrame, pd.Series]
+        A tuple containing a pandas DataFrame and a Series:
+        - The signal series from the specified column.
+        - The mask series indicating valid data points.
+    """
+    
+    tar_file, fit_file = signal.split('/')
+
+    # in case a `str` was passed
+    path_to_full_signals = pathlib.Path(path_to_full_signals)
+
+    signal_df = pd.read_parquet(path_to_full_signals / f'{tar_file}.parquet')[f'{fit_file}.FTZ']
+    mask_series = pd.read_parquet(path_to_full_signals / 'mask' / f'{tar_file}.parquet')[(f'{fit_file}.FTZ', 'OK')]
+
+    return signal_df, mask_series

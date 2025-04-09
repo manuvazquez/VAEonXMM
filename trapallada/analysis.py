@@ -20,11 +20,6 @@ import plotly.subplots
 
 import altair as alt
 
-from bokeh.models import Scatter, Circle, IndexFilter, CDSView, LabelSet, ColumnDataSource
-from bokeh.plotting import figure, show
-from bokeh.models import GraphRenderer, StaticLayoutProvider, HoverTool, MultiLine, Label
-from bokeh.palettes import Category20
-
 from IPython.display import display, Markdown
 import ipywidgets as widgets
 
@@ -116,8 +111,16 @@ def predict_and_plot(
     # if the model is NOT a Conditional-VAE...
     else:
     
-        df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
-    
+        # df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
+
+        n = min(n_samples, x.shape[1])
+
+        return trapallada.plot.pairwise_signals_comparison(
+            jnp.arange(n),
+            x[:, :n], x_pred[:, :n],
+            trapallada.xsa.util.rates_columns, [f'Reconstr. {e}' for e in trapallada.xsa.util.rates_columns],
+            'Actual vs reconstruction', 't', 'x')
+        
     return trapallada.plot.df(df.iloc[:n_samples])
 
 def plot_signal(
@@ -524,14 +527,14 @@ class TSNE:
         distinct_signals = selected_df['signal'].drop_duplicates()
 
         for i in distinct_signals.sample(min(n, len(distinct_signals))).index:
-        # for i in selected_df.sample(n, random_state=42).index:
             
             display(Markdown(f'### {i}'))
             
             print(self.analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
             
             signal_id, *start_end = self.analysis_df.loc[i, ['signal', 'start', 'end']]
-            display(trapallada.plot.full_signal(signal_id, self.full_signals_dir, *start_end))
+            # display(trapallada.plot.full_signal(signal_id, self.full_signals_dir, *start_end))
+            display(trapallada.plot.full_signals(signal_id, self.full_signals_dir, *start_end))
 
     def inspect_regions(self, regions: list[dict[str, tuple[float, float]]], labels, n_samples: int = 5, dont_plot_signals: bool = False):
         
@@ -574,7 +577,7 @@ class TSNE:
     def highlight_windows_of_interest(self):
         
         # signals_of_interest = get_signals_of_interest()
-        signals_of_interest = GroundTruth().signals_and_labels
+        signals_of_interest = Metadata().signals_and_labels
         
         for signal, name in signals_of_interest:
 
@@ -586,7 +589,7 @@ class TSNE:
             
             self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
 
-class GroundTruth:
+class Metadata:
 
     def __init__(self, data_file: str | pathlib.Path | None = None):
 
@@ -625,9 +628,13 @@ class GroundTruth:
         
         return self.__str__()
 
+def get_metadata():
+    
+    return Metadata().data
+
 def get_signals_of_interest():
 
-    return GroundTruth().signals_and_labels
+    return Metadata().signals_and_labels
 
 class Latents:
 
@@ -673,6 +680,7 @@ def check_window(i: int, model: eqx.Module, ds: Dataset, analysis_df: pd.DataFra
     signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
     
     return trapallada.plot.full_signal(signal_id, full_signals_dir, *start_end, x_pred.squeeze())
+    # return trapallada.plot.full_signals(signal_id, full_signals_dir, *start_end, x_pred.squeeze())
 
 def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'loglikelihood', 'kl']):
 

@@ -47,8 +47,8 @@ def download_obs(
             try:
 
                 # actual download
-                # XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
-                XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', instmode='PrimeFullWindow', verbose=verbose)
+                XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', verbose=verbose)
+                # XMMNewton.download_data(obs, filename=tar_file, level='PPS', instname='PN', instmode='PrimeFullWindow', verbose=verbose)
 
                 break
 
@@ -64,11 +64,22 @@ def download_obs(
 
                 time.sleep(delay)
         
+        # if the maximum number of attempts was reached...
         if attemp == n_attemps:
 
             logger.error(f'failed to download {obs} after {n_attemps} attempts')
 
             return None
+        
+        # if the maximum number of attempts was NOT reached...
+        else:
+
+            # ...but still a *tar* file cannot be found...
+            if not tar_file.exists():
+                
+                logger.warning(f'{obs} didn\'t produce a tar file (but something else), ignoring...')
+
+                return None
     
     # it the *tar* file DOES exist in the output directory...
     else:

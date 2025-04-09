@@ -60,8 +60,6 @@ def loss(
 
     x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size))
 
-    # breakpoint()
-
     # if this is a Conditional VAE...
     if isinstance(model, trapallada.model.nn.CVAE):
         

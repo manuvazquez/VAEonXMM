@@ -63,7 +63,7 @@ class Encoder(eqx.Module):
             self.layers.extend([
                 eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value, key=key),
                 jax.nn.relu,
-                eqx.nn.LayerNorm((out_channels, conv_output_len[0]))
+                eqx.nn.LayerNorm((out_channels, conv_output_len[0].item()))
             ])
 
             self.layers_spatial_sizes.append(conv_output_len[0].item())
@@ -157,7 +157,7 @@ class Decoder(eqx.Module):
             self.layers.extend([
                 eqx.nn.ConvTranspose1d(
                     in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value,
-                    output_padding=output_padding, key=subkey),
+                    output_padding=output_padding.item(), key=subkey),
                 jax.nn.relu,
                 eqx.nn.LayerNorm((out_channels, expected_len))
             ])

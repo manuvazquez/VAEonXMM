@@ -11,3 +11,9 @@ iframe_figures
 *.PNG
 logs
 .directory
+mlruns
+results
+graphs
+# uv
+uv.lock
+.python-version
