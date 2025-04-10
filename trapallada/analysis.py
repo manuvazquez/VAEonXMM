@@ -111,8 +111,6 @@ def predict_and_plot(
     # if the model is NOT a Conditional-VAE...
     else:
     
-        # df = pd.DataFrame({'prediction': x_pred[0], 'actual': x.ravel()})
-
         n = min(n_samples, x.shape[1])
 
         return trapallada.plot.pairwise_signals_comparison(
@@ -577,7 +575,7 @@ class TSNE:
     def highlight_windows_of_interest(self):
         
         # signals_of_interest = get_signals_of_interest()
-        signals_of_interest = Metadata().signals_and_labels
+        signals_of_interest = XMMNewtonMetadata().signals_and_labels
         
         for signal, name in signals_of_interest:
 
@@ -589,7 +587,7 @@ class TSNE:
             
             self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
 
-class Metadata:
+class XMMNewtonMetadata:
 
     def __init__(self, data_file: str | pathlib.Path | None = None):
 
@@ -628,13 +626,13 @@ class Metadata:
         
         return self.__str__()
 
-def get_metadata():
+def get_xmm_newton_metadata():
     
-    return Metadata().data
+    return XMMNewtonMetadata().data
 
 def get_signals_of_interest():
 
-    return Metadata().signals_and_labels
+    return XMMNewtonMetadata().signals_and_labels
 
 class Latents:
 
@@ -684,7 +682,9 @@ def check_window(i: int, model: eqx.Module, ds: Dataset, analysis_df: pd.DataFra
 
 def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'loglikelihood', 'kl']):
 
-    fig = plotly.subplots.make_subplots(rows=1, cols=len(metrics), subplot_titles=metrics)
+    fig = plotly.subplots.make_subplots(rows=1, cols=len(metrics), shared_xaxes=True, subplot_titles=metrics)
+
+    x=results_df.index
 
     for i_m, m in enumerate(metrics):
 
@@ -692,7 +692,8 @@ def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'logl
 
             fig.add_trace(
                 go.Scatter(
-                    x=results_df[(dataset, m)].index, y=results_df[(dataset, m)], mode='lines', name=dataset,
+                    # x=results_df[(dataset, m)].index, y=results_df[(dataset, m)], mode='lines', name=dataset,
+                    x=x, y=results_df[(dataset, m)], mode='lines', name=dataset,
                     line=dict(color=color),
                     showlegend=(i_m == 0),
                 ), row=1, col=i_m + 1
@@ -707,6 +708,8 @@ def training_chart(results_df: pd.DataFrame, metrics: list[str] = ['loss', 'logl
         ),
         showlegend=True  # Show a single legend
     )
+
+    fig.update_xaxes(matches='x')
 
     return fig
 

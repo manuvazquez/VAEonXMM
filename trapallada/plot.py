@@ -101,46 +101,6 @@ def full_signal(
 
     return fig
 
-# def pairwise_signals_comparison(
-#         t: Float[Array, 'length'],
-#         y1: Float[Array, 'signal length'],
-#         y2: Float[Array, 'signal length'],
-#         y1_names: list[str], y2_names: list[str], title: str, xaxis_title: str, yaxis_title: str):
-#     """
-#     Compare two signals arrays
-#     """
-
-#     fig = go.Figure()
-
-#     for row_y1, row_y2, color, y1_name, y2_name in zip(y1, y2, px.colors.qualitative.Plotly, y1_names, y2_names):
-        
-#         fig.add_trace(go.Scatter(
-#             x=t,
-#             y=row_y1,
-#             # mode='lines+markers',
-#             mode='lines',
-#             name=y1_name,
-#             line=dict(color=color, dash='solid'),
-#             marker=dict(symbol='circle', color=color)
-#         ))
-#         fig.add_trace(go.Scatter(
-#             x=t,
-#             y=row_y2,
-#             # mode='lines+markers',
-#             mode='lines',
-#             name=y2_name,
-#             line=dict(color=color, dash='dash'),
-#             marker=dict(symbol='square', color=color)
-#         ))
-
-#     fig.update_layout(
-#         title=title,
-#         xaxis_title=xaxis_title,
-#         yaxis_title=yaxis_title,
-#     )
-
-#     return fig
-
 def pairwise_signals_comparison(
         t: Float[Array, 'length'],
         y1: Float[Array, 'signal length'],

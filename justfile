@@ -4,7 +4,6 @@ tmp_dir := '/tmp/'
 
 # light_curves_dir := join(home_dir, 'Sync/research/light curves')
 
-# trapallada_dir := join(home_dir, 'Sync/git/trapallada')
 trapallada_dir := justfile_directory()
 trapallada_data_dir := join(trapallada_dir, 'data')
 
@@ -14,6 +13,8 @@ data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'tra
 
 conda_environment := "trap"
 
+uv_command := "PYTHONBREAKPOINT=ipdb.set_trace uv run --no-sync"
+
 import '~/python/import.just'
 
 default:
@@ -21,9 +22,6 @@ default:
 
 [private]
 papermill FILE:
-  # #!/usr/bin/env bash
-  # source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  # conda activate {{conda_environment}}
   cd "nbs" && uv run papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
 test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb")
@@ -31,10 +29,7 @@ test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_acce
 [group('analysis')]
 [doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
 run_parameterized_notebook NOTEBOOK DIR:
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
-  papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
+  {{uv_command}} papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
 
 [group('analysis')]
 run_analysis DIR: (run_parameterized_notebook "results" DIR) (run_parameterized_notebook "analysis" DIR)
@@ -42,34 +37,22 @@ run_analysis DIR: (run_parameterized_notebook "results" DIR) (run_parameterized_
 [group('analysis')]
 [doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
 run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
-  papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
+  {{uv_command}} papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
 
 [group('analysis')]
 [doc("MODEL_DIR: *absolute* path to a results directory (containing the eqx, yaml, and parquet files); GRAPH_DIR: *absolute* path to the directory with the graph files (nodes, edges); DATA_DIR: the path to the directory with the data; SUFFIX: optional suffix to append to the output file")]
 run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
-  papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
+  {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
 
 cuda:
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
   nvidia-smi
-  python -c "import jax; print(jax.devices())"
+  {{uv_command}} python -c "import jax; print(jax.devices())"
 
 # ====================================================================================================
 
 [private]
 fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
   #!/usr/bin/env bash
-  # source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  # conda activate {{conda_environment}}
-  # source $HOME/scripts/activate.sh
   
   # check if nvidia-smi is available
   if command -v nvidia-smi &> /dev/null; then
@@ -84,8 +67,7 @@ fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
       echo "nvidia-smi not found. CUDA_VISIBLE_DEVICES not set."
   fi
   
-  # trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
-  uv run trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
+  {{uv_command}} trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
 [group('training')]
 fit_real PARAMETERS DATA_FILES_DIR: (fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
@@ -100,24 +82,18 @@ fit_test_fft PARAMETERS="parameters.yaml": && (fit_real tmp_dir/"fft_" + PARAMET
   cp {{PARAMETERS}} {{tmp_dir}}/"fft_"{{PARAMETERS}}
   patch {{tmp_dir}}/"fft_"{{PARAMETERS}} < "samples/fft.patch"
 
-# ====================================================================================================
+# ========================================= data =====================================================
 
 [group('data')]
 [doc("downloads tar files in DOWNLOAD_DIR")]
 download_obs DIR=data_dir MIN_DURATION="35000" MAX_DURATION="60000":
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
   mkdir -p {{DIR}}
-  trap_download_obs.py {{DIR}} --min-duration {{MIN_DURATION}} --max-duration {{MAX_DURATION}}
+  {{uv_command}} trap_download_obs.py {{DIR}} --min-duration {{MIN_DURATION}} --max-duration {{MAX_DURATION}}
 
 [group('data')]
 [doc("packs tar files previously downloaded tar files located in DOWNLOAD_DIR into a format fit for training; resulting files ared placed in OUTPUT_DIR/OUTPUT_SUBDIR")]
 pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir +SIGNALS="RATE1 RATE2 RATE3 RATE4 RATE5":
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
-  trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}} -S {{SIGNALS}}
+  {{uv_command}} trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}} -S {{SIGNALS}}
   cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
 
 [group('data')]
@@ -143,18 +119,12 @@ retrieve_from_cluster SERVER="meiga04" DIRECTORY="results":
 
 [group('infracstructure')]
 mlflow_ui:
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
   echo {{env_var('MLFLOW_TRACKING_URI')}}
-  mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+  {{uv_command}} mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
 [group('infracstructure')]
 mlflow_server:
-  #!/usr/bin/env bash
-  source $HOME/$MY_CONDA_INSTALLATION/etc/profile.d/conda.sh
-  conda activate {{conda_environment}}
-  mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+  {{uv_command}} mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
 [group('infracstructure')]
 connect_to_remote_mlflow_ui SERVER="meiga04" BROWSER="falkon":

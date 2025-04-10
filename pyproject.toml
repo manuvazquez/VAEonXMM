@@ -1,6 +1,6 @@
 [project]
 name = "trapallada"
-version = "0.1.0"
+version = "0.3.0"
 description = "Time-series Recognition and Analysis Platform for Astronomical Lightcurve Labeling and Data Analysis"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -57,7 +57,10 @@ explicit = true
 [dependency-groups]
 dev = [
     "bokeh",
+    "hdbscan",
+    "ipdb",
     "ipykernel",
+    "ipython",
     "nbconvert",
     "nbformat",
     "papermill",

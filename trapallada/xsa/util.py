@@ -763,13 +763,17 @@ def tars_to_array(
             # if a minimum count rate is set...
             if min_count_rate != 0.:
 
-                # TODO: careful in selecting the right channel for the count rate
+                # count rates Float[Array, 'window signal/channel time']
+                unnormalized_sliced_signals, *_ = slice(
+                    binned_df.loc[:, pd.IndexSlice[:, trapallada.xsa.util.rates_columns]],
+                    window_size=window_size, step=step, tail_as_window=True, return_n_windows=True
+                )
 
-                # count rates
-                unnormalized_sliced_signals, *_ = slice(binned_df, window_size=window_size, step=step, tail_as_window=True, return_n_windows=True)
+                # # this is assuming that the count rate is the first (0-th) channel of the signal
+                # large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
 
-                # this is assuming that the count rate is the first (0-th) channel of the signal
-                large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
+                # using the count rate across all the energy bands (`.sum(axis=1)`), and then averaging across time (`.mean(axis=1)`)
+                large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals.sum(axis=1).mean(axis=1) >= (min_count_rate * bin_size)
 
                 # TODO: this can be avoided if the above check is done right before the above `append`s
                 
