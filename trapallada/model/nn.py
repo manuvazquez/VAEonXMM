@@ -102,7 +102,7 @@ class Decoder(eqx.Module):
 
     # TODO: `input_size` should probably be rename to `output_size`
 
-    def __init__(self, input_size: Sequence[int], dim_z: int, layers_spatial_sizes: list[int], kernel_sizes: list[int], channels: list[int], stride: int | list[int], key: PRNGKeyArray):
+    def __init__(self, input_size: list[int], dim_z: int, layers_spatial_sizes: list[int], kernel_sizes: list[int], channels: list[int], stride: int | list[int], key: PRNGKeyArray):
 
         # for the sake of readability
         n_conv_layers = len(channels)
@@ -175,7 +175,7 @@ class Decoder(eqx.Module):
 
         return x
 
-    def debug_call(self, x: Float[Array, 'dim_z']) -> Float[Array, '1 length']:
+    def debug_call(self, x: Float[Array, 'dim_z']) -> None:
 
         for layer in self.layers:
 

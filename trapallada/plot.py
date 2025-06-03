@@ -110,32 +110,35 @@ def pairwise_signals_comparison(
     Compare two signals arrays
     """
 
-    n_signals = len(y1)
+    fig = go.Figure()
 
-    fig = make_subplots(
-        rows=n_signals, cols=1,
-        shared_xaxes=True, vertical_spacing=0.02, 
-        subplot_titles=y1_names)
-
-    for i, (y1_row, y2_row) in enumerate(zip(y1, y2), start=1):
+    for row_y1, row_y2, color, y1_name, y2_name in zip(y1, y2, px.colors.qualitative.Plotly, y1_names, y2_names):
         
-        fig.add_trace(
-            go.Scatter(x=t, y=y1_row, mode='lines', line=dict(color='green', width=2)),
-            row=i, col=1
-        )
-
-        fig.add_trace(
-            go.Scatter(x=t, y=y2_row, mode='lines', line=dict(color='red', width=2, dash='dash')),
-            row=i, col=1
-        )
-
+        fig.add_trace(go.Scatter(
+            x=t,
+            y=row_y1,
+            # mode='lines+markers',
+            mode='lines',
+            name=y1_name,
+            line=dict(color=color, dash='solid'),
+            marker=dict(symbol='circle', color=color)
+        ))
+        fig.add_trace(go.Scatter(
+            x=t,
+            y=row_y2,
+            # mode='lines+markers',
+            mode='lines',
+            name=y2_name,
+            line=dict(color=color, dash='dash'),
+            marker=dict(symbol='square', color=color)
+        ))
 
     fig.update_layout(
-        height=300 * n_signals,
-        # title_text="Selected Signals Plot with False BACKV Indicators",
-        # xaxis_title="Time",
-        showlegend=False
+        title=title,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
     )
+
     return fig
 
 def full_signals(
@@ -183,11 +186,17 @@ def full_signals(
         if window_start is not None:
 
             belongs_to_window = (signals_df.index >= window_start) & (signals_df.index <= window_end)
-            window_series = signals_df[belongs_to_window][rate_col]
-            fig.add_trace(
-                go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'),
+            # window_series = signals_df[belongs_to_window][rate_col]
+            # fig.add_trace(
+            #     go.Scatter(x=window_series.index, y=window_series, mode='lines', line=dict(color='green', width=2), name='window'),
+            #     row=i, col=1
+            #     )
+            
+            fig.add_vrect(
+                x0=window_start, x1=window_end,
+                fillcolor="green", opacity=0.2, line_width=0,
                 row=i, col=1
-                )
+            )
 
     fig.update_layout(
         height=300 * n_signals,

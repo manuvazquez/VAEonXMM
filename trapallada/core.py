@@ -261,6 +261,7 @@ def cl_fit_vae_on_signals(args: list = None):
 
         # mlflow.set_tag("Vanilla VAE", "plain")
         mlflow.set_tags({
+            'output_dir': command_line_arguments.parameters_file.parent.parts[-1],
             'data': dataset_inferred_name,
             'training': training_inferred_name})
 

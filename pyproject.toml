@@ -64,4 +64,5 @@ dev = [
     "nbconvert",
     "nbformat",
     "papermill",
+    "marimo",
 ]

@@ -92,7 +92,7 @@ def take_step(
     x_sd: float,
     mask_non_gti_intervals: bool,
     key: PRNGKeyArray
-) -> tuple[tuple[eqx.Module], PyTree, Float[Array, '']]:
+) -> tuple[eqx.Module, PyTree, Float[Array, '']]:
 
     # the value (plus some auxiliary variables) and gradient of the model
     value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, mask_non_gti_intervals, key)
