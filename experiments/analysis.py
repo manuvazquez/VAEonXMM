@@ -20,13 +20,16 @@ def _():
 def _():
     import pathlib
 
+    import pandas as pd
+
     import plotly
     from plotly.subplots import make_subplots
     import plotly.express as px
     import plotly.graph_objects as go
 
     import trapallada.analysis
-    return go, make_subplots, pathlib, px, trapallada
+    import trapallada.results.analysis
+    return go, make_subplots, pathlib, pd, px, trapallada
 
 
 @app.cell
@@ -34,6 +37,12 @@ def _():
     import plotly.io as pio
     pio.renderers.default = 'notebook'
     return
+
+
+@app.cell
+def _(mo):
+    args = mo.cli_args()
+    return (args,)
 
 
 @app.cell(hide_code=True)
@@ -46,7 +55,7 @@ def _(mo):
 def _(trapallada):
     base_dir = trapallada.analysis.get_base_directory()
     base_dir
-    return
+    return (base_dir,)
 
 
 @app.cell(hide_code=True)
@@ -62,18 +71,24 @@ def _(mo):
 
 
 @app.cell
-def _(mo, pathlib):
-    file_browser = mo.ui.file_browser(
-        initial_path=pathlib.Path('results/'), selection_mode='directory'
-    )
+def _(args, mo, pathlib):
+    if not args:
+        file_browser = mo.ui.file_browser(
+            initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
+        )
+        file_browser
+    else:
+        file_browser = None
     file_browser
     return (file_browser,)
 
 
 @app.cell
-def _(file_browser):
-    model_dir = file_browser.path()
-    # file_browser.name()
+def _(args, file_browser, pathlib):
+    if not args:
+        model_dir = file_browser.path()
+    else:
+        model_dir = pathlib.Path(args['model_dir'])
     return (model_dir,)
 
 
@@ -97,8 +112,52 @@ def _(mo):
 
 @app.cell
 def _(model_dir, trapallada):
-    ds, positions_df, model, results_df, parameters, analysis_df = trapallada.analysis.load_results_dir(model_dir, analysis_also=True)
-    return analysis_df, ds, model, parameters, results_df
+    ds, positions_df, model, training_df, parameters = trapallada.analysis.load_results_dir(model_dir)
+    return ds, model, parameters, positions_df, training_df
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The path to *SIMBAD (XMATCH)* database""")
+    return
+
+
+@app.cell
+def _(base_dir):
+    catalog_file = base_dir / 'experiments' / 'Cross_Simbad_r3.5.csv'
+    assert catalog_file.exists()
+    return (catalog_file,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""If the *analysis* `DataFrame` was not built before, it is.""")
+    return
+
+
+@app.cell
+def _(catalog_file, ds, model, model_dir, pd, positions_df, trapallada):
+    analysis_file = model_dir / 'analysis.parquet'
+    if not analysis_file.exists():
+
+        print(f'Making "{analysis_file.name}"...')
+
+        # projecting into the latent space and clustering
+        analysis_df = trapallada.results.analysis.cluster(ds, model.encoder)
+
+        # position information is appended
+        analysis_df = trapallada.results.analysis.augment_with_positions(analysis_df, positions_df)
+
+        # labels from external database
+        analysis_df = trapallada.results.analysis.augment_with_simbad(analysis_df, catalog_file)
+
+        # extra columns with the number of window and signal "id"
+        analysis_df = trapallada.results.analysis.augment_with_window_and_signal_ids(analysis_df)
+
+        analysis_df.to_parquet(analysis_file)
+    else:
+        analysis_df = pd.read_parquet(analysis_file)
+    return (analysis_df,)
 
 
 @app.cell
@@ -115,7 +174,6 @@ def _(mo):
 
 @app.cell
 def _():
-    # pos_columns = ['RA', 'DEC', 'CRA', 'CDEC']
     tsne_columns = [f'tsne_{i}' for i in range(1, 3)]
     return (tsne_columns,)
 
@@ -216,8 +274,8 @@ def _(mo):
 
 
 @app.cell
-def _(results_df, trapallada):
-    trapallada.analysis.training_chart(results_df)
+def _(training_df, trapallada):
+    trapallada.analysis.training_chart(training_df)
     return
 
 
@@ -422,7 +480,7 @@ def _(analysis_df, trapallada):
     signals_of_interest_df = analysis_df[
         analysis_df['signal'].isin(trapallada.analysis.XMMNewtonMetadata().signals)
     ]
-    signals_of_interest_df.head()
+    signals_of_interest_df
     return
 
 

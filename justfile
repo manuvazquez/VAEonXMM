@@ -148,13 +148,21 @@ connect_to_remote_mlflow_ui SERVER=default_server BROWSER="falkon":
   {{BROWSER}} http://localhost:10000
   kill $SSH_PID
 
-[doc("FILE: the name of the notebook; SERVER: remote server where the notebook will be published")]
+# [doc("FILE: the name of the notebook; SERVER: remote server where the notebook will be published")]
+# [group('infracstructure')]
+# publish_on_cluster FILE SERVER=default_server: (export_notebook_to_html FILE)
+#   chmod go+r {{without_extension(FILE)}}.html
+#   rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
+#   rm {{without_extension(FILE)}}.html
+#   echo https://www.tsc.uc3m.es/~mvazquez/{{file_stem(FILE)}}.html
+
+[doc("FILE: the name of the html file; NAME: new name for the file; SERVER: remote server where the notebook will be published")]
 [group('infracstructure')]
-publish_on_cluster FILE SERVER=default_server: (export_notebook_to_html FILE)
-  chmod go+r {{without_extension(FILE)}}.html
-  rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
-  rm {{without_extension(FILE)}}.html
-  echo https://www.tsc.uc3m.es/~mvazquez/{{file_stem(FILE)}}.html
+publish_html_on_cluster FILE NAME SERVER=default_server:
+  cp "{{FILE}}" {{tmp_dir}}/{{NAME}}.html
+  rsync --perms --owner {{tmp_dir}}/{{NAME}}.html {{SERVER}}:public_html
+  rm {{tmp_dir}}/{{NAME}}.html
+  echo https://www.tsc.uc3m.es/~mvazquez/{{NAME}}.html
 
 clean_cache DIR=".":
   # rm experiments/*.parquet

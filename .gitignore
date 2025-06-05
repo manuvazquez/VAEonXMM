@@ -12,7 +12,7 @@ iframe_figures
 logs
 .directory
 mlruns
-results
+./results
 graphs
 # uv
 uv.lock
