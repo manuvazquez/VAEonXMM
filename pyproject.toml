@@ -65,4 +65,5 @@ dev = [
     "nbformat",
     "papermill",
     "marimo",
+    "openai>=1.84.0",
 ]

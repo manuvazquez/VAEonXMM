@@ -29,6 +29,7 @@ def _():
 
     import trapallada.analysis
     import trapallada.results.analysis
+    import trapallada.results.plot
     return go, make_subplots, pathlib, pd, px, trapallada
 
 
@@ -469,6 +470,12 @@ def _(mo):
     return
 
 
+@app.cell
+def _():
+    re_drop_columns= '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC|signal)'
+    return (re_drop_columns,)
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""The (selected beforehand) *signals of interest*""")
@@ -480,7 +487,8 @@ def _(analysis_df, trapallada):
     signals_of_interest_df = analysis_df[
         analysis_df['signal'].isin(trapallada.analysis.XMMNewtonMetadata().signals)
     ]
-    signals_of_interest_df
+    # signals_of_interest_df.drop_duplicates('source').filter(regex=re_drop_columns)
+    signals_of_interest_df.drop_duplicates('source')
     return
 
 
@@ -550,7 +558,6 @@ def _(analysis_df, mo_plot):
     max_n_samples_to_show = 30
     i_selected = [e['index'] for e in mo_plot.points if e]
     selected_samples = analysis_df.loc[i_selected]
-    # selected_samples = analysis_df.loc[mo_plot.indices]
     if len(selected_samples) > max_n_samples_to_show:
         selected_samples = selected_samples.drop_duplicates(subset=['signal'])
         print('Too many selected, plotting just one window for every signal...')
@@ -561,20 +568,20 @@ def _(analysis_df, mo_plot):
 
 
 @app.cell
-def _(full_signals_dir, mo, selected_samples, trapallada):
-    # n_samples_to_show = 10
-    # selected_samples = analysis_df.loc[mo_plot.indices].sample(n_samples_to_show)
-    # selected_samples = analysis_df.loc[mo_plot.indices]
-    re_drop_columns= '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC)'
-    # mo.output.append(selected_samples.filter(regex=re_drop_columns))
-    # for i in selected_samples.index:
-    #     mo.output.append(f'## Window {i}')
-    #     signal_id, *start_end = analysis_df.loc[i, ['signal', 'start', 'end']]
-    #     mo.output.append(trapallada.plot.full_signals(signal_id, full_signals_dir, *start_end))
+def _(
+    full_signals_dir,
+    mo,
+    model,
+    re_drop_columns,
+    selected_samples,
+    trapallada,
+):
     for i_row, row in selected_samples.iterrows():
         mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
         signal_id, *start_end = row[['signal', 'start', 'end']]
-        mo.output.append(trapallada.plot.full_signals(signal_id, full_signals_dir, *start_end))
+        pred = model.decoder(selected_samples.filter(like='z_').loc[i_row])
+        # mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end))
+        mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred))
         mo.output.append('---')
     return
 

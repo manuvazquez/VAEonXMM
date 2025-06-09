@@ -220,3 +220,16 @@ def flatten_dict(d, parent_key='', sep='.'):
         else:
             items.append((new_key, v))
     return dict(items)
+
+def input_size_from_dataset(ds: Dataset) -> list[int]:
+    """
+    Get the input size from a dataset.
+
+    Args:
+        ds (Dataset): The dataset to get the input size from.
+
+    Returns:
+        tuple[int, ...]: The input size.
+    """
+
+    return list(ds[0][1].shape)

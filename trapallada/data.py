@@ -33,6 +33,7 @@ class SignalsDataset(Dataset):
             
             self.signals = torch.from_numpy(self.signals)
 
+        # TO-DO: this path is not longer used in any experiment
         if normalize:
             
             mean = self.signals.mean(axis=-1)
@@ -43,6 +44,7 @@ class SignalsDataset(Dataset):
             # TODO: compute `i_constant` first, and filter out the signals
 
             # indexes of the constant signals
+            # CAVEAT: this relies exclusively on the *first* channel of each signal
             i_constant = torch.nonzero(std == 0.)[:, 0]
 
             # the number of them
@@ -88,6 +90,16 @@ class SignalsDataset(Dataset):
             logger.info('computing the FFT of each signal...')
         
             self.signals = torch.abs(torch.fft.rfft(self.signals, norm='forward'))
+
+            # --------------------- "normalization" ---------------------
+
+            # # meand and standard deviation separately *for every channel*
+            # mean = self.signals.mean(axis=(0, -1))
+            # std = self.signals.std(axis=(0, -1))
+
+            # self.signals = (self.signals - mean[None, :, None]) / std[None, :, None]
+
+            # --------------------- "normalization" ---------------------
 
             logger.info(f'dismissing the right half of each FFT (length is now {self.signals.shape[-1]})...')
 
