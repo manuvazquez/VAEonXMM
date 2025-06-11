@@ -28,64 +28,64 @@ import trapallada.model.nn
 import trapallada.plot
 import trapallada.xsa.util
 
-def load_results_dir(dir, analysis_also: bool=False):
+# def load_results_dir(dir, analysis_also: bool=False):
 
-    # it's turned into a `Pathlib` object
-    dir = pathlib.Path(dir)
+#     # it's turned into a `Pathlib` object
+#     dir = pathlib.Path(dir)
 
-    # ================
+#     # ================
 
-    parameters_file = dir / 'extended_parameters.yaml'
-    assert parameters_file.exists()
+#     parameters_file = dir / 'extended_parameters.yaml'
+#     assert parameters_file.exists()
 
-    with parameters_file.open() as f:
-        parameters = yaml.safe_load(f)
+#     with parameters_file.open() as f:
+#         parameters = yaml.safe_load(f)
 
-    # ---
+#     # ---
 
-    signals_file = pathlib.Path.home() / parameters['dataset']['files']['signals_file']
-    # FIXME: this is a temporary fix
-    # masks_file = pathlib.Path.home() / parameters['dataset']['files']['masks_file']
-    masks_file = signals_file.with_stem('masks')
-    metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
+#     signals_file = pathlib.Path.home() / parameters['dataset']['files']['signals_file']
+#     # FIXME: this is a temporary fix
+#     # masks_file = pathlib.Path.home() / parameters['dataset']['files']['masks_file']
+#     masks_file = signals_file.with_stem('masks')
+#     metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
 
-    ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
+#     ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
 
-    headers_file = signals_file.with_name('headers.parquet')
-    headers_df = pd.read_parquet(headers_file)
+#     headers_file = signals_file.with_name('headers.parquet')
+#     headers_df = pd.read_parquet(headers_file)
 
-    # ================
+#     # ================
 
-    weights_file = dir / 'model.eqx'
-    assert weights_file.exists()
+#     weights_file = dir / 'model.eqx'
+#     assert weights_file.exists()
 
-    model = trapallada.model.nn.load_vae(weights_file, parameters_file)
+#     model = trapallada.model.nn.load_vae(weights_file, parameters_file)
 
-    # ================
+#     # ================
     
-    results_file = dir / 'in_training_metrics.parquet'
-    assert results_file.exists()
+#     results_file = dir / 'in_training_metrics.parquet'
+#     assert results_file.exists()
 
-    results_df = pd.read_parquet(results_file)
+#     results_df = pd.read_parquet(results_file)
 
-    # ================
+#     # ================
 
-    to_be_returned = ds, headers_df, model, results_df, parameters
+#     to_be_returned = ds, headers_df, model, results_df, parameters
 
-    # ================
+#     # ================
 
-    if analysis_also:
+#     if analysis_also:
 
-        analysis_file = dir / 'analysis.parquet'
-        assert analysis_file.exists()
-        analysis_df = pd.read_parquet(analysis_file)
+#         analysis_file = dir / 'analysis.parquet'
+#         assert analysis_file.exists()
+#         analysis_df = pd.read_parquet(analysis_file)
 
-        to_be_returned += (analysis_df,)
+#         to_be_returned += (analysis_df,)
 
 
-    return to_be_returned
+#     return to_be_returned
 
-# =============================================================
+# # =============================================================
 
 def predict_and_plot(
         model: eqx.Module, ds: Dataset,

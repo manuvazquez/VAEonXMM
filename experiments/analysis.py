@@ -113,7 +113,8 @@ def _(mo):
 
 @app.cell
 def _(model_dir, trapallada):
-    ds, positions_df, model, training_df, parameters = trapallada.analysis.load_results_dir(model_dir)
+    # ds, positions_df, model, training_df, parameters = trapallada.analysis.load_results_dir(model_dir)
+    ds, positions_df, model, training_df, parameters = trapallada.results.analysis.load_dir(model_dir)
     return ds, model, parameters, positions_df, training_df
 
 

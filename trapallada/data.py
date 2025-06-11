@@ -28,6 +28,8 @@ class SignalsDataset(Dataset):
         self.signals: Float[Array, 'signal channel length'] = torch.load(signals_filename, weights_only=False)
         self.masks: Float[Array, 'signal length'] = torch.load(masks_filename, weights_only=False)
 
+        self.windows_length = self.signals.shape[-1]
+
         # TODO: at some point the type of `self.signals` should be guaranteed to be `np.ndarray`, never `torch.Tensor`
         if type(self.signals) == np.ndarray:
             
@@ -99,7 +101,7 @@ class SignalsDataset(Dataset):
 
             # self.signals = (self.signals - mean[None, :, None]) / std[None, :, None]
 
-            # --------------------- "normalization" ---------------------
+            # --------------------- "noitazilamron" ---------------------
 
             logger.info(f'dismissing the right half of each FFT (length is now {self.signals.shape[-1]})...')
 
@@ -120,7 +122,6 @@ def dataloaders_from_dataset(
         np.arange(len(ds)), 
         **splitting_parameters, 
         shuffle=True,
-        # stratify=ds.labels
         stratify=ds.labels if not np.isnan(ds.labels).all().item() else None
     )
 

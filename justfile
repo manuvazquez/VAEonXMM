@@ -29,7 +29,7 @@ default:
 papermill FILE:
   cd "nbs" && uv run papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb")
+test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb") (papermill "model_ar.ipynb")
 
 # ========================================analysis ===================================================
 
@@ -147,14 +147,6 @@ connect_to_remote_mlflow_ui SERVER=default_server BROWSER="falkon":
   SSH_PID=$!
   {{BROWSER}} http://localhost:10000
   kill $SSH_PID
-
-# [doc("FILE: the name of the notebook; SERVER: remote server where the notebook will be published")]
-# [group('infracstructure')]
-# publish_on_cluster FILE SERVER=default_server: (export_notebook_to_html FILE)
-#   chmod go+r {{without_extension(FILE)}}.html
-#   rsync --perms --owner {{without_extension(FILE)}}.html {{SERVER}}:public_html
-#   rm {{without_extension(FILE)}}.html
-#   echo https://www.tsc.uc3m.es/~mvazquez/{{file_stem(FILE)}}.html
 
 [doc("FILE: the name of the html file; NAME: new name for the file; SERVER: remote server where the notebook will be published")]
 [group('infracstructure')]

@@ -1,12 +1,75 @@
 import pathlib
 
+import yaml
+
 import pandas as pd
 import equinox as eqx
 
 from torch.utils.data import DataLoader, Dataset
 import hdbscan
 
+import trapallada.data
+import trapallada.model.nn
 import trapallada.util
+
+def load_dir(dir, analysis_also: bool=False):
+
+    # it's turned into a `Pathlib` object
+    dir = pathlib.Path(dir)
+
+    # ================
+
+    parameters_file = dir / 'extended_parameters.yaml'
+    assert parameters_file.exists()
+
+    with parameters_file.open() as f:
+        parameters = yaml.safe_load(f)
+
+    # ---
+
+    signals_file = pathlib.Path.home() / parameters['dataset']['files']['signals_file']
+    
+    # FIXME: a temporary fix for compatibility with the old code
+    masks_file = signals_file.with_stem('masks')
+    # masks_file = pathlib.Path.home() / parameters['dataset']['files']['masks_file']
+    
+    metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
+
+    ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
+
+    headers_file = signals_file.with_name('headers.parquet')
+    headers_df = pd.read_parquet(headers_file)
+
+    # ================
+
+    weights_file = dir / 'model.eqx'
+    assert weights_file.exists()
+
+    model = trapallada.model.nn.load_vae(weights_file, parameters_file)
+
+    # ================
+    
+    results_file = dir / 'in_training_metrics.parquet'
+    assert results_file.exists()
+
+    results_df = pd.read_parquet(results_file)
+
+    # ================
+
+    to_be_returned = ds, headers_df, model, results_df, parameters
+
+    # ================
+
+    if analysis_also:
+
+        analysis_file = dir / 'analysis.parquet'
+        assert analysis_file.exists()
+        analysis_df = pd.read_parquet(analysis_file)
+
+        to_be_returned += (analysis_df,)
+
+
+    return to_be_returned
 
 
 def cluster(ds: Dataset, encoder: eqx.Module) -> pd.DataFrame:
