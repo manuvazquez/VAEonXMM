@@ -129,58 +129,58 @@ def get_layers_n_parameters(model: PyTree) -> dict:
         for path_leave in jax.tree_util.tree_leaves_with_path(model) if isinstance(path_leave[1], jax.Array)
     }
 
-# TODO: this should be moved to the `analysis` module
-def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_projected_components: int = 2, random_state: int = 42) -> pd.DataFrame:
-    """
-    Build a `DataFrame` with the metadata and the projections of the latent space.
+# # TODO: this should be moved to the `analysis` module
+# def make_projections_df(ds: Dataset, dl: DataLoader, encoder: eqx.Module, n_projected_components: int = 2, random_state: int = 42) -> pd.DataFrame:
+#     """
+#     Build a `DataFrame` with the metadata and the projections of the latent space.
 
-    Args:
-        ds (Dataset): The full dataset.
-        dl (DataLoader): A data loader to be processed.
-        encoder (eqx.Module): The encoder.
-        n_projected_components (int): The number of components for the t-SNE embeddings.
+#     Args:
+#         ds (Dataset): The full dataset.
+#         dl (DataLoader): A data loader to be processed.
+#         encoder (eqx.Module): The encoder.
+#         n_projected_components (int): The number of components for the t-SNE embeddings.
 
-    Returns:
-        A `DataFrame` with the metadata and the projections of the latent space.
-    """
+#     Returns:
+#         A `DataFrame` with the metadata and the projections of the latent space.
+#     """
     
-    # the dataset associated with `dl` is encoded, and the corresponding indexes (in the full datset) recorded
-    z_s, i_s = [], []
-    for i, x, *_ in dl:
-        z_s.append(jax.vmap(encoder)(x.numpy()))
-        i_s.append(i)
+#     # the dataset associated with `dl` is encoded, and the corresponding indexes (in the full datset) recorded
+#     z_s, i_s = [], []
+#     for i, x, *_ in dl:
+#         z_s.append(jax.vmap(encoder)(x.numpy()))
+#         i_s.append(i)
 
-    # for the sake of clarity (assuming `z` comprises mean and standard deviation)
-    dim_z = z_s[-1].shape[-1] // 2
+#     # for the sake of clarity (assuming `z` comprises mean and standard deviation)
+#     dim_z = z_s[-1].shape[-1] // 2
 
-    # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
-    z_s = jnp.vstack(z_s)[:, :dim_z]
+#     # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
+#     z_s = jnp.vstack(z_s)[:, :dim_z]
 
-    if dim_z > 2:
+#     if dim_z > 2:
 
-        # t-SNE is applied to the (means of the) `z`s
-        t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+#         # t-SNE is applied to the (means of the) `z`s
+#         t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
     
-    elif dim_z == 2:
+#     elif dim_z == 2:
 
-        t_sne_embeddings = z_s
-        logger.warning('The latent space has only two dimensions: setting t-SNE projections equal to it...')
+#         t_sne_embeddings = z_s
+#         logger.warning('The latent space has only two dimensions: setting t-SNE projections equal to it...')
 
-    else:
+#     else:
 
-        raise ValueError('The latent space must have at least two dimensions.')
+#         raise ValueError('The latent space must have at least two dimensions.')
 
-    # names for columns
-    z_s_names = [f'z_{i}' for i in range(1, 1 + dim_z)]
-    t_sne_names = [f'tsne_{i}' for i in range(1, 1 + n_projected_components)]
+#     # names for columns
+#     z_s_names = [f'z_{i}' for i in range(1, 1 + dim_z)]
+#     t_sne_names = [f'tsne_{i}' for i in range(1, 1 + n_projected_components)]
 
-    # rows are selected from the dataset's metadata
-    metadata_df = ds.metadata_df.loc[torch.hstack(i_s)]
+#     # rows are selected from the dataset's metadata
+#     metadata_df = ds.metadata_df.loc[torch.hstack(i_s)]
 
-    # a `DataFrame` with the `z`s and the t-SNE embeddings (indexed just like thea above `DataFrame`)
-    z_tsne_df = pd.DataFrame(np.hstack((z_s, t_sne_embeddings)), columns=z_s_names + t_sne_names, index=metadata_df.index)
+#     # a `DataFrame` with the `z`s and the t-SNE embeddings (indexed just like thea above `DataFrame`)
+#     z_tsne_df = pd.DataFrame(np.hstack((z_s, t_sne_embeddings)), columns=z_s_names + t_sne_names, index=metadata_df.index)
 
-    return pd.concat([metadata_df, z_tsne_df], axis=1)
+#     return pd.concat([metadata_df, z_tsne_df], axis=1)
 
 def func_args_with_defaults(func):
     """

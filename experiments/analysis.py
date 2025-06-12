@@ -22,6 +22,8 @@ def _():
 
     import pandas as pd
 
+    from torch.utils.data import DataLoader
+
     import plotly
     from plotly.subplots import make_subplots
     import plotly.express as px
@@ -30,7 +32,7 @@ def _():
     import trapallada.analysis
     import trapallada.results.analysis
     import trapallada.results.plot
-    return go, make_subplots, pathlib, pd, px, trapallada
+    return DataLoader, go, make_subplots, pathlib, pd, px, trapallada
 
 
 @app.cell
@@ -138,14 +140,49 @@ def _(mo):
 
 
 @app.cell
-def _(catalog_file, ds, model, model_dir, pd, positions_df, trapallada):
+def _(
+    DataLoader,
+    catalog_file,
+    ds,
+    model,
+    model_dir,
+    pd,
+    positions_df,
+    trapallada,
+):
     analysis_file = model_dir / 'analysis.parquet'
     if not analysis_file.exists():
 
         print(f'Making "{analysis_file.name}"...')
 
         # projecting into the latent space and clustering
-        analysis_df = trapallada.results.analysis.cluster(ds, model.encoder)
+        # analysis_df = trapallada.results.analysis.cluster(ds, model.encoder)
+
+        # for t-SNE
+        n_projected_components = 2
+
+        # a `DataLoader` for the `Dataset`
+        dl = DataLoader(ds, batch_size=128, shuffle=False)
+
+        # projection onto the latent space...
+        z = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder)
+
+        # ...which is, in turn, projected, for visualization, using t-SNE
+        tsne = trapallada.results.analysis.tsne_project(z, n_projected_components=n_projected_components)
+
+        # a `DataFrame` with metadata
+        analysis_df = ds.metadata_df.copy()
+
+        # names of columns to be added to the `DataFrame` for the latent space and t-SNE
+        z_cols = [f'z_{i}' for i in range(1, z.shape[-1]+1)]
+        tsne_cols = [f'tsne_{i}' for i in range(1, n_projected_components+1)]
+
+        analysis_df[z_cols] = z
+        analysis_df[tsne_cols] = tsne
+
+        # clustering with HDBSCAN
+        analysis_df['cluster in z'] = trapallada.results.analysis.hdbscan_cluster(z, 10)
+        analysis_df['cluster in projected space'] = trapallada.results.analysis.hdbscan_cluster(tsne, 80)
 
         # position information is appended
         analysis_df = trapallada.results.analysis.augment_with_positions(analysis_df, positions_df)
@@ -165,6 +202,20 @@ def _(catalog_file, ds, model, model_dir, pd, positions_df, trapallada):
 @app.cell
 def _(analysis_df):
     analysis_df.head()
+    return
+
+
+@app.cell
+def _():
+    # old_df = pd.read_parquet(analysis_file.parent / 'old.analysis.parquet')
+    # old_df['main_type'] = old_df['main_type'].fillna('UNKNOWN')
+    # old_df = old_df.drop('set', axis=1)
+    # # old_df.head()
+
+    # analysis_df['cluster in z']= analysis_df['cluster in z'].astype(int)
+    # analysis_df['cluster in projected space']= analysis_df['cluster in projected space'].astype(int)
+    # analysis_df.equals(old_df)
+    # # analysis_df.compare(old_df)
     return
 
 

@@ -143,3 +143,20 @@ def dataloaders_from_dataset(
         return (train_dl, validation_dl), (train_ds, validation_ds)
 
     return train_dl, validation_dl
+
+def sample_dataset_parameters():
+
+    basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
+
+    assert basedir.exists()
+
+    res = dict(
+        signals_filename=basedir / 'signals.pt',
+        metadata_filename=basedir / 'metadata.parquet',
+        masks_filename=basedir / 'masks.pt'
+        )
+
+    for file in res.values():
+        assert file.exists(), f'"{file}" does not exist'
+    
+    return res

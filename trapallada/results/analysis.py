@@ -1,16 +1,33 @@
 import pathlib
 
 import yaml
-
 import pandas as pd
-import equinox as eqx
 
+import jax
+import jax.numpy as jnp
+import equinox as eqx
+from jaxtyping import Float, Int, Array
+
+from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader, Dataset
 import hdbscan
 
 import trapallada.data
 import trapallada.model.nn
 import trapallada.util
+
+import trapallada.logging as log
+
+logger = log.setup_logging(__name__)
+
+
+# def sample_results_parameters():
+
+#     res = pathlib.Path(__file__).resolve().parent.parent.parent / 'results' / 'multichannel' / 'rates_large_infs' / 'fft_z_30'
+
+#     assert res.exists()
+    
+#     return res
 
 def load_dir(dir, analysis_also: bool=False):
 
@@ -72,31 +89,39 @@ def load_dir(dir, analysis_also: bool=False):
     return to_be_returned
 
 
-def cluster(ds: Dataset, encoder: eqx.Module) -> pd.DataFrame:
+def hdbscan_cluster(selected_cols: pd.DataFrame, min_cluster_size: int):
 
-    # a `DataLoader` for the dataset...
-    dl = DataLoader(ds, batch_size=128, shuffle=False)
-
-    # ...the latter being encoded into the latent space (last columns in the resulting `DataFrame`)
-    res_df = trapallada.util.make_projections_df(ds, dl, encoder)
-
-    def columns_clusters(selected_cols: pd.DataFrame, min_cluster_size: int):
-
-        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
-        
-        labels = clusterer.fit_predict(selected_cols)
-        
-        return pd.Categorical(labels)
-
-    # clustering in both:
-
-    # i) the latent space...
-    res_df['cluster in z'] = columns_clusters(res_df.filter(like='z_'), 10)
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
     
-    # ii) ... the projected space (t-SNE)
-    res_df['cluster in projected space'] = columns_clusters(res_df.filter(like='tsne_'), 80)
+    labels = clusterer.fit_predict(selected_cols)
+    
+    return pd.Categorical(labels)
 
-    return res_df
+# def cluster(ds: Dataset, encoder: eqx.Module) -> pd.DataFrame:
+
+#     # a `DataLoader` for the dataset...
+#     dl = DataLoader(ds, batch_size=128, shuffle=False)
+
+#     # ...the latter being encoded into the latent space (last columns in the resulting `DataFrame`)
+#     res_df = trapallada.util.make_projections_df(ds, dl, encoder)
+
+#     def columns_clusters(selected_cols: pd.DataFrame, min_cluster_size: int):
+
+#         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
+        
+#         labels = clusterer.fit_predict(selected_cols)
+        
+#         return pd.Categorical(labels)
+
+#     # clustering in both:
+
+#     # i) the latent space...
+#     res_df['cluster in z'] = columns_clusters(res_df.filter(like='z_'), 10)
+    
+#     # ii) ... the projected space (t-SNE)
+#     res_df['cluster in projected space'] = columns_clusters(res_df.filter(like='tsne_'), 80)
+
+#     return res_df
 
 def augment_with_positions(df: pd.DataFrame, positions_df: pd.DataFrame, pos_columns: list[str] = ['RA', 'DEC', 'CRA', 'CDEC'], tsne_columns: list[str] = ['tsne_1', 'tsne_2']) -> pd.DataFrame:
 
@@ -144,3 +169,62 @@ def augment_with_window_and_signal_ids(df: pd.DataFrame) -> pd.DataFrame:
         assert len(group_df['main_type'].unique()) == 1
 
     return res
+
+# def project_onto_latent_space(dl: DataLoader, encoder: eqx.Module) -> tuple[Float[Array, 'z'], Float[Int, 'index']]:
+def project_onto_latent_space(dl: DataLoader, encoder: eqx.Module) -> Float[Array, 'z']:
+    """
+    Build a `DataFrame` with the metadata and the projections of the latent space.
+
+    Args:
+        dl (DataLoader): A data loader to be processed.
+        encoder (eqx.Module): The encoder.
+
+    Returns:
+        - z_s: A JAX array representing the stacked latent space projections.
+    """
+    
+    # the dataset associated with `dl` is encoded, and the corresponding indexes (in the full datset) recorded
+    # z_s, i_s = [], []
+    z_s = []
+    for i, x, *_ in dl:
+        z_s.append(jax.vmap(encoder)(x.numpy()))
+        # i_s.append(i.numpy())
+
+    # for the sake of clarity (assuming `z` comprises mean and standard deviation)
+    dim_z = z_s[-1].shape[-1] // 2
+
+    # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
+    z_s = jnp.vstack(z_s)[:, :dim_z]
+
+    return z_s
+    # return z_s, jnp.hstack(i_s)
+
+def tsne_project(z_s: Float[Array, 'window z'], n_projected_components: int = 2, random_state: int = 42) -> Float[Array, 'window projection']:
+    """
+    Build a `DataFrame` with the metadata and the projections of the latent space.
+
+    Args:
+        n_projected_components (int): The number of components for the t-SNE embeddings.
+
+    Returns:
+        A `DataFrame` with the metadata and the projections of the latent space.
+    """
+
+    dim_z = z_s.shape[-1]
+
+    if dim_z > 2:
+
+        # t-SNE is applied to the (means of the) `z`s
+        t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+    
+    elif dim_z == 2:
+
+        t_sne_embeddings = z_s
+        logger.warning('The latent space has only two dimensions: setting t-SNE projections equal to it...')
+
+    else:
+
+        raise ValueError('The latent space must have at least two dimensions.')
+
+
+    return t_sne_embeddings

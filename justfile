@@ -29,7 +29,7 @@ default:
 papermill FILE:
   cd "nbs" && uv run papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
-test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb") (papermill "model_ar.ipynb")
+test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb") (papermill "model_ar.ipynb") (papermill "results_analysis.ipynb")
 
 # ========================================analysis ===================================================
 
