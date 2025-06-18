@@ -67,4 +67,5 @@ dev = [
     "papermill",
     "marimo",
     "openai>=1.84.0",
+    "nbdime>=4.0.2",
 ]

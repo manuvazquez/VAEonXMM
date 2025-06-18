@@ -97,32 +97,6 @@ def hdbscan_cluster(selected_cols: pd.DataFrame, min_cluster_size: int):
     
     return pd.Categorical(labels)
 
-# def cluster(ds: Dataset, encoder: eqx.Module) -> pd.DataFrame:
-
-#     # a `DataLoader` for the dataset...
-#     dl = DataLoader(ds, batch_size=128, shuffle=False)
-
-#     # ...the latter being encoded into the latent space (last columns in the resulting `DataFrame`)
-#     res_df = trapallada.util.make_projections_df(ds, dl, encoder)
-
-#     def columns_clusters(selected_cols: pd.DataFrame, min_cluster_size: int):
-
-#         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
-        
-#         labels = clusterer.fit_predict(selected_cols)
-        
-#         return pd.Categorical(labels)
-
-#     # clustering in both:
-
-#     # i) the latent space...
-#     res_df['cluster in z'] = columns_clusters(res_df.filter(like='z_'), 10)
-    
-#     # ii) ... the projected space (t-SNE)
-#     res_df['cluster in projected space'] = columns_clusters(res_df.filter(like='tsne_'), 80)
-
-#     return res_df
-
 def augment_with_positions(df: pd.DataFrame, positions_df: pd.DataFrame, pos_columns: list[str] = ['RA', 'DEC', 'CRA', 'CDEC'], tsne_columns: list[str] = ['tsne_1', 'tsne_2']) -> pd.DataFrame:
 
     # input `DataFrame` is extended with positions; notice the indexes in `df` are kept
@@ -215,7 +189,9 @@ def tsne_project(z_s: Float[Array, 'window z'], n_projected_components: int = 2,
     if dim_z > 2:
 
         # t-SNE is applied to the (means of the) `z`s
-        t_sne_embeddings = TSNE(n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+        t_sne_embeddings = jnp.array(TSNE(
+            n_components=n_projected_components, perplexity=30, random_state=random_state).fit_transform(z_s)
+        )
     
     elif dim_z == 2:
 

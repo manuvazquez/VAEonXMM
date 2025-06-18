@@ -32,6 +32,7 @@ def _():
     import trapallada.analysis
     import trapallada.results.analysis
     import trapallada.results.plot
+    import trapallada.model.ar
     return DataLoader, go, make_subplots, pathlib, pd, px, trapallada
 
 
@@ -43,9 +44,101 @@ def _():
 
 
 @app.cell
+def _():
+    # args = mo.cli_args()
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
-    args = mo.cli_args()
-    return (args,)
+    mo.md(r"""# Parameters""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Model""")
+    return
+
+
+@app.cell
+def _(mo):
+    slider = mo.ui.slider(start=2, stop=20, label="AR process order", value=5)
+    radio = mo.ui.radio(
+        options={"VAE": 'vae', "AR": 'ar'},
+        value="VAE",
+        label="Model",
+    )
+    radio
+    return radio, slider
+
+
+@app.cell
+def _(mo, radio, slider):
+    if radio.value == 'ar':
+        mo.output.append(mo.hstack([slider, mo.md(f"{slider.value}")]))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Path""")
+    return
+
+
+@app.cell
+def _(mo, pathlib):
+    # if not args:
+    #     file_browser = mo.ui.file_browser(
+    #         initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
+    #     )
+    # else:
+    #     file_browser = None
+    file_browser = mo.ui.file_browser(
+        initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
+    )
+    file_browser
+    return (file_browser,)
+
+
+@app.cell
+def _(file_browser):
+    # if not args:
+    #     model_dir = file_browser.path()
+    # else:
+    #     model_dir = pathlib.Path(args['model_dir'])
+    model_dir = file_browser.path()
+    return (model_dir,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""*Analysis data* produced here can be associated with a particular trained model (for the case of VAEs) or with the `Dataset` (for the case of the AR model). The name of the file is also dependent on the model.""")
+    return
+
+
+@app.cell
+def _(model_dir, parameters, radio, slider):
+    analysis_file_stem = radio.value
+
+    if radio.value == 'vae':
+        analysis_dir = model_dir
+    else:
+        # data_dir = (pathlib.Path.home() / parameters['dataset']['files']['signals_file']).parent
+        # analysis_dir = data_dir / 'AR'
+        analysis_dir = model_dir.parent / 'AR'
+        analysis_dir.mkdir(exist_ok=True)
+
+        analysis_file_stem += f'_{slider.value}' + '_' + '_'.join([f'{k}_{v}' for k, v in parameters['data'].items()])
+
+    analysis_dir
+    return analysis_dir, analysis_file_stem
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Input Files""")
+    return
 
 
 @app.cell(hide_code=True)
@@ -63,36 +156,8 @@ def _(trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Input Files""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""Particular *sub*directory with the trained model. It should be a `str` so that parameters can be injected with papermill.""")
     return
-
-
-@app.cell
-def _(args, mo, pathlib):
-    if not args:
-        file_browser = mo.ui.file_browser(
-            initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
-        )
-        file_browser
-    else:
-        file_browser = None
-    file_browser
-    return (file_browser,)
-
-
-@app.cell
-def _(args, file_browser, pathlib):
-    if not args:
-        model_dir = file_browser.path()
-    else:
-        model_dir = pathlib.Path(args['model_dir'])
-    return (model_dir,)
 
 
 @app.cell(hide_code=True)
@@ -115,7 +180,6 @@ def _(mo):
 
 @app.cell
 def _(model_dir, trapallada):
-    # ds, positions_df, model, training_df, parameters = trapallada.analysis.load_results_dir(model_dir)
     ds, positions_df, model, training_df, parameters = trapallada.results.analysis.load_dir(model_dir)
     return ds, model, parameters, positions_df, training_df
 
@@ -142,21 +206,23 @@ def _(mo):
 @app.cell
 def _(
     DataLoader,
+    analysis_dir,
+    analysis_file_stem,
     catalog_file,
     ds,
     model,
-    model_dir,
     pd,
     positions_df,
+    radio,
+    slider,
     trapallada,
 ):
-    analysis_file = model_dir / 'analysis.parquet'
+    # analysis_file = model_dir / 'analysis.parquet'
+    # analysis_file = model_dir / f'{analysis_file_stem}.parquet'
+    analysis_file = analysis_dir / f'{analysis_file_stem}.parquet'
     if not analysis_file.exists():
 
         print(f'Making "{analysis_file.name}"...')
-
-        # projecting into the latent space and clustering
-        # analysis_df = trapallada.results.analysis.cluster(ds, model.encoder)
 
         # for t-SNE
         n_projected_components = 2
@@ -164,8 +230,15 @@ def _(
         # a `DataLoader` for the `Dataset`
         dl = DataLoader(ds, batch_size=128, shuffle=False)
 
-        # projection onto the latent space...
-        z = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder)
+        if radio.value == 'vae':
+
+            # projection onto the latent space...
+            z = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder)
+
+        else:
+
+            # the "latent space" is given by the AR coefficients
+            z = trapallada.model.ar.ols_dataset_fit(ds, p=slider.value)
 
         # ...which is, in turn, projected, for visualization, using t-SNE
         tsne = trapallada.results.analysis.tsne_project(z, n_projected_components=n_projected_components)
@@ -196,6 +269,7 @@ def _(
         analysis_df.to_parquet(analysis_file)
     else:
         analysis_df = pd.read_parquet(analysis_file)
+        print(f'reading "{analysis_file}"')
     return (analysis_df,)
 
 
@@ -216,6 +290,12 @@ def _():
     # analysis_df['cluster in projected space']= analysis_df['cluster in projected space'].astype(int)
     # analysis_df.equals(old_df)
     # # analysis_df.compare(old_df)
+    return
+
+
+@app.cell
+def _(analysis_df):
+    analysis_df.filter(like='z_').shape
     return
 
 
@@ -327,8 +407,9 @@ def _(mo):
 
 
 @app.cell
-def _(training_df, trapallada):
-    trapallada.analysis.training_chart(training_df)
+def _(mo, radio, training_df, trapallada):
+    if radio.value == 'vae':
+        mo.output.append(trapallada.analysis.training_chart(training_df))
     return
 
 
@@ -624,6 +705,7 @@ def _(
     full_signals_dir,
     mo,
     model,
+    radio,
     re_drop_columns,
     selected_samples,
     trapallada,
@@ -631,7 +713,10 @@ def _(
     for i_row, row in selected_samples.iterrows():
         mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
         signal_id, *start_end = row[['signal', 'start', 'end']]
-        pred = model.decoder(selected_samples.filter(like='z_').loc[i_row])
+        if radio.value == 'vae':
+            pred = model.decoder(selected_samples.filter(like='z_').loc[i_row])
+        else:
+            pred = None
         # mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end))
         mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred))
         mo.output.append('---')

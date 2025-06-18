@@ -1,7 +1,9 @@
 import pandas as pd
+
+from torch.utils.data import Dataset
 from statsmodels.tsa.api import VAR
 
-# import jax
+import jax
 import jax.numpy as jnp
 from jaxtyping import Float, Array
 
@@ -51,3 +53,22 @@ def ols_window_fit(signals: Float[Array, 'channels time'], p: int = 2) -> Float[
     x = jnp.linalg.lstsq(A, bs, rcond=None)[0]
 
     return x.flatten()
+
+def ols_dataset_fit(ds: Dataset, p: int = 2) -> Float[Array, 'coefficient']:
+    """
+    Fit a VAR model using OLS.
+    
+    Parameters
+    ----------
+    ds : Dataset
+        The input dataset.
+    p : int
+        The order.
+        
+    Returns
+    -------
+    Float[Array, 'window coefficient']
+        The coefficients of the VAR model.
+    """
+
+    return jax.vmap(ols_window_fit, in_axes=(0, None))(ds.signals.numpy(), p)
