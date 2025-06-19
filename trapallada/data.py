@@ -1,5 +1,7 @@
 import pathlib
 
+import yaml
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -12,6 +14,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 import trapallada.logging as log
+import trapallada.util
 
 logger = log.setup_logging(__name__)
     
@@ -160,3 +163,48 @@ def sample_dataset_parameters():
         assert file.exists(), f'"{file}" does not exist'
     
     return res
+
+class Labels:
+
+    def __init__(self, data_file: str | pathlib.Path | None = None):
+
+        if data_file is None:
+            
+            self.data_file = trapallada.util.get_base_directory() / 'interesting.yaml'
+
+        else:
+            
+            # just in case a `str` was passed...
+            self.data_file = pathlib.Path(data_file)
+        
+        with self.data_file.open() as f:
+
+            self.data = yaml.safe_load(f)
+        
+    @property
+    def signals(self):
+        
+        return list(self.data['signals of interest'].keys())
+    
+    @property
+    def signals_without_prefix(self):
+        
+        return [e.split('/')[1 ]for e in self.signals]
+    
+    @property
+    def signals_to_labels(self):
+        
+        return self.data['signals of interest']
+    
+    @property
+    def signals_and_labels(self):
+        
+        return list(map(list, self.data['signals of interest'].items()))
+    
+    def __str__(self):
+        
+        return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
+    
+    def __repr__(self):
+        
+        return self.__str__()

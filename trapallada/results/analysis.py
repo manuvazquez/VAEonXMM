@@ -20,15 +20,6 @@ import trapallada.logging as log
 
 logger = log.setup_logging(__name__)
 
-
-# def sample_results_parameters():
-
-#     res = pathlib.Path(__file__).resolve().parent.parent.parent / 'results' / 'multichannel' / 'rates_large_infs' / 'fft_z_30'
-
-#     assert res.exists()
-    
-#     return res
-
 def load_dir(dir, analysis_also: bool=False):
 
     # it's turned into a `Pathlib` object

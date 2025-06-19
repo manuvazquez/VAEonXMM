@@ -1,3 +1,4 @@
+import pathlib
 from typing import Sequence, Callable, List
 import inspect
 
@@ -177,3 +178,20 @@ def input_size_from_dataset(ds: Dataset) -> list[int]:
     """
 
     return list(ds[0][1].shape)
+
+def get_base_directory():
+    """
+    Returns the base directory of the current project by traversing up from the current working directory
+    until a directory containing a '.git' folder is found.
+    
+    Returns:
+        pathlib.Path: The path to the base directory containing the '.git' folder.
+    """
+    
+    base_dir = pathlib.Path.cwd()
+    
+    while not (base_dir / '.git').exists():
+        
+        base_dir = base_dir.parent
+
+    return base_dir

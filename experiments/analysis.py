@@ -63,21 +63,23 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    slider = mo.ui.slider(start=2, stop=20, label="AR process order", value=5)
     radio = mo.ui.radio(
         options={"VAE": 'vae', "AR": 'ar'},
         value="VAE",
         label="Model",
     )
     radio
-    return radio, slider
+    return (radio,)
 
 
 @app.cell
-def _(mo, radio, slider):
+def _(mo, radio):
     if radio.value == 'ar':
-        mo.output.append(mo.hstack([slider, mo.md(f"{slider.value}")]))
-    return
+        # slider = mo.ui.slider(start=2, stop=20, label="AR process order", value=5)
+        # mo.output.append(mo.hstack([slider, mo.md(f"{slider.value}")]))
+        slider = mo.ui.form(element=mo.ui.slider(start=2, stop=20, label="AR process order", value=5))
+        mo.output.append(slider)
+    return (slider,)
 
 
 @app.cell(hide_code=True)
@@ -88,12 +90,6 @@ def _(mo):
 
 @app.cell
 def _(mo, pathlib):
-    # if not args:
-    #     file_browser = mo.ui.file_browser(
-    #         initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
-    #     )
-    # else:
-    #     file_browser = None
     file_browser = mo.ui.file_browser(
         initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
     )
@@ -103,10 +99,6 @@ def _(mo, pathlib):
 
 @app.cell
 def _(file_browser):
-    # if not args:
-    #     model_dir = file_browser.path()
-    # else:
-    #     model_dir = pathlib.Path(args['model_dir'])
     model_dir = file_browser.path()
     return (model_dir,)
 
@@ -124,8 +116,6 @@ def _(model_dir, parameters, radio, slider):
     if radio.value == 'vae':
         analysis_dir = model_dir
     else:
-        # data_dir = (pathlib.Path.home() / parameters['dataset']['files']['signals_file']).parent
-        # analysis_dir = data_dir / 'AR'
         analysis_dir = model_dir.parent / 'AR'
         analysis_dir.mkdir(exist_ok=True)
 
@@ -149,7 +139,7 @@ def _(mo):
 
 @app.cell
 def _(trapallada):
-    base_dir = trapallada.analysis.get_base_directory()
+    base_dir = trapallada.util.get_base_directory()
     base_dir
     return (base_dir,)
 
@@ -280,20 +270,6 @@ def _(analysis_df):
 
 
 @app.cell
-def _():
-    # old_df = pd.read_parquet(analysis_file.parent / 'old.analysis.parquet')
-    # old_df['main_type'] = old_df['main_type'].fillna('UNKNOWN')
-    # old_df = old_df.drop('set', axis=1)
-    # # old_df.head()
-
-    # analysis_df['cluster in z']= analysis_df['cluster in z'].astype(int)
-    # analysis_df['cluster in projected space']= analysis_df['cluster in projected space'].astype(int)
-    # analysis_df.equals(old_df)
-    # # analysis_df.compare(old_df)
-    return
-
-
-@app.cell
 def _(analysis_df):
     analysis_df.filter(like='z_').shape
     return
@@ -382,7 +358,9 @@ def _(mo):
 
 @app.cell
 def _(trapallada):
-    xmm_newton_metadata = trapallada.analysis.get_xmm_newton_metadata()
+    # xmm_newton_metadata = trapallada.analysis.get_xmm_newton_metadata()
+    xmm_newton_metadata = trapallada.data.Labels().data
+    xmm_newton_metadata
     return (xmm_newton_metadata,)
 
 
@@ -616,9 +594,14 @@ def _(mo):
 
 
 @app.cell
+def _():
+    return
+
+
+@app.cell
 def _(analysis_df, trapallada):
     signals_of_interest_df = analysis_df[
-        analysis_df['signal'].isin(trapallada.analysis.XMMNewtonMetadata().signals)
+        analysis_df['signal'].isin(trapallada.data.Labels().signals)
     ]
     # signals_of_interest_df.drop_duplicates('source').filter(regex=re_drop_columns)
     signals_of_interest_df.drop_duplicates('source')

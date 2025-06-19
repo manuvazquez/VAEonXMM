@@ -28,64 +28,6 @@ import trapallada.model.nn
 import trapallada.plot
 import trapallada.xsa.util
 
-# def load_results_dir(dir, analysis_also: bool=False):
-
-#     # it's turned into a `Pathlib` object
-#     dir = pathlib.Path(dir)
-
-#     # ================
-
-#     parameters_file = dir / 'extended_parameters.yaml'
-#     assert parameters_file.exists()
-
-#     with parameters_file.open() as f:
-#         parameters = yaml.safe_load(f)
-
-#     # ---
-
-#     signals_file = pathlib.Path.home() / parameters['dataset']['files']['signals_file']
-#     # FIXME: this is a temporary fix
-#     # masks_file = pathlib.Path.home() / parameters['dataset']['files']['masks_file']
-#     masks_file = signals_file.with_stem('masks')
-#     metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
-
-#     ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
-
-#     headers_file = signals_file.with_name('headers.parquet')
-#     headers_df = pd.read_parquet(headers_file)
-
-#     # ================
-
-#     weights_file = dir / 'model.eqx'
-#     assert weights_file.exists()
-
-#     model = trapallada.model.nn.load_vae(weights_file, parameters_file)
-
-#     # ================
-    
-#     results_file = dir / 'in_training_metrics.parquet'
-#     assert results_file.exists()
-
-#     results_df = pd.read_parquet(results_file)
-
-#     # ================
-
-#     to_be_returned = ds, headers_df, model, results_df, parameters
-
-#     # ================
-
-#     if analysis_also:
-
-#         analysis_file = dir / 'analysis.parquet'
-#         assert analysis_file.exists()
-#         analysis_df = pd.read_parquet(analysis_file)
-
-#         to_be_returned += (analysis_df,)
-
-
-#     return to_be_returned
-
-# # =============================================================
 
 def predict_and_plot(
         model: eqx.Module, ds: Dataset,
@@ -446,17 +388,17 @@ def make_combo_widget(results_dir: pathlib.Path):
     
     return combo
 
-def get_base_directory():
+# def get_base_directory():
     
-    base_dir = pathlib.Path.cwd()
+#     base_dir = pathlib.Path.cwd()
     
-    while not (base_dir / '.git').exists():
+#     while not (base_dir / '.git').exists():
         
-        base_dir = base_dir.parent
+#         base_dir = base_dir.parent
 
-    return base_dir
+#     return base_dir
 
-def save_regions(regions: list[dict], output_file: pathlib.Path | str) -> pathlib.Path:
+def save_regions(regions: list[dict], output_file: pathlib.Path | str):
 
     with open(output_file, 'w') as f:
         
@@ -574,8 +516,8 @@ class TSNE:
 
     def highlight_windows_of_interest(self):
         
-        # signals_of_interest = get_signals_of_interest()
-        signals_of_interest = XMMNewtonMetadata().signals_and_labels
+        # signals_of_interest = XMMNewtonMetadata().signals_and_labels
+        signals_of_interest = trapallada.data.Labels().signals_and_labels
         
         for signal, name in signals_of_interest:
 
@@ -587,52 +529,52 @@ class TSNE:
             
             self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
 
-class XMMNewtonMetadata:
+# class XMMNewtonMetadata:
 
-    def __init__(self, data_file: str | pathlib.Path | None = None):
+#     def __init__(self, data_file: str | pathlib.Path | None = None):
 
-        if data_file is None:
+#         if data_file is None:
             
-            self.data_file = get_base_directory() / 'interesting.yaml'
+#             self.data_file = get_base_directory() / 'interesting.yaml'
 
-        else:
+#         else:
             
-            # just in case a `str` was passed...
-            self.data_file = pathlib.Path(data_file)
+#             # just in case a `str` was passed...
+#             self.data_file = pathlib.Path(data_file)
         
-        with self.data_file.open() as f:
+#         with self.data_file.open() as f:
 
-            self.data = yaml.safe_load(f)
+#             self.data = yaml.safe_load(f)
         
-    @property
-    def signals(self):
+#     @property
+#     def signals(self):
         
-        return list(self.data['signals of interest'].keys())
-    @property
-    def signals_to_labels(self):
+#         return list(self.data['signals of interest'].keys())
+#     @property
+#     def signals_to_labels(self):
         
-        return self.data['signals of interest']
+#         return self.data['signals of interest']
     
-    @property
-    def signals_and_labels(self):
+#     @property
+#     def signals_and_labels(self):
         
-        return list(map(list, self.data['signals of interest'].items()))
+#         return list(map(list, self.data['signals of interest'].items()))
     
-    def __str__(self):
+#     def __str__(self):
         
-        return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
+#         return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
     
-    def __repr__(self):
+#     def __repr__(self):
         
-        return self.__str__()
+#         return self.__str__()
 
-def get_xmm_newton_metadata():
+# def get_xmm_newton_metadata():
     
-    return XMMNewtonMetadata().data
+#     return XMMNewtonMetadata().data
 
-def get_signals_of_interest():
+# def get_signals_of_interest():
 
-    return XMMNewtonMetadata().signals_and_labels
+#     return XMMNewtonMetadata().signals_and_labels
 
 class Latents:
 
