@@ -25,7 +25,7 @@ class SignalsDataset(Dataset):
             signals_filename: str | pathlib.Path,
             metadata_filename: str | pathlib.Path,
             masks_filename: str | pathlib.Path,
-            normalize: bool = False, fft: bool = False
+            fft: bool = False
         ):
 
         self.signals: Float[Array, 'signal channel length'] = torch.load(signals_filename, weights_only=False)
@@ -38,57 +38,8 @@ class SignalsDataset(Dataset):
             
             self.signals = torch.from_numpy(self.signals)
 
-        # TO-DO: this path is not longer used in any experiment
-        if normalize:
-            
-            mean = self.signals.mean(axis=-1)
-            std = self.signals.std(axis=-1)
-            
-            self.signals = (self.signals - mean[..., None]) / std[..., None]
-
-            # TODO: compute `i_constant` first, and filter out the signals
-
-            # indexes of the constant signals
-            # CAVEAT: this relies exclusively on the *first* channel of each signal
-            i_constant = torch.nonzero(std == 0.)[:, 0]
-
-            # the number of them
-            n_constant_signals = len(i_constant)
-
-            # a mask to keep only the non-constant signals
-            to_keep = torch.full((len(self.signals),), 1, dtype=bool)
-            to_keep[i_constant] = False
-
-            # only non-constant signals are kept
-            self.signals = self.signals[to_keep]
-
-            logger.info('normalizing signals...')
-
-            if n_constant_signals > 0:
-
-                logger.warning(f'dismissed {n_constant_signals} constant signals (that cannot be normalized); {len(self.signals)} left')
-
-        # TODO: no need...
-        # factored out code to initialize `labels` and `labels_names` when `metadata_filename`
-        # is not provided or doesn't contain labels
-        make_labels_and_labels_names = lambda : (np.full((len(self.signals),), np.nan), {})
-
         # metadata is read
         self.metadata_df = pd.read_parquet(metadata_filename)
-
-        if normalize:
-        
-            # only metadata for non-constant signals is kept
-            self.metadata_df = self.metadata_df.drop(i_constant).reset_index(drop=True)
-
-        if 'label' in self.metadata_df.columns:
-
-            self.labels = self.metadata_df['label'].cat.codes
-            self.labels_names = dict(enumerate(self.metadata_df['label'].cat.categories))
-
-        else:
-                
-            self.labels, self.labels_names = make_labels_and_labels_names()
 
         if fft:
 
@@ -115,17 +66,22 @@ class SignalsDataset(Dataset):
 
     def __getitem__(self, idx):
         
-        return idx, self.signals[idx], self.masks[idx], self.labels[idx]
+        return idx, self.signals[idx], self.masks[idx]
     
 def dataloaders_from_dataset(
-        ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False
+        ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False,
+        to_validation: list[str] | None = None
         ) -> tuple[DataLoader, DataLoader] | tuple[tuple[DataLoader, DataLoader], tuple[Dataset, Dataset]]:
+    
+    # len_ds = len(ds)
 
+    # if to_validation:
+    #     len(to_validation)
+        
     train_idx, validation_idx = train_test_split(
         np.arange(len(ds)), 
         **splitting_parameters, 
         shuffle=True,
-        stratify=ds.labels if not np.isnan(ds.labels).all().item() else None
     )
 
     train_ds, validation_ds = Subset(ds, train_idx), Subset(ds, validation_idx)

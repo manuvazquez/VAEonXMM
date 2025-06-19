@@ -25,7 +25,7 @@ def evaluate(
     log_likelihood_acc = 0.
     kl_value_acc = 0.
 
-    for _, x, mask, _ in dataloader:
+    for _, x, mask in dataloader:
 
         key, subkey = jr.split(key)
 

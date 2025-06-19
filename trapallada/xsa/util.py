@@ -94,7 +94,7 @@ def read_fits_file(file: pathlib.Path | str, return_gti: bool = False) -> tuple[
 def read_fits_files(
         # files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE', 'BACKV']
         files: list[pathlib.Path | str], columns_of_interest: list[str] = ['RATE']
-    ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.Series]:
+    ) -> tuple[pd.DataFrame, list[pathlib.Path | str], pd.DataFrame, pd.DataFrame]:
     """
     Read a list of FITS files and return their content as a single DataFrame.
 
@@ -170,9 +170,14 @@ def read_fits_files(
 
     return signals_df, skipped_files_list, header_df, mask_df
 
-def get_fields_from_header(file: str | pathlib.Path, fields: Sequence[str]) -> tuple:
+def get_header(file: str | pathlib.Path):
     
-    header = fits.getheader(file, 1)
+    return fits.getheader(file, 1)
+
+def get_fields_from_header(file: str | pathlib.Path, fields: Sequence[str]) -> list:
+    
+    # header = fits.getheader(file, 1)
+    header = get_header(file)
 
     return [header[e] for e in fields]
 
@@ -927,18 +932,9 @@ def cl_tars_to_array(args: list = None):
     masks_file = output_subdirectory / 'masks.pt'
 
     torch.save(signals, torch_file) # saved as numpy array
-    # torch.save(signals, torch_file, pickle_protocol=pickle.HIGHEST_PROTOCOL) # saved as numpy array
     metadata_df.to_parquet(parquet_file)
     headers_df.to_parquet(headers_file)
     torch.save(masks, masks_file)
-    # torch.save(masks, masks_file, pickle_protocol=pickle.HIGHEST_PROTOCOL)
-
-    # for f, (df, mask_df) in full_signals.items():
-
-    #     df.to_parquet(full_signals_dir / f'{pathlib.Path(f).stem}.parquet')
-    #     mask_df.to_parquet(full_signals_masks_dir / f'{pathlib.Path(f).stem}.parquet')
-
-    # --- parameters file
 
     # the default arguments of the function doing the actual work...
     default_args = trapallada.util.func_args_with_defaults(trapallada.xsa.util.tars_to_array)

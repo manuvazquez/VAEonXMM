@@ -43,6 +43,10 @@ def load_dir(dir, analysis_also: bool=False):
     
     metadata_file = pathlib.Path.home() / parameters['dataset']['files']['metadata_file']
 
+    # FIXME: for the sake of backwards compatibility (the `normalize` parameter was removed)
+    if 'normalize' in parameters['data']:
+        del parameters['data']['normalize']
+
     ds = trapallada.data.SignalsDataset(signals_file, metadata_file, masks_file, **parameters['data'])
 
     headers_file = signals_file.with_name('headers.parquet')

@@ -26,7 +26,6 @@ model: &model
   - 2
   - 2
 data:
-    normalize: false
     fft: false # <---- FFT
 training:
   batch_size: 32

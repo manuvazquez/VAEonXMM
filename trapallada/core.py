@@ -89,7 +89,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
     while (epoch < parameters['training']['n_epochs']) and not sigint_received:
 
-        for _, x, mask, _ in train_dl:
+        for _, x, mask in train_dl:
 
             key, subkey = jr.split(key)
 
@@ -179,6 +179,10 @@ def cl_fit_vae_on_signals(args: list = None):
     with command_line_arguments.parameters_file.open() as f:
         
         parameters = yaml.safe_load(f)
+
+    # FIXME: for the sake of backwards compatibility (the `normalize` parameter was removed)
+    if 'normalize' in parameters['data']:
+        del parameters['data']['normalize']
 
     # the dataset is loaded...
     ds = trapallada.data.SignalsDataset(
