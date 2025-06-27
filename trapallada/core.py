@@ -4,6 +4,7 @@ import signal
 import time
 import datetime
 
+import numpy as np
 import yaml
 import pandas as pd
 import jax.random as jr
@@ -188,12 +189,16 @@ def cl_fit_vae_on_signals(args: list = None):
     ds = trapallada.data.SignalsDataset(
         command_line_arguments.signals_file, command_line_arguments.metadata_file, command_line_arguments.masks_file, **parameters['data']
     )
+
+    # `True` if there is there a beforehand known label for the corresponding window
+    has_label = ds.metadata_df['source'].isin([e + '.FTZ' for e in trapallada.data.Labels().signals_without_prefix])
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
     train_dl, validation_dl = trapallada.data.dataloaders_from_dataset(
         ds,
         parameters['training']['train_test_split'] | dict(random_state=parameters['PRNG seeds']['training-validation splitting']),
-        parameters['training']['batch_size'], parameters['PRNG seeds']['training dataloader']
+        parameters['training']['batch_size'], parameters['PRNG seeds']['training dataloader'],
+        i_to_validation=np.flatnonzero(has_label)
     )
 
     # the model is trained

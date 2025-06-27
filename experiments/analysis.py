@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.14.0"
 app = marimo.App(width="full")
 
 
@@ -40,12 +40,6 @@ def _():
 def _():
     import plotly.io as pio
     pio.renderers.default = 'notebook'
-    return
-
-
-@app.cell
-def _():
-    # args = mo.cli_args()
     return
 
 
@@ -296,7 +290,7 @@ def _(mo):
 @app.cell
 def _():
     available_clusterings = ['cluster in z', 'cluster in projected space']
-    return
+    return (available_clusterings,)
 
 
 @app.cell(hide_code=True)
@@ -306,10 +300,9 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df):
-    available_clusterings_1 = ['cluster in z', 'cluster in projected space']
-    analysis_df[available_clusterings_1].dtypes
-    return (available_clusterings_1,)
+def _(analysis_df, available_clusterings):
+    analysis_df[available_clusterings].dtypes
+    return
 
 
 @app.cell(hide_code=True)
@@ -319,9 +312,9 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, available_clusterings_1):
-    for _c in available_clusterings_1:
-        analysis_df[_c] = analysis_df[_c].astype('category')
+def _(analysis_df, available_clusterings):
+    for cluster in available_clusterings:
+        analysis_df[cluster] = analysis_df[cluster].astype('category')
     return
 
 
@@ -344,8 +337,8 @@ def _(mo):
 
 
 @app.cell
-def _(available_clusterings_1):
-    on_plot_hover_columns = ['index', 'source', 'main_type'] + available_clusterings_1
+def _(available_clusterings):
+    on_plot_hover_columns = ['index', 'source', 'main_type'] + available_clusterings
     on_plot_hover_columns
     return (on_plot_hover_columns,)
 
@@ -480,15 +473,15 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, available_clusterings_1, go, make_subplots):
-    _fig = make_subplots(rows=1, cols=2, subplot_titles=tuple(available_clusterings_1))
-    for i_c, _c in enumerate(available_clusterings_1):
-        n_samples_per_cluster = analysis_df[_c].value_counts()
+def _(analysis_df, available_clusterings, go, make_subplots):
+    fig = make_subplots(rows=1, cols=2, subplot_titles=tuple(available_clusterings))
+    for i_c, c in enumerate(available_clusterings):
+        n_samples_per_cluster = analysis_df[c].value_counts()
         n_clusters = len(n_samples_per_cluster)
-        _fig.add_trace(go.Bar(x=n_samples_per_cluster.index, y=n_samples_per_cluster.values, name=_c), row=1, col=i_c + 1)
-        print(f'{n_clusters} {_c}')
-    _fig.update_layout(title_text='Clusters', showlegend=False)
-    _fig.show()
+        fig.add_trace(go.Bar(x=n_samples_per_cluster.index, y=n_samples_per_cluster.values, name=c), row=1, col=i_c + 1)
+        print(f'{n_clusters} {c}')
+    fig.update_layout(title_text='Clusters', showlegend=False)
+    fig.show()
     return
 
 
@@ -594,11 +587,6 @@ def _(mo):
 
 
 @app.cell
-def _():
-    return
-
-
-@app.cell
 def _(analysis_df, trapallada):
     signals_of_interest_df = analysis_df[
         analysis_df['signal'].isin(trapallada.data.Labels().signals)
@@ -661,10 +649,10 @@ def _(
     tsne_columns,
 ):
     tsne_plot = trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
-    _fig = tsne_plot.make_fig()
+    tsne_plot_fig = tsne_plot.make_fig()
     tsne_plot.highlight_windows_of_interest()
-    # _fig.show()
-    mo_plot = mo.ui.plotly(_fig)
+    # fig.show()
+    mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
     return (mo_plot,)
 

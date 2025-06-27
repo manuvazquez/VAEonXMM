@@ -39,10 +39,6 @@ run_parameterized_notebook NOTEBOOK DIR:
   {{uv_command}} papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
 
 [group('analysis')]
-[doc("DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
-run_analysis DIR: (run_parameterized_notebook "results" DIR) (run_parameterized_notebook "analysis" DIR)
-
-[group('analysis')]
 [doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
 run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
   {{uv_command}} papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
@@ -52,9 +48,13 @@ run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
 run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
   {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
 
-[group('analysis')]
+[group('results')]
 analysis:
   {{uv_command}} marimo edit experiments/analysis.py
+
+[group('results')]
+selection:
+  {{uv_command}} marimo edit experiments/selection.py
 
 # ====================================================================================================
 

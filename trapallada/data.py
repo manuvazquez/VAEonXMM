@@ -70,19 +70,38 @@ class SignalsDataset(Dataset):
     
 def dataloaders_from_dataset(
         ds: Dataset, splitting_parameters: dict[str, float], batch_size: int, batching_random_state: int, return_datasets: bool = False,
-        to_validation: list[str] | None = None
+        i_to_validation: np.ndarray | None = None
         ) -> tuple[DataLoader, DataLoader] | tuple[tuple[DataLoader, DataLoader], tuple[Dataset, Dataset]]:
     
-    # len_ds = len(ds)
+    # for the sake of readability
+    all_indexes = np.arange(len(ds))
 
-    # if to_validation:
-    #     len(to_validation)
-        
     train_idx, validation_idx = train_test_split(
-        np.arange(len(ds)), 
+        all_indexes, 
         **splitting_parameters, 
         shuffle=True,
     )
+
+    # if indexes to be included in the validation set are provided...
+    if i_to_validation is not None:
+        
+        # ...those that ended up in the training set...
+        intersection = np.intersect1d(i_to_validation, train_idx)
+
+        # ...must be replaced with randomly chosen indexes from the validation set (excluding the ones provided)
+        replacements = np.random.RandomState(batching_random_state).choice(
+            np.setdiff1d(validation_idx, i_to_validation), size=len(intersection), replace=False
+            )
+        # replacements = np.random.RandomState(batching_random_state).choice(
+        #     validation_idx, size=len(intersection), replace=False
+        #     )
+        
+        # the training and validation set indexes are updated
+        train_idx = np.concatenate((np.setdiff1d(train_idx, intersection), replacements))
+        validation_idx = np.concatenate((np.setdiff1d(validation_idx, replacements), intersection))
+
+        assert (np.union1d(train_idx, validation_idx) == all_indexes).all()
+        assert np.intersect1d(train_idx, validation_idx).size == 0
 
     train_ds, validation_ds = Subset(ds, train_idx), Subset(ds, validation_idx)
 
