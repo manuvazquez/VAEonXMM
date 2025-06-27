@@ -20,6 +20,7 @@ def _():
 def _():
     import pathlib
 
+    import numpy as np
     import pandas as pd
     import scipy.spatial.distance
 
@@ -34,7 +35,7 @@ def _():
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
-    return pathlib, pd, scipy, trapallada
+    return np, pathlib, pd, scipy, trapallada
 
 
 @app.cell
@@ -96,9 +97,9 @@ def _(mo):
 
 
 @app.cell
-def _(trapallada):
-    base_dir = trapallada.util.get_base_directory()
-    base_dir
+def _():
+    # base_dir = trapallada.util.get_base_directory()
+    # base_dir
     return
 
 
@@ -197,6 +198,12 @@ def _(full_signals_dir, mo, signals_of_interest_table, trapallada):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""A button that, when pressed, will save the current selection in an *Excel* file.""")
+    return
+
+
 @app.cell
 def _(mo):
     save_button = mo.ui.run_button(label="Save")
@@ -212,29 +219,98 @@ def _(save_button, signals_of_interest_table):
     return (selection_saved_file,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The selection that is currently saved""")
+    return
+
+
 @app.cell
 def _(pd, selection_saved_file):
     selected_df = pd.read_excel(selection_saved_file)
+    selected_df.head()
     return (selected_df,)
 
 
 @app.cell
-def _(metadata_df, model_dir, pd, selected_df):
-    vae_analysis = model_dir / 'vae.parquet'
-    assert vae_analysis.exists()
-    vae_analysis_df = pd.read_parquet(vae_analysis)
-    assert len(vae_analysis_df) == len(metadata_df)
-    # vae_analysis_df.head()
-    vae_analysis_df.loc[selected_df['# window']]
-    return (vae_analysis_df,)
+def _(metadata_df, np, pathlib, pd, scipy, selected_df):
+    def latent_from_analysis(file: str | pathlib.Path):
+
+        file = pathlib.Path(file)
+
+        assert file.exists()
+        df = pd.read_parquet(file)
+    
+        assert len(df) == len(metadata_df)
+
+        z = df.filter(like='z_').values
+        z_selected = z[selected_df['# window']]
+
+        assert np.allclose(z_selected, df.filter(like='z_').loc[selected_df['# window']].values)
+
+        distances = scipy.spatial.distance.cdist(z_selected, z)
+
+        assert (distances[np.arange(len(selected_df)), selected_df['# window']] == 0.).all()
+
+        # return distances
+    
+        # closest element is always iself, so $0$-th element in each row should be ignored
+        i_closest = distances.argsort(axis=1)[:, 1:]
+
+        return i_closest
+    return (latent_from_analysis,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The projection onto the latent space for those particular windows using the VAE model""")
+    return
 
 
 @app.cell
-def _(scipy, selected_df, vae_analysis_df):
-    z = vae_analysis_df.filter(like='z_').values
-    z_selected = vae_analysis_df.filter(like='z_').loc[selected_df['# window']].values
-    vae_distances = scipy.spatial.distance.cdist(z_selected, z)
-    vae_distances
+def _(latent_from_analysis, model_dir):
+    latent_from_analysis(model_dir / 'vae.parquet')
+    return
+
+
+@app.cell
+def _():
+    # vae_analysis = model_dir / 'vae.parquet'
+    # assert vae_analysis.exists()
+    # vae_analysis_df = pd.read_parquet(vae_analysis)
+    # assert len(vae_analysis_df) == len(metadata_df)
+
+    # z_vae = vae_analysis_df.filter(like='z_').values
+    # z_selected_vae = z_vae[selected_df['# window']]
+    # assert np.allclose(z_selected_vae, vae_analysis_df.filter(like='z_').loc[selected_df['# window']].values)
+    return
+
+
+@app.cell
+def _():
+    # # z = vae_analysis_df.filter(like='z_').values
+    # # z_selected = vae_analysis_df.filter(like='z_').loc[selected_df['# window']].values
+    # vae_distances = scipy.spatial.distance.cdist(z_selected_vae, z_vae)
+    # vae_distances
+    return
+
+
+@app.cell
+def _():
+    # vae_distances.min(axis=1)
+    # assert (vae_distances[np.arange(len(selected_df)), selected_df['# window']] == 0.).all()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The closest element is always iself, so $0$-th element in each row should be ignored""")
+    return
+
+
+@app.cell
+def _():
+    # vae_distances.argsort(axis=1)
     return
 
 
@@ -244,6 +320,13 @@ def _(mo, model_dir):
         initial_path=model_dir.parent / 'AR', selection_mode='file', multiple=False, restrict_navigation=True
     )
     ar_browser
+    return (ar_browser,)
+
+
+@app.cell
+def _(ar_browser, latent_from_analysis):
+    ar_analysis_file = ar_browser.path()
+    latent_from_analysis(ar_analysis_file)
     return
 
 
