@@ -20,6 +20,9 @@ uv_command := "PYTHONBREAKPOINT=ipdb.set_trace uv run --no-sync"
 
 default_server := "meiga05"
 
+marimo_server := "0.0.0.0"
+marimo_port := "2719"
+
 import '~/python/import.just'
 
 default:
@@ -61,6 +64,10 @@ selection:
 [group('results')]
 assessment:
   {{uv_command}} marimo edit experiments/assessment.py
+
+[group('results')]
+serve_assessment:
+  {{uv_command}} marimo run experiments/assessment.py --headless --no-token --host {{marimo_server}} --port {{marimo_port}}
 
 # ====================================================================================================
 

@@ -6,7 +6,7 @@ app = marimo.App(width="full")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""> Check the signals in some clusters""")
+    mo.md(r"""> Annotation tool""")
     return
 
 
@@ -19,39 +19,35 @@ def _():
 @app.cell
 def _():
     import pathlib
+    from io import BytesIO
 
     import yaml
     import numpy as np
     import pandas as pd
-    import scipy.spatial.distance
 
     from torch.utils.data import DataLoader
 
     import plotly
-    from plotly.subplots import make_subplots
-    import plotly.express as px
-    import plotly.graph_objects as go
 
     import trapallada.analysis
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
-    return pathlib, pd, trapallada, yaml
+    return BytesIO, pathlib, pd, trapallada, yaml
 
 
 @app.cell
 def _():
+    # so that *plotly*'s pictures are correctly rendered
     import plotly.io as pio
     pio.renderers.default = 'notebook'
     return
 
 
 @app.cell
-def _(mo):
+def _():
     event_options = ["Interesting", "NOT interesting", "Undecided"]
-    event_radio = mo.ui.radio(options=event_options, value=event_options[-1])
-    event_text = mo.ui.text(placeholder='')
-    return event_radio, event_text
+    return (event_options,)
 
 
 @app.cell(hide_code=True)
@@ -98,24 +94,27 @@ def _(excel_file, pathlib, yaml):
 
 
 @app.cell
-def _(event_radio, event_text, mo):
+def _(event_radio, mo):
     if event_radio.value == 'Interesting':
+        event_text = mo.ui.text(placeholder='')
         mo.output.append(event_text)
-    return
+    return (event_text,)
 
 
 @app.cell
-def _(event_radio, full_signals_dir, mo, signals_table, trapallada):
+def _(event_options, full_signals_dir, mo, signals_table, trapallada):
     mo.stop(len(signals_table.value) == 0, mo.md("**Choose a signal**"))
+    event_radio = mo.ui.radio(options=event_options, value=event_options[-1])
+
     selected_row = signals_table.value.iloc[0]
     signal_id, *start_end = selected_row[['signal', 'start', 'end']]
-    # mo.output.append(trapallada.results.plot.window(signal_id, full_signals_dir, *start_end))
+
     mo.vstack(
         (
             event_radio, 
             trapallada.results.plot.window(signal_id, full_signals_dir, *start_end))
     )
-    return (selected_row,)
+    return event_radio, selected_row
 
 
 @app.cell
@@ -125,11 +124,25 @@ def _(excel_df, pd):
 
 
 @app.cell
-def _(event_radio, event_text, labels_df, selected_row):
+def _(event_options, event_radio, event_text, labels_df, selected_row):
     labels_df.loc[selected_row.name.item(),'Label'] = event_radio.value
-    labels_df.loc[selected_row.name.item(),'Type'] = event_text.value
+
+    if event_radio.value == event_options[0]:
+        labels_df.loc[selected_row.name.item(),'Type'] = event_text.value
+
     labels_df.to_excel('res.xlsx')
-    labels_df
+    # labels_df
+    return
+
+
+@app.cell
+def _(BytesIO, labels_df, mo):
+    buf = BytesIO()
+    # labels_df.to_excel(buf, index=False)
+    labels_df.to_excel(buf)
+    buf.seek(0)
+    download_button = mo.download(data=buf, filename="signals.xlsx")
+    mo.vstack((labels_df, download_button))
     return
 
 
