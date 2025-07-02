@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"files.exclude": {
+			".venv": true,
 			"**/__pycache__": true,
 			"**/*.csv": true,
 			"**/*.dat": true,

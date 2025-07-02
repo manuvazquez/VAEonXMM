@@ -48,6 +48,8 @@ run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
 run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
   {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
 
+# ====================================================================================================
+
 [group('results')]
 analysis:
   {{uv_command}} marimo edit experiments/analysis.py
@@ -55,6 +57,10 @@ analysis:
 [group('results')]
 selection:
   {{uv_command}} marimo edit experiments/selection.py
+
+[group('results')]
+assessment:
+  {{uv_command}} marimo edit experiments/assessment.py
 
 # ====================================================================================================
 

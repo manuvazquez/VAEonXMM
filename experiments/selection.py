@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.0"
+__generated_with = "0.14.9"
 app = marimo.App(width="full")
 
 
@@ -60,9 +60,13 @@ def _(mo):
 @app.cell
 def _():
     n_signals_to_keep_from_every_model = 15
-
     n_random_signals_to_keep = 80
-    return n_random_signals_to_keep, n_signals_to_keep_from_every_model
+    output_file_stem = 'signals_to_assess'
+    return (
+        n_random_signals_to_keep,
+        n_signals_to_keep_from_every_model,
+        output_file_stem,
+    )
 
 
 @app.cell(hide_code=True)
@@ -89,8 +93,24 @@ def _(file_browser, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Analysis data* produced here can be associated with a particular trained model (for the case of VAEs) or with the `Dataset` (for the case of the AR model). The name of the file is also dependent on the model.""")
+    mo.md(r"""## AR""")
     return
+
+
+@app.cell
+def _(mo, model_dir):
+    ar_browser = mo.ui.file_browser(
+        initial_path=model_dir.parent / 'AR', selection_mode='file', multiple=False, restrict_navigation=True
+    )
+    ar_browser
+    return (ar_browser,)
+
+
+@app.cell
+def _(ar_browser, mo):
+    ar_analysis_file = ar_browser.path()
+    mo.stop(ar_analysis_file is None, mo.md("**Choose AR coefficents.**"))
+    return (ar_analysis_file,)
 
 
 @app.cell(hide_code=True)
@@ -283,9 +303,41 @@ def _(metadata_df, np, pathlib, pd, scipy, selected_df):
     return (latent_from_analysis,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""A function to select a number of signals given a ranking""")
+    return
+
+
+@app.cell
+def _(metadata_df, np, pd):
+    def select_signals(i_closest: np.ndarray, n: int) -> np.ndarray:
+
+        to_keep = []
+
+        for i_sorted_selected in i_closest:
+            # to_keep.append(metadata_df.loc[i_sorted_selected]['signal'].unique()[:n])
+            to_keep.append(metadata_df.loc[i_sorted_selected].drop_duplicates('signal')[:n])
+
+        return pd.concat(to_keep)
+        # return np.concatenate(to_keep)
+    return (select_signals,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Output""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## VAE""")
+    return
+
+
 @app.cell
 def _(latent_from_analysis, model_dir):
-    # i_closest_vae = latent_from_analysis(model_dir / 'vae.parquet')
     i_closest_vae, distances_vae = latent_from_analysis(model_dir / 'vae.parquet', return_distances=True)
     print(i_closest_vae.shape)
     i_closest_vae
@@ -293,65 +345,17 @@ def _(latent_from_analysis, model_dir):
 
 
 @app.cell
-def _():
-    # vae_df = pd.read_parquet(model_dir / 'vae.parquet')
-    # vae_df.loc[i_closest_vae[0]].filter(like='z_')
-    # z = vae_df.filter(like='z_').values
-    # z_selected = z[selected_df['# window']]
-    # # z_selected[0].shape
-    # # z[i_closest_vae[0,0]].shape
-    # # np.sqrt(((z_selected[0] - z[i_closest_vae[0,1]])**2).sum())
-    return
-
-
-@app.cell
-def _():
-    # n_to_keep = 15
-    # # i_selected = 0
-    # # metadata_df.loc[i_closest_vae[i_selected]]['signal'].unique()[:25]
-    # _to_keep = []
-    # for _i_sorted_selected in i_closest_vae:
-    #     _to_keep.append(metadata_df.loc[_i_sorted_selected]['signal'].unique()[:n_to_keep])
-    # vae_selected_signals = np.concatenate(_to_keep)
-    # vae_selected_signals
-    return
-
-
-@app.cell
-def _(metadata_df, np):
-    def select_signals(i_closest: np.ndarray, n: int) -> np.ndarray:
-    
-        to_keep = []
-    
-        for i_sorted_selected in i_closest:
-            to_keep.append(metadata_df.loc[i_sorted_selected]['signal'].unique()[:n])
-    
-        return np.concatenate(to_keep)
-    return (select_signals,)
+def _(i_closest_vae, n_signals_to_keep_from_every_model, select_signals):
+    signals_to_assess_from_vae_df = select_signals(i_closest_vae, n_signals_to_keep_from_every_model)
+    signals_to_assess_from_vae_df['Selected by'] = 'VAE'
+    signals_to_assess_from_vae_df
+    return (signals_to_assess_from_vae_df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# AR""")
+    mo.md(r"""## AR""")
     return
-
-
-@app.cell
-def _(mo, model_dir):
-    # mo.output.append(mo.md('AR coefficients'))
-    ar_browser = mo.ui.file_browser(
-        initial_path=model_dir.parent / 'AR', selection_mode='file', multiple=False, restrict_navigation=True
-    )
-    # mo.output.append(ar_browser)
-    ar_browser
-    return (ar_browser,)
-
-
-@app.cell
-def _(ar_browser, mo):
-    ar_analysis_file = ar_browser.path()
-    mo.stop(ar_analysis_file is None, mo.md("**Choose AR coefficents.**"))
-    return (ar_analysis_file,)
 
 
 @app.cell
@@ -362,8 +366,22 @@ def _(ar_analysis_file, latent_from_analysis):
 
 
 @app.cell
-def _(i_closest_ar, metadata_df):
-    metadata_df.iloc[i_closest_ar[0, :4]]
+def _():
+    # metadata_df.iloc[i_closest_ar[0, :4]]
+    return
+
+
+@app.cell
+def _(i_closest_ar, n_signals_to_keep_from_every_model, select_signals):
+    signals_to_assess_from_ar_df = select_signals(i_closest_ar, n_signals_to_keep_from_every_model)
+    signals_to_assess_from_ar_df['Selected by'] = 'AR'
+    signals_to_assess_from_ar_df
+    return (signals_to_assess_from_ar_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Final signals""")
     return
 
 
@@ -374,25 +392,20 @@ def _(mo):
 
 
 @app.cell
-def _(
-    i_closest_ar,
-    i_closest_vae,
-    n_signals_to_keep_from_every_model,
-    pd,
-    select_signals,
-    selected_df,
-):
-    signals_to_assess_df = pd.concat(
-        (pd.DataFrame(
-            {'signal': select_signals(i_closest_vae, n_signals_to_keep_from_every_model),
-             'Selected by': ['VAE'] * (n_signals_to_keep_from_every_model * len(selected_df))}),
-        pd.DataFrame(
-            {'signal': select_signals(i_closest_ar, n_signals_to_keep_from_every_model),
-             'Selected by': ['AR'] * (n_signals_to_keep_from_every_model * len(selected_df))})
-    ))
-    print(signals_to_assess_df.shape)
-    signals_to_assess_df.head()
-    return (signals_to_assess_df,)
+def _(pd, signals_to_assess_from_ar_df, signals_to_assess_from_vae_df):
+    # select_signals(i_closest_vae, n_signals_to_keep_from_every_model)
+    # from_models_signals_to_assess_df = pd.concat(
+    #     (pd.DataFrame(
+    #         {'signal': select_signals(i_closest_vae, n_signals_to_keep_from_every_model),
+    #          'Selected by': ['VAE'] * (n_signals_to_keep_from_every_model * len(selected_df))}),
+    #     pd.DataFrame(
+    #         {'signal': select_signals(i_closest_ar, n_signals_to_keep_from_every_model),
+    #          'Selected by': ['AR'] * (n_signals_to_keep_from_every_model * len(selected_df))})
+    # ))
+    # print(from_models_signals_to_assess_df.shape)
+    signals_to_assess_from_models_df = pd.concat((signals_to_assess_from_vae_df, signals_to_assess_from_ar_df))
+    signals_to_assess_from_models_df
+    return (signals_to_assess_from_models_df,)
 
 
 @app.cell(hide_code=True)
@@ -402,10 +415,10 @@ def _(mo):
 
 
 @app.cell
-def _(metadata_df, signals_to_assess_df):
-    unselected = set(metadata_df['signal']) - set(signals_to_assess_df['signal'])
+def _(metadata_df, signals_to_assess_from_models_df):
+    unselected = set(metadata_df['signal']) - set(signals_to_assess_from_models_df['signal'])
     assert len(unselected) < len(set(metadata_df['signal']))
-    return (unselected,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -415,16 +428,38 @@ def _(mo):
 
 
 @app.cell
-def _(n_random_signals_to_keep, np, pd, unselected):
-    # np.random.default_rng(42).choice(list(unselected),size=n_random_signals_to_keep,replace=False)
-    signals_to_assess_df = pd.concat((
-        signals_to_assess_df,
-        pd.DataFrame(
-            {'signal': np.random.default_rng(42).choice(list(unselected),size=n_random_signals_to_keep,replace=False),
-             'Selected by': [None] * n_random_signals_to_keep}
-        )
-    ))
+def _(
+    metadata_df,
+    n_random_signals_to_keep,
+    pd,
+    signals_to_assess_from_models_df,
+):
+    # random_signals_to_assess_df = metadata_df\
+    #     .drop(index=signals_to_assess_from_models_df.index)\
+    #     .groupby('signal').sample(n=1, random_state=42)\
+    #     .sample(n=n_random_signals_to_keep, random_state=43)
+    random_signals_to_assess_df = metadata_df[
+        ~metadata_df['signal'].isin(set(signals_to_assess_from_models_df['signal']))
+        ].groupby('signal').sample(n=1, random_state=42)\
+        .sample(n=n_random_signals_to_keep, random_state=43)
+    assert set(signals_to_assess_from_models_df['signal']) & set(random_signals_to_assess_df['signal']) == set()
+    # signals_to_assess_df = pd.concat((
+    #     from_models_signals_to_assess_df,
+    #     pd.DataFrame(
+    #         {'signal': np.random.default_rng(42).choice(list(unselected),size=n_random_signals_to_keep,replace=False),
+    #          'Selected by': [None] * n_random_signals_to_keep}
+    #     )
+    # ))
+    signals_to_assess_df = pd.concat((signals_to_assess_from_models_df,random_signals_to_assess_df))
+    signals_to_assess_df
     return (signals_to_assess_df,)
+
+
+@app.cell
+def _(model_dir, output_file_stem, signals_to_assess_df):
+    signals_to_assess_df.to_parquet(model_dir / (output_file_stem + '.parquet'))
+    signals_to_assess_df.drop('Selected by', axis=1).to_excel(model_dir / (output_file_stem + '.xlsx'), index=False)
+    return
 
 
 if __name__ == "__main__":
