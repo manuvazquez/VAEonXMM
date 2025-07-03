@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.0"
+__generated_with = "0.14.9"
 app = marimo.App(width="full")
 
 
@@ -69,8 +69,6 @@ def _(mo):
 @app.cell
 def _(mo, radio):
     if radio.value == 'ar':
-        # slider = mo.ui.slider(start=2, stop=20, label="AR process order", value=5)
-        # mo.output.append(mo.hstack([slider, mo.md(f"{slider.value}")]))
         slider = mo.ui.form(element=mo.ui.slider(start=2, stop=20, label="AR process order", value=5))
         mo.output.append(slider)
     return (slider,)
@@ -78,7 +76,7 @@ def _(mo, radio):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Path""")
+    mo.md(r"""## Data""")
     return
 
 
@@ -92,8 +90,9 @@ def _(mo, pathlib):
 
 
 @app.cell
-def _(file_browser):
+def _(file_browser, mo):
     model_dir = file_browser.path()
+    mo.stop(model_dir is None, mo.md("**Choose a path.**"))
     return (model_dir,)
 
 
@@ -194,6 +193,7 @@ def _(
     analysis_file_stem,
     catalog_file,
     ds,
+    mo,
     model,
     pd,
     positions_df,
@@ -201,8 +201,6 @@ def _(
     slider,
     trapallada,
 ):
-    # analysis_file = model_dir / 'analysis.parquet'
-    # analysis_file = model_dir / f'{analysis_file_stem}.parquet'
     analysis_file = analysis_dir / f'{analysis_file_stem}.parquet'
     if not analysis_file.exists():
 
@@ -214,12 +212,16 @@ def _(
         # a `DataLoader` for the `Dataset`
         dl = DataLoader(ds, batch_size=128, shuffle=False)
 
+        # VAE
         if radio.value == 'vae':
 
             # projection onto the latent space...
             z = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder)
 
+        # AR
         else:
+
+            mo.stop(slider.value is None, mo.md("**Choose the order of the AR model**"))
 
             # the "latent space" is given by the AR coefficients
             z = trapallada.model.ar.ols_dataset_fit(ds, p=slider.value)
@@ -651,7 +653,6 @@ def _(
     tsne_plot = trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
     tsne_plot_fig = tsne_plot.make_fig()
     tsne_plot.highlight_windows_of_interest()
-    # fig.show()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
     return (mo_plot,)
@@ -688,7 +689,6 @@ def _(
             pred = model.decoder(selected_samples.filter(like='z_').loc[i_row])
         else:
             pred = None
-        # mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end))
         mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred))
         mo.output.append('---')
     return

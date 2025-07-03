@@ -121,25 +121,6 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The base directory""")
-    return
-
-
-@app.cell
-def _():
-    # base_dir = trapallada.util.get_base_directory()
-    # base_dir
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Particular *sub*directory with the trained model. It should be a `str` so that parameters can be injected with papermill.""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(
         r"""
     From the results directory,
@@ -263,13 +244,13 @@ def _(pd, selection_saved_file):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A function to get the closest windows to the selected ones, as given by the passed *analysis* file""")
+    mo.md(r"""A function to get the closest windows (as given by the passed *analysis* file) to the selected ones **in the latent space**.""")
     return
 
 
 @app.cell
 def _(metadata_df, np, pathlib, pd, scipy, selected_df):
-    def latent_from_analysis(file: str | pathlib.Path, return_distances: bool = False):
+    def rank_windows(file: str | pathlib.Path, return_distances: bool = False):
 
         file = pathlib.Path(file)
 
@@ -300,28 +281,26 @@ def _(metadata_df, np, pathlib, pd, scipy, selected_df):
             return (i_closest, distances[i_selected[:, None], i_closest])
         else:
             return i_closest
-    return (latent_from_analysis,)
+    return (rank_windows,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A function to select a number of signals given a ranking""")
+    mo.md(r"""A function to, given a ranking, select a number of windows belonging to *different* (i.e., unique) signals""")
     return
 
 
 @app.cell
-def _(metadata_df, np, pd):
-    def select_signals(i_closest: np.ndarray, n: int) -> np.ndarray:
+def _(metadata_df, np):
+    def select_windows(i_closest: np.ndarray, n: int) -> list[int]:
 
-        to_keep = []
+        i_to_keep = []
 
         for i_sorted_selected in i_closest:
-            # to_keep.append(metadata_df.loc[i_sorted_selected]['signal'].unique()[:n])
-            to_keep.append(metadata_df.loc[i_sorted_selected].drop_duplicates('signal')[:n])
+            i_to_keep.extend(metadata_df.loc[i_sorted_selected].drop_duplicates('signal')[:n].index)
 
-        return pd.concat(to_keep)
-        # return np.concatenate(to_keep)
-    return (select_signals,)
+        return set(i_to_keep)
+    return (select_windows,)
 
 
 @app.cell(hide_code=True)
@@ -337,19 +316,18 @@ def _(mo):
 
 
 @app.cell
-def _(latent_from_analysis, model_dir):
-    i_closest_vae, distances_vae = latent_from_analysis(model_dir / 'vae.parquet', return_distances=True)
+def _(model_dir, rank_windows):
+    i_closest_vae, distances_vae = rank_windows(model_dir / 'vae.parquet', return_distances=True)
     print(i_closest_vae.shape)
     i_closest_vae
     return (i_closest_vae,)
 
 
 @app.cell
-def _(i_closest_vae, n_signals_to_keep_from_every_model, select_signals):
-    signals_to_assess_from_vae_df = select_signals(i_closest_vae, n_signals_to_keep_from_every_model)
-    signals_to_assess_from_vae_df['Selected by'] = 'VAE'
-    signals_to_assess_from_vae_df
-    return (signals_to_assess_from_vae_df,)
+def _(i_closest_vae, n_signals_to_keep_from_every_model, select_windows):
+    i_windows_selected_vae = select_windows(i_closest_vae, n_signals_to_keep_from_every_model)
+    # len(i_windows_selected_vae)
+    return (i_windows_selected_vae,)
 
 
 @app.cell(hide_code=True)
@@ -359,24 +337,17 @@ def _(mo):
 
 
 @app.cell
-def _(ar_analysis_file, latent_from_analysis):
-    i_closest_ar = latent_from_analysis(ar_analysis_file)
-    i_closest_ar
+def _(ar_analysis_file, rank_windows):
+    i_closest_ar = rank_windows(ar_analysis_file)
+    # i_closest_ar
     return (i_closest_ar,)
 
 
 @app.cell
-def _():
-    # metadata_df.iloc[i_closest_ar[0, :4]]
-    return
-
-
-@app.cell
-def _(i_closest_ar, n_signals_to_keep_from_every_model, select_signals):
-    signals_to_assess_from_ar_df = select_signals(i_closest_ar, n_signals_to_keep_from_every_model)
-    signals_to_assess_from_ar_df['Selected by'] = 'AR'
-    signals_to_assess_from_ar_df
-    return (signals_to_assess_from_ar_df,)
+def _(i_closest_ar, n_signals_to_keep_from_every_model, select_windows):
+    i_windows_selected_ar = select_windows(i_closest_ar, n_signals_to_keep_from_every_model)
+    # len(i_windows_selected_ar)
+    return (i_windows_selected_ar,)
 
 
 @app.cell(hide_code=True)
@@ -385,40 +356,72 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""A `DataFrame` with `n_signals_to_keep_from_every_model` selected according to both VAE and AR models.""")
+@app.cell
+def _(i_windows_selected_ar, i_windows_selected_vae, mo):
+    # len(i_windows_selected_vae), len(i_windows_selected_ar)
+    mo.md(f'''
+    Number of windows selected:
+
+    - VAE: {len(i_windows_selected_vae)}
+    - AR: {len(i_windows_selected_ar)}
+    ''')
     return
 
 
 @app.cell
-def _(pd, signals_to_assess_from_ar_df, signals_to_assess_from_vae_df):
-    # select_signals(i_closest_vae, n_signals_to_keep_from_every_model)
-    # from_models_signals_to_assess_df = pd.concat(
-    #     (pd.DataFrame(
-    #         {'signal': select_signals(i_closest_vae, n_signals_to_keep_from_every_model),
-    #          'Selected by': ['VAE'] * (n_signals_to_keep_from_every_model * len(selected_df))}),
-    #     pd.DataFrame(
-    #         {'signal': select_signals(i_closest_ar, n_signals_to_keep_from_every_model),
-    #          'Selected by': ['AR'] * (n_signals_to_keep_from_every_model * len(selected_df))})
-    # ))
-    # print(from_models_signals_to_assess_df.shape)
-    signals_to_assess_from_models_df = pd.concat((signals_to_assess_from_vae_df, signals_to_assess_from_ar_df))
-    signals_to_assess_from_models_df
-    return (signals_to_assess_from_models_df,)
+def _(i_windows_selected_ar, i_windows_selected_vae, mo):
+    i_windows_selected_both = i_windows_selected_vae & i_windows_selected_ar
+    n_windows_selected_by_both = len(i_windows_selected_both)
+    mo.md(f'{n_windows_selected_by_both} window(s) selected by both algorithms')
+    return (i_windows_selected_both,)
+
+
+@app.cell
+def _(i_windows_selected_ar, i_windows_selected_vae):
+    i_windows_selected_any = i_windows_selected_vae | i_windows_selected_ar
+    # len(i_windows_selected_any)
+    return (i_windows_selected_any,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Signals that have **not** been selected by any algorithm""")
+    mo.md(r"""A `DataFrame` with `n_signals_to_keep_from_every_model` *windows* selected according to both VAE and AR models. Every algorithm selects windows belonging to different signals, but both algorithms might select the same window or different windows beloning to the same signal.""")
+    return
+
+
+@app.cell
+def _(
+    i_windows_selected_any,
+    i_windows_selected_ar,
+    i_windows_selected_both,
+    i_windows_selected_vae,
+    metadata_df,
+):
+    signals_to_assess_from_models_df = metadata_df.loc[list(i_windows_selected_any)]
+    signals_to_assess_from_models_df.loc[list(i_windows_selected_vae), 'Selected by'] = 'VAE'
+    signals_to_assess_from_models_df.loc[list(i_windows_selected_ar), 'Selected by'] = 'AR'
+    signals_to_assess_from_models_df.loc[list(i_windows_selected_both), 'Selected by'] = 'VAE & AR'
+    signals_to_assess_from_models_df
+    return (signals_to_assess_from_models_df,)
+
+
+@app.cell
+def _(i_windows_selected_any, mo, signals_to_assess_from_models_df):
+    mo.md(f"""The {len(i_windows_selected_any)} windows belong to {len(signals_to_assess_from_models_df['signal'].unique())} signals""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""A `Series` which is `True` for every window whose signal has NOT been selected by one of the algorithms.""")
     return
 
 
 @app.cell
 def _(metadata_df, signals_to_assess_from_models_df):
-    unselected = set(metadata_df['signal']) - set(signals_to_assess_from_models_df['signal'])
-    assert len(unselected) < len(set(metadata_df['signal']))
-    return
+    signal_not_selected_yet = ~metadata_df['signal'].isin(set(signals_to_assess_from_models_df['signal']))
+    signal_not_selected_yet.tail()
+    return (signal_not_selected_yet,)
 
 
 @app.cell(hide_code=True)
@@ -432,33 +435,54 @@ def _(
     metadata_df,
     n_random_signals_to_keep,
     pd,
+    signal_not_selected_yet,
     signals_to_assess_from_models_df,
 ):
-    # random_signals_to_assess_df = metadata_df\
-    #     .drop(index=signals_to_assess_from_models_df.index)\
-    #     .groupby('signal').sample(n=1, random_state=42)\
-    #     .sample(n=n_random_signals_to_keep, random_state=43)
-    random_signals_to_assess_df = metadata_df[
-        ~metadata_df['signal'].isin(set(signals_to_assess_from_models_df['signal']))
-        ].groupby('signal').sample(n=1, random_state=42)\
+    random_signals_to_assess_df = (
+        metadata_df[
+            # windows whose corresponding signals have NOT been selected
+            signal_not_selected_yet
+        # a single signal is selected from every window
+        ].groupby('signal').sample(n=1, random_state=42)
+        # the "survivors" from the above filters are sampled randomly
         .sample(n=n_random_signals_to_keep, random_state=43)
+    )
     assert set(signals_to_assess_from_models_df['signal']) & set(random_signals_to_assess_df['signal']) == set()
-    # signals_to_assess_df = pd.concat((
-    #     from_models_signals_to_assess_df,
-    #     pd.DataFrame(
-    #         {'signal': np.random.default_rng(42).choice(list(unselected),size=n_random_signals_to_keep,replace=False),
-    #          'Selected by': [None] * n_random_signals_to_keep}
-    #     )
-    # ))
+
     signals_to_assess_df = pd.concat((signals_to_assess_from_models_df,random_signals_to_assess_df))
     signals_to_assess_df
     return (signals_to_assess_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The above `DataFrame` is saved as it to a *.parquet* file and **without the index** to an *Excel* spreadsheet.""")
+    return
 
 
 @app.cell
 def _(model_dir, output_file_stem, signals_to_assess_df):
     signals_to_assess_df.to_parquet(model_dir / (output_file_stem + '.parquet'))
     signals_to_assess_df.drop('Selected by', axis=1).to_excel(model_dir / (output_file_stem + '.xlsx'), index=False)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Importance sampling""")
+    return
+
+
+@app.cell
+def _(mo, pd, signal_not_selected_yet):
+    is_q_inverse_series = pd.Series({
+        'VAE': 1,
+        'AR': 1,
+        'VAE & AR': 1,
+        'None': signal_not_selected_yet.sum()
+    })
+    is_weight_series = is_q_inverse_series / is_q_inverse_series.sum()
+    mo.hstack((is_q_inverse_series, is_weight_series))
     return
 
 

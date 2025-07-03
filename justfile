@@ -18,7 +18,8 @@ conda_environment := "trap"
 #     environment in one machine and a CPU-relying in another)
 uv_command := "PYTHONBREAKPOINT=ipdb.set_trace uv run --no-sync"
 
-default_server := "meiga05"
+# default_server := "meiga05"
+default_server := "skoll"
 
 marimo_server := "0.0.0.0"
 marimo_port := "2719"

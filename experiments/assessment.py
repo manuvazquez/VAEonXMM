@@ -119,6 +119,7 @@ def _(event_options, full_signals_dir, mo, signals_table, trapallada):
 
 @app.cell
 def _(excel_df, pd):
+    # output `DataFrame` must be created only once (hence, it must be in a cell not re-run when it's modified)
     labels_df = pd.DataFrame({'Event': None, 'Type': None}, index=excel_df.index)
     return (labels_df,)
 
@@ -131,17 +132,24 @@ def _(event_options, event_radio, event_text, labels_df, selected_row):
         labels_df.loc[selected_row.name.item(),'Type'] = event_text.value
 
     labels_df.to_excel('res.xlsx')
-    # labels_df
     return
 
 
 @app.cell
 def _(BytesIO, labels_df, mo):
+    # a buffer to hold in memory...
     buf = BytesIO()
-    # labels_df.to_excel(buf, index=False)
+
+    # ..the Excel file i
     labels_df.to_excel(buf)
+    # labels_df.to_excel(buf, index=False)
+
+    # rewind
     buf.seek(0)
+
     download_button = mo.download(data=buf, filename="signals.xlsx")
+
+    # both `DataFrame` and download button
     mo.vstack((labels_df, download_button))
     return
 
