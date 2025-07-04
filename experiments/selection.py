@@ -108,15 +108,9 @@ def _(mo, model_dir):
 
 @app.cell
 def _(ar_browser, mo):
+    mo.stop(ar_browser.path() is None, mo.md("**Choose AR coefficents.**"))
     ar_analysis_file = ar_browser.path()
-    mo.stop(ar_analysis_file is None, mo.md("**Choose AR coefficents.**"))
     return (ar_analysis_file,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""# Input Files""")
-    return
 
 
 @app.cell(hide_code=True)
@@ -171,16 +165,25 @@ def _(ds):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A single window for each (selected beforehand) *signal of interest*""")
+    mo.md(r"""# *Reference* windows""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The *windows* belonging to the (selected beforehand) "signals of interest" (only one window is shown). This is only meant to help in choosing, below, one window from each.""")
     return
 
 
 @app.cell
-def _(metadata_df, trapallada):
+def _(metadata_df, mo, trapallada):
     signals_of_interest_df = metadata_df[
         metadata_df['signal'].isin(trapallada.data.Labels().signals)
     ]
-    signals_of_interest_df.drop_duplicates('source')
+    mo.hstack((
+        signals_of_interest_df.drop_duplicates('source'),
+        trapallada.data.Labels().signals_without_prefix
+    ))
     return (signals_of_interest_df,)
 
 
@@ -242,14 +245,51 @@ def _(pd, selection_saved_file):
     return (selected_df,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""A function to get the closest windows (as given by the passed *analysis* file) to the selected ones **in the latent space**.""")
+@app.cell
+def _(selected_df):
+    set(selected_df['signal'])
     return
 
 
 @app.cell
-def _(metadata_df, np, pathlib, pd, scipy, selected_df):
+def _(metadata_df, selected_df):
+    len(metadata_df)
+    selected_df.index
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""A *numpy* `Array` with the indexes of the "eligible windows" (hose belonging to the "reference signals" are not `eligible` unless they are one the above selected)""")
+    return
+
+
+@app.cell
+def _(metadata_df, selected_df):
+    # windows belonging to the "reference signals" are not `eligible`...
+    eligible = ~metadata_df['signal'].isin(set(selected_df['signal']))
+
+    # ...unless they are one the above selected
+    eligible.loc[selected_df['# window']] = True
+
+    i_eligible = metadata_df[eligible].index.to_numpy()
+    return (i_eligible,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Ranking""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""A function to get the closest windows (as given by the passed *analysis* file) to the selected ones **in the latent space**. No window belonging to the same *signal* of one of the selected windows is picked.""")
+    return
+
+
+@app.cell
+def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
     def rank_windows(file: str | pathlib.Path, return_distances: bool = False):
 
         file = pathlib.Path(file)
@@ -266,22 +306,40 @@ def _(metadata_df, np, pathlib, pd, scipy, selected_df):
         # '# window` should yield an actual index (which is also a label in the `DataFrame`)
         assert np.allclose(z_selected, df.filter(like='z_').loc[selected_df['# window']].values)
 
-        distances = scipy.spatial.distance.cdist(z_selected, z)
+        # a submatrix with only the "eligible" windows (`z_selected` should be among them)
+        z_eligible = z[i_eligible]
+
+        # distances = scipy.spatial.distance.cdist(z_selected, z)
+        distances = scipy.spatial.distance.cdist(z_selected, z_eligible)
 
         # for the sake of convenience and readability
         i_selected = np.arange(len(selected_df))
 
+        # we look up the original indexes of selected windows in `i_eligible` (to get their indexes in `z_eligible`)
+        i_selected_window_within_eligible = np.where(i_eligible[:, None]==selected_df['# window'].to_numpy())[0]
+        # print(i_eligible[i_selected_window_within_eligible])
+
         # the closest distance is always 0 (to the element itself)...
-        assert (distances[i_selected, selected_df['# window']] == 0.).all()
+        # assert (distances[i_selected, selected_df['# window']] == 0.).all()
+        assert (distances[i_selected, i_selected_window_within_eligible] == 0.).all()
 
         # ...and hence the $0$-th element in each row should be ignored
         i_closest = distances.argsort(axis=1)[:, 1:]
+    
 
         if return_distances:
-            return (i_closest, distances[i_selected[:, None], i_closest])
+            # return (i_closest, distances[i_selected[:, None], i_closest])
+            return (i_eligible[i_closest], distances[i_selected[:, None], i_closest])
         else:
-            return i_closest
+            # return i_closest
+            return i_eligible[i_closest]
     return (rank_windows,)
+
+
+@app.cell
+def _(model_dir, rank_windows):
+    rank_windows(model_dir / 'vae.parquet', return_distances=True)
+    return
 
 
 @app.cell(hide_code=True)
@@ -396,11 +454,13 @@ def _(
     i_windows_selected_both,
     i_windows_selected_vae,
     metadata_df,
+    pd,
 ):
     signals_to_assess_from_models_df = metadata_df.loc[list(i_windows_selected_any)]
     signals_to_assess_from_models_df.loc[list(i_windows_selected_vae), 'Selected by'] = 'VAE'
     signals_to_assess_from_models_df.loc[list(i_windows_selected_ar), 'Selected by'] = 'AR'
     signals_to_assess_from_models_df.loc[list(i_windows_selected_both), 'Selected by'] = 'VAE & AR'
+    signals_to_assess_from_models_df['Selected by'] = pd.Categorical(signals_to_assess_from_models_df['Selected by'])
     signals_to_assess_from_models_df
     return (signals_to_assess_from_models_df,)
 

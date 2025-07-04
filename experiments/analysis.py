@@ -49,6 +49,12 @@ def _(mo):
     return
 
 
+@app.cell
+def _():
+    max_n_samples_to_show = 30
+    return (max_n_samples_to_show,)
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## Model""")
@@ -658,11 +664,22 @@ def _(
     return (mo_plot,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Some filtering of the selection""")
+    return
+
+
 @app.cell
-def _(analysis_df, mo_plot):
-    max_n_samples_to_show = 30
+def _(analysis_df, max_n_samples_to_show, mo_plot, trapallada):
     i_selected = [e['index'] for e in mo_plot.points if e]
+
     selected_samples = analysis_df.loc[i_selected]
+
+    belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
+    print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
+    selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
+
     if len(selected_samples) > max_n_samples_to_show:
         selected_samples = selected_samples.drop_duplicates(subset=['signal'])
         print('Too many selected, plotting just one window for every signal...')
