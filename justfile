@@ -68,7 +68,11 @@ assessment:
 
 [group('results')]
 serve_assessment:
-  {{uv_command}} marimo run experiments/assessment.py --headless --no-token --host {{marimo_server}} --port {{marimo_port}}
+  systemd-run --user --scope tmux new -s assesment '{{uv_command}} marimo run experiments/assessment.py --headless --no-token --host {{marimo_server}} --port {{marimo_port}}'
+
+[group('results')]
+run_assessment:
+  {{uv_command}} marimo run experiments/assessment.py
 
 # ====================================================================================================
 

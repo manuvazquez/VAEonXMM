@@ -59,11 +59,12 @@ def _(mo):
 
 @app.cell
 def _():
+    n_signals_to_keep = 200
     n_signals_to_keep_from_every_model = 15
-    n_random_signals_to_keep = 80
+    # n_random_signals_to_keep = 80
     output_file_stem = 'signals_to_assess'
     return (
-        n_random_signals_to_keep,
+        n_signals_to_keep,
         n_signals_to_keep_from_every_model,
         output_file_stem,
     )
@@ -111,6 +112,19 @@ def _(ar_browser, mo):
     mo.stop(ar_browser.path() is None, mo.md("**Choose AR coefficents.**"))
     ar_analysis_file = ar_browser.path()
     return (ar_analysis_file,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""We keep track of which AR model was used""")
+    return
+
+
+@app.cell
+def _(ar_analysis_file, model_dir, output_file_stem):
+    with open((model_dir / output_file_stem).with_suffix('.txt'), 'w', encoding='utf-8') as f:
+        f.write(ar_analysis_file.as_posix())
+    return
 
 
 @app.cell(hide_code=True)
@@ -309,7 +323,6 @@ def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
         # a submatrix with only the "eligible" windows (`z_selected` should be among them)
         z_eligible = z[i_eligible]
 
-        # distances = scipy.spatial.distance.cdist(z_selected, z)
         distances = scipy.spatial.distance.cdist(z_selected, z_eligible)
 
         # for the sake of convenience and readability
@@ -317,29 +330,19 @@ def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
 
         # we look up the original indexes of selected windows in `i_eligible` (to get their indexes in `z_eligible`)
         i_selected_window_within_eligible = np.where(i_eligible[:, None]==selected_df['# window'].to_numpy())[0]
-        # print(i_eligible[i_selected_window_within_eligible])
 
         # the closest distance is always 0 (to the element itself)...
-        # assert (distances[i_selected, selected_df['# window']] == 0.).all()
         assert (distances[i_selected, i_selected_window_within_eligible] == 0.).all()
 
         # ...and hence the $0$-th element in each row should be ignored
         i_closest = distances.argsort(axis=1)[:, 1:]
-    
 
+        # the indexes in `i_closest` must be mapped back to the original `z` (which is "in sync" with `metadata_df`)
         if return_distances:
-            # return (i_closest, distances[i_selected[:, None], i_closest])
             return (i_eligible[i_closest], distances[i_selected[:, None], i_closest])
         else:
-            # return i_closest
             return i_eligible[i_closest]
     return (rank_windows,)
-
-
-@app.cell
-def _(model_dir, rank_windows):
-    rank_windows(model_dir / 'vae.parquet', return_distances=True)
-    return
 
 
 @app.cell(hide_code=True)
@@ -384,7 +387,6 @@ def _(model_dir, rank_windows):
 @app.cell
 def _(i_closest_vae, n_signals_to_keep_from_every_model, select_windows):
     i_windows_selected_vae = select_windows(i_closest_vae, n_signals_to_keep_from_every_model)
-    # len(i_windows_selected_vae)
     return (i_windows_selected_vae,)
 
 
@@ -395,16 +397,14 @@ def _(mo):
 
 
 @app.cell
-def _(ar_analysis_file, rank_windows):
+def _(
+    ar_analysis_file,
+    n_signals_to_keep_from_every_model,
+    rank_windows,
+    select_windows,
+):
     i_closest_ar = rank_windows(ar_analysis_file)
-    # i_closest_ar
-    return (i_closest_ar,)
-
-
-@app.cell
-def _(i_closest_ar, n_signals_to_keep_from_every_model, select_windows):
     i_windows_selected_ar = select_windows(i_closest_ar, n_signals_to_keep_from_every_model)
-    # len(i_windows_selected_ar)
     return (i_windows_selected_ar,)
 
 
@@ -435,10 +435,11 @@ def _(i_windows_selected_ar, i_windows_selected_vae, mo):
 
 
 @app.cell
-def _(i_windows_selected_ar, i_windows_selected_vae):
+def _(i_windows_selected_ar, i_windows_selected_vae, mo):
     i_windows_selected_any = i_windows_selected_vae | i_windows_selected_ar
-    # len(i_windows_selected_any)
-    return (i_windows_selected_any,)
+    n_windows_selected_by_any = len(i_windows_selected_any)
+    mo.md(f'Both models jointly selected {n_windows_selected_by_any} windows')
+    return i_windows_selected_any, n_windows_selected_by_any
 
 
 @app.cell(hide_code=True)
@@ -466,8 +467,8 @@ def _(
 
 
 @app.cell
-def _(i_windows_selected_any, mo, signals_to_assess_from_models_df):
-    mo.md(f"""The {len(i_windows_selected_any)} windows belong to {len(signals_to_assess_from_models_df['signal'].unique())} signals""")
+def _(mo, n_windows_selected_by_any, signals_to_assess_from_models_df):
+    mo.md(f"""The {n_windows_selected_by_any} windows belong to {len(signals_to_assess_from_models_df['signal'].unique())} signals""")
     return
 
 
@@ -484,10 +485,11 @@ def _(metadata_df, signals_to_assess_from_models_df):
     return (signal_not_selected_yet,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Signals selected *randomly*, i.e., not selected by any algorithm, are added to the `DataFrame`""")
-    return
+@app.cell
+def _(mo, n_signals_to_keep, n_windows_selected_by_any):
+    n_random_signals_to_keep = n_signals_to_keep - n_windows_selected_by_any
+    mo.md(f'{n_random_signals_to_keep} signals selected *randomly* (so that overall {n_signals_to_keep} are presented), i.e., not selected by any algorithm, are added to the `DataFrame`')
+    return (n_random_signals_to_keep,)
 
 
 @app.cell
@@ -516,14 +518,15 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The above `DataFrame` is saved as it to a *.parquet* file and **without the index** to an *Excel* spreadsheet.""")
+    mo.md(r"""The above `DataFrame` is *shuffled* saved as it to a *.parquet* file and **without the index** to an *Excel* spreadsheet.""")
     return
 
 
 @app.cell
 def _(model_dir, output_file_stem, signals_to_assess_df):
-    signals_to_assess_df.to_parquet(model_dir / (output_file_stem + '.parquet'))
-    signals_to_assess_df.drop('Selected by', axis=1).to_excel(model_dir / (output_file_stem + '.xlsx'), index=False)
+    shuffled_signals_to_assess_df = signals_to_assess_df.sample(frac=1, random_state=42)
+    shuffled_signals_to_assess_df.to_parquet(model_dir / (output_file_stem + '.parquet'))
+    shuffled_signals_to_assess_df.drop('Selected by', axis=1).to_excel(model_dir / (output_file_stem + '.xlsx'), index=False)
     return
 
 
