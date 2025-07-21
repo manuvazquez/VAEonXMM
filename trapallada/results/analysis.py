@@ -2,6 +2,7 @@ import pathlib
 
 import yaml
 import pandas as pd
+import numpy as np
 
 import jax
 import jax.numpy as jnp
@@ -9,6 +10,7 @@ import equinox as eqx
 from jaxtyping import Float, Int, Array
 
 from sklearn.manifold import TSNE
+from scipy.cluster.hierarchy import linkage, fcluster
 from torch.utils.data import DataLoader, Dataset
 import hdbscan
 
@@ -209,3 +211,31 @@ def tsne_project(z_s: Float[Array, 'window z'], n_projected_components: int = 2,
 
 
     return t_sne_embeddings
+
+def wasserstein_between_gaussians(mean: Float[Array, 'i feature'], sigma: Float[Array, 'i feature']) -> Float[Array, 'i i']:
+
+    n = mean.shape[0]
+    squared_distance = np.zeros((n, n))
+    
+    for i in range(n):
+        
+        mean_component = np.sum((mean[i]-mean)**2, axis=1)
+
+        variance_component = np.sum(sigma[i]+sigma - 2*np.sqrt(sigma[i]*sigma), axis=1)
+
+        squared_distance[i] = mean_component + variance_component
+
+    return np.sqrt(squared_distance)
+
+def wasserstein_cluster(mean: Float[Array, 'i feature'], sd: Float[Array, 'i feature'], n_clusters: int = 4) -> Int[Array, 'i']:
+
+    # compute the Wasserstein distance between the means and standard deviations of the latent space
+    d = wasserstein_between_gaussians(mean, sd)
+
+    # compute the hierarchical clustering using the Ward method
+    Z = linkage(d[np.triu_indices(len(d),1)], method="ward")
+
+    # assign cluster labels
+    labels = fcluster(Z, t=n_clusters, criterion='maxclust')
+
+    return labels

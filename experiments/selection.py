@@ -60,12 +60,12 @@ def _(mo):
 @app.cell
 def _():
     n_signals_to_keep = 200
-    n_signals_to_keep_from_every_model = 15
+    n_signals_to_keep_per_model_and_reference_window = 15
     # n_random_signals_to_keep = 80
     output_file_stem = 'signals_to_assess'
     return (
         n_signals_to_keep,
-        n_signals_to_keep_from_every_model,
+        n_signals_to_keep_per_model_and_reference_window,
         output_file_stem,
     )
 
@@ -185,6 +185,12 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""This is only meant to be performed **once** (clicking the `Save` button below).""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""The *windows* belonging to the (selected beforehand) "signals of interest" (only one window is shown). This is only meant to help in choosing, below, one window from each.""")
     return
 
@@ -238,6 +244,12 @@ def _(mo):
     return (save_button,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""If the above button is pressed, the *selected* rows (**and only those**) are saved""")
+    return
+
+
 @app.cell
 def _(save_button, signals_of_interest_table):
     selection_saved_file = 'selected.xlsx'
@@ -266,15 +278,19 @@ def _(selected_df):
 
 
 @app.cell
-def _(metadata_df, selected_df):
-    len(metadata_df)
-    selected_df.index
+def _(selected_df):
+    selected_df
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A *numpy* `Array` with the indexes of the "eligible windows" (hose belonging to the "reference signals" are not `eligible` unless they are one the above selected)""")
+    mo.md(
+        r"""
+    A *numpy* `Array` with the indexes of the "eligible windows" (those belonging to the "reference signals" are not `eligible` unless they have been selected above
+    ). Notice we first drop *signals* (encompassing many windows) and then we add back *windows*.
+    """
+    )
     return
 
 
@@ -306,6 +322,7 @@ def _(mo):
 def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
     def rank_windows(file: str | pathlib.Path, return_distances: bool = False):
 
+        # just in case a `str` was passed
         file = pathlib.Path(file)
 
         assert file.exists()
@@ -314,11 +331,11 @@ def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
         # as many rows (windows) as in the *metadata* `DataFrame`
         assert len(df) == len(metadata_df)
 
-        z = df.filter(like='z_').values
+        z = df.filter(regex=r'z_\d+').values
         z_selected = z[selected_df['# window']]
 
         # '# window` should yield an actual index (which is also a label in the `DataFrame`)
-        assert np.allclose(z_selected, df.filter(like='z_').loc[selected_df['# window']].values)
+        assert np.allclose(z_selected, df.filter(regex=r'z_\d+').loc[selected_df['# window']].values)
 
         # a submatrix with only the "eligible" windows (`z_selected` should be among them)
         z_eligible = z[i_eligible]
@@ -385,8 +402,12 @@ def _(model_dir, rank_windows):
 
 
 @app.cell
-def _(i_closest_vae, n_signals_to_keep_from_every_model, select_windows):
-    i_windows_selected_vae = select_windows(i_closest_vae, n_signals_to_keep_from_every_model)
+def _(
+    i_closest_vae,
+    n_signals_to_keep_per_model_and_reference_window,
+    select_windows,
+):
+    i_windows_selected_vae = select_windows(i_closest_vae, n_signals_to_keep_per_model_and_reference_window)
     return (i_windows_selected_vae,)
 
 
@@ -399,18 +420,24 @@ def _(mo):
 @app.cell
 def _(
     ar_analysis_file,
-    n_signals_to_keep_from_every_model,
+    n_signals_to_keep_per_model_and_reference_window,
     rank_windows,
     select_windows,
 ):
     i_closest_ar = rank_windows(ar_analysis_file)
-    i_windows_selected_ar = select_windows(i_closest_ar, n_signals_to_keep_from_every_model)
+    i_windows_selected_ar = select_windows(i_closest_ar, n_signals_to_keep_per_model_and_reference_window)
     return (i_windows_selected_ar,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## Final signals""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Notice that every algorithm selects `n_signals_to_keep_per_model_and_reference_window` per reference window and hence it might select a window more than once.""")
     return
 
 
@@ -444,7 +471,7 @@ def _(i_windows_selected_ar, i_windows_selected_vae, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A `DataFrame` with `n_signals_to_keep_from_every_model` *windows* selected according to both VAE and AR models. Every algorithm selects windows belonging to different signals, but both algorithms might select the same window or different windows beloning to the same signal.""")
+    mo.md(r"""A `DataFrame` with `n_signals_to_keep_per_model_and_reference_window` *windows* selected according to both VAE and AR models. Every algorithm selects windows belonging to different signals, but both algorithms might select the same window or different windows beloning to the same signal.""")
     return
 
 

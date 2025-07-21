@@ -52,7 +52,10 @@ def _(mo):
 @app.cell
 def _():
     max_n_samples_to_show = 30
-    return (max_n_samples_to_show,)
+
+    # for t-SNE
+    n_projected_components = 2
+    return max_n_samples_to_show, n_projected_components
 
 
 @app.cell(hide_code=True)
@@ -175,6 +178,51 @@ def _(model_dir, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""The dimension of the latent space can be inferred from the *encoder*""")
+    return
+
+
+@app.cell
+def _(model):
+    dim_z = model.encoder.get_latent_dim()
+    dim_z
+    return (dim_z,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    The names of the columns for the latent space projections (to be added to a `DataFrame`
+    ). `z_sd_cols` are only available for VAE models.
+    """
+    )
+    return
+
+
+@app.cell
+def _(dim_z, mo):
+    z_cols = [f'z_{i}' for i in range(1, dim_z+1)]
+    z_sd_cols = [f'z_sd_{i}' for i in range(1, dim_z+1)]
+    z_cols, z_cols
+    mo.hstack((z_cols, z_sd_cols))
+    return z_cols, z_sd_cols
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""For t-SNE""")
+    return
+
+
+@app.cell
+def _(n_projected_components):
+    tsne_cols = [f'tsne_{i}' for i in range(1, n_projected_components+1)]
+    return (tsne_cols,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""The path to *SIMBAD (XMATCH)* database""")
     return
 
@@ -201,19 +249,20 @@ def _(
     ds,
     mo,
     model,
+    n_projected_components,
     pd,
     positions_df,
     radio,
     slider,
     trapallada,
+    tsne_cols,
+    z_cols,
+    z_sd_cols,
 ):
     analysis_file = analysis_dir / f'{analysis_file_stem}.parquet'
     if not analysis_file.exists():
 
         print(f'Making "{analysis_file.name}"...')
-
-        # for t-SNE
-        n_projected_components = 2
 
         # a `DataFrame` with metadata
         analysis_df = ds.metadata_df.copy()
@@ -227,10 +276,10 @@ def _(
             # projection onto the latent space...
             z, z_sd = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder, return_sd=True)
 
-            # names of columns to be added to the `DataFrame`
-            z_sd_cols = [f'z_sd_{i}' for i in range(1, z.shape[-1]+1)]
-
             analysis_df[z_sd_cols] = z_sd
+
+            # cluster in the latent space using Wasserstein distance
+            analysis_df['wasserstein cluster in z'] = pd.Categorical(trapallada.results.analysis.wasserstein_cluster(z, z_sd))
 
         # AR
         else:
@@ -239,10 +288,6 @@ def _(
 
             # the "latent space" is given by the AR coefficients
             z = trapallada.model.ar.ols_dataset_fit(ds, p=slider.value)
-
-        # names of columns to be added to the `DataFrame`
-        z_cols = [f'z_{i}' for i in range(1, z.shape[-1]+1)]
-        tsne_cols = [f'tsne_{i}' for i in range(1, n_projected_components+1)]
 
         # the above latent spaceo is projected, for visualization, using t-SNE
         tsne = trapallada.results.analysis.tsne_project(z, n_projected_components=n_projected_components)
@@ -438,7 +483,8 @@ def _(mo):
 
 @app.cell
 def _(analysis_df, px):
-    latents_df = analysis_df.filter(like='z_').agg(['mean', 'std']).T
+    # latents_df = analysis_df.filter(like='z_').agg(['mean', 'std']).T
+    latents_df = analysis_df.filter(regex=r'z_\d+').agg(['mean', 'std']).T
     # latents_df.head()
     px.scatter(latents_df, x=latents_df.index, y='mean', error_y='std')
     return
@@ -534,6 +580,7 @@ def _(
 ):
     plot = mo.ui.plotly(
         trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in z')
+        # trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z')
     )
     plot
     return (plot,)
@@ -662,7 +709,9 @@ def _(
     tsne_columns,
 ):
     tsne_plot = trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
+    # tsne_plot_fig = tsne_plot.make_fig()
     tsne_plot_fig = tsne_plot.make_fig()
+    # tsne_plot_fig = tsne_plot.make_fig('wasserstein cluster in z')
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
@@ -708,7 +757,7 @@ def _(
         mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
         signal_id, *start_end = row[['signal', 'start', 'end']]
         if radio.value == 'vae':
-            pred = model.decoder(selected_samples.filter(like='z_').loc[i_row])
+            pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
         else:
             pred = None
         mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred))

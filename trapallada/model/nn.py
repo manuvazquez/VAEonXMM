@@ -95,6 +95,13 @@ class Encoder(eqx.Module):
             x = layer(x)
 
             print(f'after {layer.__module__}: {x.shape}')
+    
+    def get_latent_dim(self) -> int:
+        """
+        Returns:
+            The latent dimension of the encoder.
+        """
+        return self.layers[-2].out_features // 2
 
 class Decoder(eqx.Module):
 

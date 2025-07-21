@@ -181,6 +181,16 @@ mount_trapallada:
   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
 
 [group('jesus')]
-cp_results INPUT_DIR TARGET_DIR:
-  cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) {{TARGET_DIR}}
-  cp {{INPUT_DIR}}/labels/annotated_windows.parquet {{TARGET_DIR}}
+cp_results INPUT_DIR:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  
+  output_dir={{google_drive_dir}}/trapallada/{{datetime('%Y-%m-%d-%H%M%S')}}
+  echo Copying to $output_dir...
+  mkdir $output_dir
+  echo "{{INPUT_DIR}}" > $output_dir/source.txt
+  # VAE
+  cp {{INPUT_DIR}}/vae.parquet $output_dir
+  # AR
+  cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) $output_dir
+  cp {{INPUT_DIR}}/labels/annotated_windows.parquet $output_dir
