@@ -140,13 +140,16 @@ def augment_with_window_and_signal_ids(df: pd.DataFrame) -> pd.DataFrame:
     return res
 
 # def project_onto_latent_space(dl: DataLoader, encoder: eqx.Module) -> tuple[Float[Array, 'z'], Float[Int, 'index']]:
-def project_onto_latent_space(dl: DataLoader, encoder: eqx.Module) -> Float[Array, 'z']:
+def project_onto_latent_space(
+        dl: DataLoader, encoder: eqx.Module, return_sd: bool = False
+        ) -> Float[Array, 'z'] | tuple[Float[Array, 'index'], Float[Array, 'index']]:
     """
     Build a `DataFrame` with the metadata and the projections of the latent space.
 
     Args:
         dl (DataLoader): A data loader to be processed.
         encoder (eqx.Module): The encoder.
+        return_sd (bool): If True, the standard deviation is also returned.
 
     Returns:
         - z_s: A JAX array representing the stacked latent space projections.
@@ -162,10 +165,17 @@ def project_onto_latent_space(dl: DataLoader, encoder: eqx.Module) -> Float[Arra
     # for the sake of clarity (assuming `z` comprises mean and standard deviation)
     dim_z = z_s[-1].shape[-1] // 2
 
-    # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
-    z_s = jnp.vstack(z_s)[:, :dim_z]
+    # # all the `z`s' means are (vertically) stacked together, and the standard deviations dropped
+    # z_s = jnp.vstack(z_s)[:, :dim_z]
+    
+    # all the `z`s' means are (vertically) stacked together
+    z_s = jnp.vstack(z_s)
 
-    return z_s
+    if return_sd:
+        return jnp.split(z_s, 2, axis=-1)
+    else:
+        return z_s[:, :dim_z]
+    
     # return z_s, jnp.hstack(i_s)
 
 def tsne_project(z_s: Float[Array, 'window z'], n_projected_components: int = 2, random_state: int = 42) -> Float[Array, 'window projection']:

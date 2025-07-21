@@ -215,6 +215,9 @@ def _(
         # for t-SNE
         n_projected_components = 2
 
+        # a `DataFrame` with metadata
+        analysis_df = ds.metadata_df.copy()
+
         # a `DataLoader` for the `Dataset`
         dl = DataLoader(ds, batch_size=128, shuffle=False)
 
@@ -222,7 +225,12 @@ def _(
         if radio.value == 'vae':
 
             # projection onto the latent space...
-            z = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder)
+            z, z_sd = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder, return_sd=True)
+
+            # names of columns to be added to the `DataFrame`
+            z_sd_cols = [f'z_sd_{i}' for i in range(1, z.shape[-1]+1)]
+
+            analysis_df[z_sd_cols] = z_sd
 
         # AR
         else:
@@ -232,15 +240,12 @@ def _(
             # the "latent space" is given by the AR coefficients
             z = trapallada.model.ar.ols_dataset_fit(ds, p=slider.value)
 
-        # ...which is, in turn, projected, for visualization, using t-SNE
-        tsne = trapallada.results.analysis.tsne_project(z, n_projected_components=n_projected_components)
-
-        # a `DataFrame` with metadata
-        analysis_df = ds.metadata_df.copy()
-
-        # names of columns to be added to the `DataFrame` for the latent space and t-SNE
+        # names of columns to be added to the `DataFrame`
         z_cols = [f'z_{i}' for i in range(1, z.shape[-1]+1)]
         tsne_cols = [f'tsne_{i}' for i in range(1, n_projected_components+1)]
+
+        # the above latent spaceo is projected, for visualization, using t-SNE
+        tsne = trapallada.results.analysis.tsne_project(z, n_projected_components=n_projected_components)
 
         analysis_df[z_cols] = z
         analysis_df[tsne_cols] = tsne

@@ -66,6 +66,10 @@ selection:
 assessment:
   {{uv_command}} marimo edit experiments/assessment.py
 
+# [group('results')]
+# validation:
+#   {{uv_command}} marimo edit experiments/validation.py
+
 [group('results')]
 serve_assessment:
   systemd-run --user --scope tmux new -s assesment '{{uv_command}} marimo run experiments/assessment.py --headless --no-token --host {{marimo_server}} --port {{marimo_port}}'
@@ -79,18 +83,11 @@ run_assessment:
 [private]
 select_gpu_and_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
   #!/usr/bin/env bash
-  
-  # check if nvidia-smi is available
-  if command -v nvidia-smi &> /dev/null; then
-      
-      # the GPU with the most free memory
-      BEST_GPU=$(nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits | awk -F',' '{print $1, $2}' | sort -k2 -nr | head -n1 | awk '{print $1}')
-      
-      echo "Best GPU index: $BEST_GPU"
 
-      export CUDA_VISIBLE_DEVICES=$BEST_GPU
-  else
-      echo "nvidia-smi not found. CUDA_VISIBLE_DEVICES not set."
+  export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
+  # echo $CUDA_VISIBLE_DEVICES
+  if [ "$CUDA_VISIBLE_DEVICES" -eq -1 ]; then
+    echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
   fi
   
   {{uv_command}} trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
@@ -140,11 +137,6 @@ whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_F
 # ====================================================================================================
 
 [group('infracstructure')]
-cuda:
-  nvidia-smi
-  {{uv_command}} python -c "import jax; print(jax.devices())"
-
-[group('infracstructure')]
 retrieve_from_cluster SERVER=default_server DIRECTORY="results":
   rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
@@ -188,4 +180,7 @@ mount_supergraph:
 mount_trapallada:
   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
 
-  
+[group('jesus')]
+cp_results INPUT_DIR TARGET_DIR:
+  cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) {{TARGET_DIR}}
+  cp {{INPUT_DIR}}/labels/annotated_windows.parquet {{TARGET_DIR}}
