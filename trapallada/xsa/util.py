@@ -6,7 +6,8 @@ import tarfile
 import tempfile
 import shutil
 import re
-import pickle
+# import json
+import pprint
 from typing import Sequence
 
 import pandas as pd
@@ -517,7 +518,6 @@ def tars_to_array(
 
     signals_list = []
     masks_list = []
-    last_period = None
 
     start_list, end_list = [], []
     f_list = []
@@ -557,47 +557,11 @@ def tars_to_array(
 
             aggregated_rate_is_present = 'RATE' in df.columns.get_level_values('data')
 
-            # if not (df.xs(
-            #     'RATE' if aggregated_rate_is_present else 'RATE1', 
-            #     axis=1, level='data').isna() == ~mask_df).all().all():
-
-            #     breakpoint()
-
-            # # CAVEAT: replacing `NaN`s and -infinity's  with infinity (`fillna`) is a workaround for the fact that `mean` applied
-            # #  on a *grouped* `DataFarme` treats `NaN`` values as 0s (and hence they are lost)
-            # # any_bad_rate = np.isinf(df.fillna(np.inf).loc[:, pd.IndexSlice[:, signals_to_extract]].T.groupby(level=0).mean()).T
-            # any_bad_rate = np.isinf(
-            #     df.replace(-np.inf, np.inf).
-            #     fillna(np.inf).loc[:, pd.IndexSlice[:, signals_to_extract]].T.groupby(level=0).mean()).T
-
-            # if not (any_bad_rate == ~mask_df).all().all():
-
-            #     not_matching = (~(any_bad_rate == ~mask_df)).stack()
-            #     mismatch = not_matching[not_matching==True]
-                
-            #     breakpoint()
-
-            ## OLD
-            #  # checking if the `NaN` values in the `DataFrame` are consistent with the mask (`True` when a value is valid);
-            #  # left-hand side is just `df` keeping only 'RATE' columns (renamed to the corresponding signal/file name), so
-            #  # that it can be compared to `mask_df`. NB: 'RATE1' is used as proxy for 'RATE' if the latter is not present
-            # assert (df.xs(
-            #     'RATE' if aggregated_rate_is_present else 'RATE1', 
-            #     axis=1, level='data').isna() == ~mask_df).all().all()
-
-            ## OLD OLD
-            # # checking if the `NaN` values in the `DataFrame` are consistent with the mask; left-hand side is just
-            # #  `df` keeping only 'RATE' columns (renamed to the corresponding signal/file name), and removing the 
-            # # `file` level of the column index, so that it can be compared to `mask_df`
-            # assert (
-            #     df.loc[:, df.columns.get_level_values('data') == 'RATE'].set_axis(df.columns.get_level_values('file').unique(), axis=1).isna()\
-            #           ==\
-            #               (~mask_df)
-            #         ).all().all()
-
+            # if there is any infinity in the `DataFrame`...
             if np.isinf(df).any().any():
 
-                # `True` if any of the signals in a FTZ contains +/- infinity values
+                # a `Series` with one element per FTZ file which is `True` if any of the signals in that FTZ contains +/- infinity values
+                # `level` 0 is the FTZ file name (`level` 1 is the *RATE*)
                 ftz_has_inftys = np.isinf(df).loc[:, pd.IndexSlice[:, trapallada.xsa.util.rates_columns]].T.groupby(level=0).any().T.any(axis=0)
 
                 # those that contain infinities are to be dismissed...
@@ -610,9 +574,6 @@ def tars_to_array(
 
                 logger.warning(f'signals {ftzs_to_be_dismissed} in "{tar_file}" has +/- infinity values, skipping...')
 
-                # logger.warning(f'"{tar_file}" has +/- infinity values, skipping...')
-                # continue
-            
             # negative values are clipped to zero
             df = df.clip(lower=0)
 
@@ -697,25 +658,6 @@ def tars_to_array(
             # the period of the *binned* `DataFrame`
             binned_period = binned_df.index[1] - binned_df.index[0]
 
-            # # if this is not the first file (`last_period` is `None`)...
-            # if last_period:
-
-            #     if period != last_period:
-
-            #         logger.critical(f'the period of "{tar_file}", {period}, does not match the previous period(s), {last_period}')
-                    
-            #         raise RuntimeError('Period mismatch')
-
-            # # if this IS the first file...
-            # else:
-
-            #     window_size_in_seconds = (binned_period * window_size).total_seconds()
-
-            #     logger.info(f'Requested a window size of, effectively, duration {window_size_in_seconds} seconds '
-            #                 f'(period is {binned_period.total_seconds()} seconds, step is {(binned_period * step).total_seconds()} seconds)')
-
-            # last_period = period
-
             # if this the first file being processed...
             if first_file:
                 
@@ -759,12 +701,6 @@ def tars_to_array(
             # masks are "squeezed" since they only have a single channel
             masks_list.append(sliced_masks.squeeze())
 
-            # n_signals = len(power.index)
-            # i_window = 0
-            # i_signal = 0
-            # i_signal_col = 0
-            # assert np.allclose(sliced_signals[i_window*n_signals + i_signal, i_signal_col, :], normalized_df.iloc[(i_window*step):i_window*step + window_size, 2*i_signal + i_signal_col].values)
-
             # if a minimum count rate is set...
             if min_count_rate != 0.:
 
@@ -773,9 +709,6 @@ def tars_to_array(
                     binned_df.loc[:, pd.IndexSlice[:, trapallada.xsa.util.rates_columns]],
                     window_size=window_size, step=step, tail_as_window=True, return_n_windows=True
                 )
-
-                # # this is assuming that the count rate is the first (0-th) channel of the signal
-                # large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals[:, 0, :].mean(axis=1) >= (min_count_rate * bin_size)
 
                 # using the count rate across all the energy bands (`.sum(axis=1)`), and then averaging across time (`.mean(axis=1)`)
                 large_enough_count_rate: Bool[Array, 'window'] = unnormalized_sliced_signals.sum(axis=1).mean(axis=1) >= (min_count_rate * bin_size)
@@ -842,7 +775,6 @@ def tars_to_array(
     to_be_kept = (all_masks.mean(axis=-1) >= min_gti_ratio)
     n_to_be_kept = to_be_kept.sum()
 
-    # TODO: compute this just once
     n_overall_windows = len(all_masks)
 
     n_dismissed_windows = n_overall_windows - n_to_be_kept
@@ -947,6 +879,8 @@ def cl_tars_to_array(args: list = None):
         
         # `default_args` are used only whenever a key is not present in `not_none_args`
         yaml.dump(default_args | not_none_args, f, default_flow_style=False)
+    
+    logger.info(f'Parameters are {pprint.pformat(default_args | not_none_args)}')
 
 def get_full_signal(
         signal: str, path_to_full_signals: str | pathlib.Path,

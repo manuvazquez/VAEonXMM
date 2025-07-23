@@ -115,7 +115,7 @@ download_obs DIR=data_dir MIN_DURATION="35000" MAX_DURATION="60000":
   {{uv_command}} trap_download_obs.py {{DIR}} --min-duration {{MIN_DURATION}} --max-duration {{MAX_DURATION}}
 
 [group('data')]
-[doc("packs tar files previously downloaded tar files located in DOWNLOAD_DIR into a format fit for training; resulting files ared placed in OUTPUT_DIR/OUTPUT_SUBDIR")]
+[doc("packs previously downloaded tar files located in DOWNLOAD_DIR into a format fit for training; resulting files ared placed in OUTPUT_DIR/OUTPUT_SUBDIR")]
 pack_obs OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10" MAX_N_SOURCES="4" MIN_POWER="0" MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2" DOWNLOAD_DIR=data_dir OUTPUT_DIR=trapallada_data_dir +SIGNALS="RATE1 RATE2 RATE3 RATE4 RATE5":
   {{uv_command}} trap_pack_obs.py {{DOWNLOAD_DIR}} {{OUTPUT_DIR}} {{OUTPUT_SUBDIR}} -b {{BIN_SIZE}} -w {{WINDOW_SIZE}} -s {{STEP}} -M {{MAX_N_SOURCES}} -m {{MIN_POWER}} -c {{MIN_COUNT_RATE}} -g {{MIN_GTI_RATIO}} -S {{SIGNALS}}
   cp "logs/trapallada.xsa.util.log" {{OUTPUT_DIR}}/{{OUTPUT_SUBDIR}}
