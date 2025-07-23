@@ -121,8 +121,9 @@ def _(mo):
 
 
 @app.cell
-def _(ar_analysis_file, model_dir, output_file_stem):
-    with open((model_dir / output_file_stem).with_suffix('.txt'), 'w', encoding='utf-8') as f:
+def _(ar_analysis_file, model_dir):
+    # with open((model_dir / output_file_stem).with_suffix('.txt'), 'w', encoding='utf-8') as f:
+    with open((model_dir / 'ar_model.txt'), 'w', encoding='utf-8') as f:
         f.write(ar_analysis_file.as_posix())
     return
 
@@ -251,8 +252,9 @@ def _(mo):
 
 
 @app.cell
-def _(save_button, signals_of_interest_table):
-    selection_saved_file = 'selected.xlsx'
+def _(model_dir, save_button, signals_of_interest_table):
+    # selection_saved_file = 'selected.xlsx'
+    selection_saved_file = model_dir / 'selected.xlsx'
     if save_button.value:
         signals_of_interest_table.value.to_excel(selection_saved_file, index_label='# window')
     return (selection_saved_file,)

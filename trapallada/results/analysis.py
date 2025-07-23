@@ -212,7 +212,11 @@ def tsne_project(z_s: Float[Array, 'window z'], n_projected_components: int = 2,
 
     return t_sne_embeddings
 
-def wasserstein_between_gaussians(mean: Float[Array, 'i feature'], sigma: Float[Array, 'i feature']) -> Float[Array, 'i i']:
+def wasserstein_between_one_and_many_gaussians(mu, sd, all_mu, all_sd):
+    
+    return jnp.sqrt(((mu[None, :] - all_mu)**2).sum(axis=1) + (sd[None, :] + all_sd - 2*jnp.sqrt(sd[None, :] * all_sd)).sum(axis=1))
+
+def wasserstein_between_gaussians(mean: Float[Array, 'i feature'], sd: Float[Array, 'i feature']) -> Float[Array, 'i i']:
 
     n = mean.shape[0]
     squared_distance = np.zeros((n, n))
@@ -221,7 +225,7 @@ def wasserstein_between_gaussians(mean: Float[Array, 'i feature'], sigma: Float[
         
         mean_component = np.sum((mean[i]-mean)**2, axis=1)
 
-        variance_component = np.sum(sigma[i]+sigma - 2*np.sqrt(sigma[i]*sigma), axis=1)
+        variance_component = np.sum(sd[i] + sd - 2*np.sqrt(sd[i]*sd), axis=1)
 
         squared_distance[i] = mean_component + variance_component
 

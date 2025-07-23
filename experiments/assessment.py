@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.14.9"
+__generated_with = "0.14.12"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _(mo):
-    mo.md(r"> Annotation tool")
+    mo.md(r"""> Annotation tool""")
     return
 
 
@@ -54,10 +54,13 @@ def _():
 @app.cell
 def _():
     event_options = ['Interesting', 'NOT interesting', 'Undecided']
+
+    # TO-DO: the files below should be saved in the results directory
+
     # server_results_filename = f'res_{today}.xlsx'
     # host_results_filename = f'signals_{today}.xlsx'
-    server_results_filename = f'res.xlsx'
-    host_results_filename = f'signals.xlsx'
+    server_results_filename = f'windows.xlsx'
+    host_results_filename = f'my_annotations.xlsx'
     return event_options, host_results_filename, server_results_filename
 
 
@@ -72,24 +75,18 @@ def _(event_options):
 def _(mo):
     mo.md(
         r"""
-        # Instructions
-    
-        - Check the signals in the table one by one and select the appropriate label (and, maybe, fill in the *kind* of event)
-        - When finished, click the `Download` button at the end to get an Excel file with the results.
-        """
+    # Instructions
+
+    - Check the signals in the table one by one and select the appropriate label (and, maybe, fill in the *kind* of event)
+    - When finished, click the `Download` button at the end to get an Excel file with the results.
+    """
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"# Signals to assess")
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"")
+    mo.md(r"""# Signals to assess""")
     return
 
 
@@ -114,14 +111,25 @@ def _(mo, pd, trapallada):
 
 @app.cell
 def _(excel_file, server_results_filename):
-    server_results_file= excel_file.parent / server_results_filename
+    # annotations dir is made if it does not exist...
+    annotations_dir = excel_file.parent / 'annotations'
+    annotations_dir.mkdir(exist_ok=True)
+
+    # ...and the full path to the annotations file assembled
+    annotations_file = annotations_dir / server_results_filename
+    return (annotations_file,)
+
+
+@app.cell
+def _():
+    # server_results_file = excel_file.parent / server_results_filename
     # server_results_file
-    return (server_results_file,)
+    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"Click on a signal to visualize it below.")
+    mo.md(r"""Click on a signal to visualize it below.""")
     return
 
 
@@ -184,12 +192,12 @@ def _(mo):
 
 
 @app.cell
-def _(clear_button, excel_df, pd, server_results_file):
+def _(annotations_file, clear_button, excel_df, pd):
     # output `DataFrame` must be created only once (hence, it must be in a cell not re-run when it's modified)
     # labels_df = pd.DataFrame({'Event': None, 'Type': None}, index=excel_df.index)
     # labels_df = pd.DataFrame({'Type': None}, index=excel_df.index)
-    if server_results_file.exists() and not clear_button.value:
-        labels_df = pd.read_excel(server_results_file)
+    if annotations_file.exists() and not clear_button.value:
+        labels_df = pd.read_excel(annotations_file)
         labels_df = labels_df.drop(columns=labels_df.columns[0])
     else:
         labels_df = pd.DataFrame({'Label': None, 'Type': None, 'Subtype': None}, index=excel_df.index)
@@ -202,13 +210,14 @@ def _(clear_button, excel_df, pd, server_results_file):
 
 @app.cell
 def _(mo):
-    mo.md(r"The annotations made are shown below, along with a button to download an Excel file with them.")
+    mo.md(r"""The annotations made are shown below, along with a button to download an Excel file with them.""")
     return
 
 
 @app.cell
 def _(
     BytesIO,
+    annotations_file,
     event_options,
     event_radio,
     excel_file,
@@ -216,7 +225,6 @@ def _(
     labels_df,
     mo,
     selected_row,
-    server_results_file,
     subtype_text,
     type_text,
 ):
@@ -233,7 +241,7 @@ def _(
             labels_df.loc[selected_row.name.item(),'Subtype'] = subtype_text.value
 
     # results are written to disk *in the server*
-    labels_df.to_excel(excel_file.parent / server_results_file)
+    labels_df.to_excel(excel_file.parent / annotations_file)
 
     # a buffer to hold in memory...
     buf = BytesIO()
