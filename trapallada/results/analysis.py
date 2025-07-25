@@ -225,10 +225,11 @@ def wasserstein_between_gaussians(mean: Float[Array, 'i feature'], sd: Float[Arr
         
         mean_component = np.sum((mean[i]-mean)**2, axis=1)
 
-        variance_component = np.sum(sd[i] + sd - 2*np.sqrt(sd[i]*sd), axis=1)
+        # variance_component = np.sum(sd[i] + sd - 2*np.sqrt(sd[i]*sd), axis=1)
+        variance_component = np.clip(np.sum(sd[i] + sd - 2*np.sqrt(sd[i]*sd), axis=1), a_min=0., a_max=None)
 
         squared_distance[i] = mean_component + variance_component
-
+    
     return np.sqrt(squared_distance)
 
 def wasserstein_cluster(mean: Float[Array, 'i feature'], sd: Float[Array, 'i feature'], n_clusters: int = 4) -> Int[Array, 'i']:
