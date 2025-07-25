@@ -122,17 +122,22 @@ def dataloaders_from_dataset(
 
     return train_dl, validation_dl
 
-def sample_dataset_parameters():
+def sample_dataset_parameters(subdir='rates_large_infs', include_parameters: bool = False):
 
-    basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
+    # basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
+    basedir = trapallada.util.get_base_directory() / 'data' / 'rates_large_infs'
+    # basedir = trapallada.util.get_base_directory() / 'data' / 'mini_channels'
 
     assert basedir.exists()
 
     res = dict(
         signals_filename=basedir / 'signals.pt',
+        masks_filename=basedir / 'masks.pt',
         metadata_filename=basedir / 'metadata.parquet',
-        masks_filename=basedir / 'masks.pt'
         )
+    
+    if include_parameters:
+        res['data_preprocessing_parameters_filename'] = basedir / 'data_preprocessing_parameters.yaml'
 
     for file in res.values():
         assert file.exists(), f'"{file}" does not exist'

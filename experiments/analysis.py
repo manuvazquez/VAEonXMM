@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.9"
+__generated_with = "0.14.12"
 app = marimo.App(width="full")
 
 
@@ -323,6 +323,13 @@ def _(analysis_df):
 
 @app.cell
 def _(analysis_df):
+    # analysis_df.dtypes
+    analysis_df['wasserstein cluster in z']
+    return
+
+
+@app.cell
+def _(analysis_df):
     analysis_df.filter(like='z_').shape
     return
 
@@ -347,7 +354,7 @@ def _(mo):
 
 @app.cell
 def _():
-    available_clusterings = ['cluster in z', 'cluster in projected space']
+    available_clusterings = ['cluster in z', 'cluster in projected space', 'wasserstein cluster in z']
     return (available_clusterings,)
 
 
@@ -477,16 +484,39 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Mean and standard deviation for every variable in the latent space""")
+    mo.md(r"""## Mean""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Mean and standard deviation for every **mean** in the latent space""")
     return
 
 
 @app.cell
 def _(analysis_df, px):
-    # latents_df = analysis_df.filter(like='z_').agg(['mean', 'std']).T
     latents_df = analysis_df.filter(regex=r'z_\d+').agg(['mean', 'std']).T
-    # latents_df.head()
     px.scatter(latents_df, x=latents_df.index, y='mean', error_y='std')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Standard deviation""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Mean and standard deviation for every **standar deviation** in the latent space""")
+    return
+
+
+@app.cell
+def _(analysis_df, px):
+    latents_sd_df = analysis_df.filter(regex=r'z_sd_\d+').agg(['mean', 'std']).T
+    px.scatter(latents_sd_df, x=latents_sd_df.index, y='mean', error_y='std')
     return
 
 
@@ -533,14 +563,14 @@ def _(mo):
 
 @app.cell
 def _(analysis_df, available_clusterings, go, make_subplots):
-    fig = make_subplots(rows=1, cols=2, subplot_titles=tuple(available_clusterings))
+    fig = make_subplots(rows=1, cols=len(available_clusterings), subplot_titles=tuple(available_clusterings))
     for i_c, c in enumerate(available_clusterings):
         n_samples_per_cluster = analysis_df[c].value_counts()
         n_clusters = len(n_samples_per_cluster)
         fig.add_trace(go.Bar(x=n_samples_per_cluster.index, y=n_samples_per_cluster.values, name=c), row=1, col=i_c + 1)
         print(f'{n_clusters} {c}')
     fig.update_layout(title_text='Clusters', showlegend=False)
-    fig.show()
+    fig
     return
 
 
@@ -573,28 +603,11 @@ def _(mo):
 def _(
     analysis_df,
     full_signals_dir,
-    mo,
     on_plot_hover_columns,
     trapallada,
     tsne_columns,
 ):
-    plot = mo.ui.plotly(
-        trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in z')
-        # trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z')
-    )
-    plot
-    return (plot,)
-
-
-@app.cell
-def _(analysis_df, plot):
-    analysis_df.loc[plot.indices]
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""(some signals)""")
+    trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in z')
     return
 
 
@@ -613,6 +626,24 @@ def _(
     tsne_columns,
 ):
     trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in projected space')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""- cluster in the wasserstein space""")
+    return
+
+
+@app.cell
+def _(
+    analysis_df,
+    full_signals_dir,
+    on_plot_hover_columns,
+    trapallada,
+    tsne_columns,
+):
+    trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z')
     return
 
 
@@ -709,9 +740,7 @@ def _(
     tsne_columns,
 ):
     tsne_plot = trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
-    # tsne_plot_fig = tsne_plot.make_fig()
     tsne_plot_fig = tsne_plot.make_fig()
-    # tsne_plot_fig = tsne_plot.make_fig('wasserstein cluster in z')
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot

@@ -85,7 +85,7 @@ select_gpu_and_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAM
   #!/usr/bin/env bash
 
   export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
-  # echo $CUDA_VISIBLE_DEVICES
+  echo Selecting GPU \# $CUDA_VISIBLE_DEVICES
   if [ "$CUDA_VISIBLE_DEVICES" -eq -1 ]; then
     echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
   fi
@@ -127,7 +127,7 @@ pack_obs_with_background OUTPUT_SUBDIR BIN_SIZE="63" WINDOW_SIZE="225" STEP="10"
 pack_raw_obs OUTPUT_SUBDIR: (pack_obs OUTPUT_SUBDIR "1" "14175" "630")
 
 [group('data')]
-pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" "0" "0" data_dir/"sample" trapallada_data_dir)
+pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" "0.02" "0.2" data_dir/"sample" trapallada_data_dir)
 
 # pack_obs_min_count_rate_gti_ratio OUTPUT_SUBDIR MIN_COUNT_RATE="0.02" MIN_GTI_RATIO="0.2": (pack_obs OUTPUT_SUBDIR "63" "225" "10" "4" "0" MIN_COUNT_RATE MIN_GTI_RATIO data_dir trapallada_data_dir)
 

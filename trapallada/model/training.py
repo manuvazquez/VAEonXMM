@@ -56,6 +56,7 @@ def loss(
 
     # for the sake of readability
     batch_size = len(x)
+    overall_times = jnp.array(mask.shape).prod()
     overall_good_times = mask.sum()
 
     x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size))
@@ -72,13 +73,14 @@ def loss(
     if mask_non_gti_intervals:
         loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / overall_good_times
     else:
-        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / batch_size
+        loglikelihood = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum() / overall_times
 
-    # KL divergence
-    if mask_non_gti_intervals:
-        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
-    else:
-        kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+    # KL divergence (notice the mask cannot be applied here because it's on the time domain)
+    # if mask_non_gti_intervals:
+    #     kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / overall_good_times
+    # else:
+    #     kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
+    kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
 
     return -loglikelihood + kl, (loglikelihood, kl)
 

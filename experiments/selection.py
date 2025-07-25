@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.9"
+__generated_with = "0.14.12"
 app = marimo.App(width="full")
 
 
@@ -58,15 +58,17 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(pathlib):
     n_signals_to_keep = 200
     n_signals_to_keep_per_model_and_reference_window = 15
     # n_random_signals_to_keep = 80
     output_file_stem = 'signals_to_assess'
+
+    output_file_without_suffix = pathlib.Path('annotations') / 'signals_to_assess'
     return (
         n_signals_to_keep,
         n_signals_to_keep_per_model_and_reference_window,
-        output_file_stem,
+        output_file_without_suffix,
     )
 
 
@@ -552,10 +554,10 @@ def _(mo):
 
 
 @app.cell
-def _(model_dir, output_file_stem, signals_to_assess_df):
+def _(model_dir, output_file_without_suffix, signals_to_assess_df):
     shuffled_signals_to_assess_df = signals_to_assess_df.sample(frac=1, random_state=42)
-    shuffled_signals_to_assess_df.to_parquet(model_dir / (output_file_stem + '.parquet'))
-    shuffled_signals_to_assess_df.drop('Selected by', axis=1).to_excel(model_dir / (output_file_stem + '.xlsx'), index=False)
+    shuffled_signals_to_assess_df.to_parquet((model_dir / output_file_without_suffix).with_suffix('.parquet'))
+    shuffled_signals_to_assess_df.drop('Selected by', axis=1).to_excel((model_dir / output_file_without_suffix).with_suffix('.xlsx'), index=False)
     return
 
 

@@ -130,7 +130,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
     return model, results_df
 
-def cl_fit_vae_on_signals(args: list = None):
+def cl_fit_vae_on_signals(args: list | None = None):
     """
     Command line interface for the `fit_vae_on_signals` function.
     """
