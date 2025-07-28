@@ -99,7 +99,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
             mask = mask.numpy()
 
             model, opt_state, (loss_value, (log_likelihood_value, kl_value)) = trapallada.model.training.take_step(
-                model, optim, opt_state, x, mask, parameters['loss']['x_sd'], mask_non_gti_intervals, subkey)
+                model, optim, opt_state, x, mask, parameters['loss']['x_sd'], parameters['loss']['beta'], mask_non_gti_intervals, subkey)
 
             # adding up *averages* (of both the loss and the accuracy)
             results_df.loc[epoch, ('training', 'loss')] += loss_value.item()
@@ -117,7 +117,7 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
         results_df.loc[
             epoch, [('validation', 'loss'), ('validation', 'loglikelihood'), ('validation', 'kl')]
         ] = trapallada.model.training.evaluate(
-            model, validation_dl, trapallada.model.training.loss, parameters['loss']['x_sd'], mask_non_gti_intervals, evaluation_key)
+            model, validation_dl, trapallada.model.training.loss, parameters['loss']['x_sd'], parameters['loss']['beta'], mask_non_gti_intervals, evaluation_key)
 
         print(results_df.loc[epoch].to_frame().T)
 

@@ -9,6 +9,7 @@ PRNG seeds:
   training-validation splitting: 42
 loss:
   x_sd: 0.15 # <---- FFT
+  beta: 1.
 model: &model
   # channels: [12, 12, 12]
   channels:

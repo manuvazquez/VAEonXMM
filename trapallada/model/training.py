@@ -16,7 +16,7 @@ import trapallada.model.nn
 
 def evaluate(
         model: eqx.Module, dataloader: torch.utils.data.DataLoader, loss_function: Callable,
-        x_sd: float, mask_non_gti_intervals: bool, key: PRNGKeyArray):
+        x_sd: float, beta: float, mask_non_gti_intervals: bool, key: PRNGKeyArray):
 
     # # in case, there are layers that behave differently in training and inference modes
     # model = eqx.nn.inference_mode(model)
@@ -32,7 +32,7 @@ def evaluate(
         x = x.numpy()
         mask = mask.numpy()
     
-        loss_value, (log_likelihood_value, kl_value) = loss_function(model, x, mask, x_sd, mask_non_gti_intervals, subkey)
+        loss_value, (log_likelihood_value, kl_value) = loss_function(model, x, mask, x_sd, beta, mask_non_gti_intervals, subkey)
         
         # adding up *averages*
         loss_acc += loss_value.item()
@@ -50,6 +50,7 @@ def loss(
         x: Float[Array, 'batch channel length'],
         mask: Float[Array, 'batch 1 length'],
         x_sd: float,
+        beta: float,
         mask_non_gti_intervals: bool,
         key: PRNGKeyArray
         ) -> tuple[Float[Array, ''], tuple[Float[Array, ''], Float[Array, '']]]:
@@ -71,8 +72,6 @@ def loss(
 
     assert mask.ndim == 2
 
-    # CAVEAT: the number of signals is not taken into account for the normalization
-
     # reconstruction term
     if mask_non_gti_intervals:
         loglikelihood = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum() / (overall_good_times * batch_size)
@@ -82,7 +81,7 @@ def loss(
     # KL divergence (notice the mask cannot be applied here because it "lives" in the time domain)
     kl = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2) / batch_size
 
-    return -loglikelihood + kl, (loglikelihood, kl)
+    return -loglikelihood + beta*kl, (loglikelihood, kl)
 
 @eqx.filter_jit
 def take_step(
@@ -92,12 +91,13 @@ def take_step(
     x: Float[Array, 'batch channel length'],
     mask: Float[Array, 'batch 1 length'],
     x_sd: float,
+    beta: float,
     mask_non_gti_intervals: bool,
     key: PRNGKeyArray
 ) -> tuple[eqx.Module, PyTree, Float[Array, '']]:
 
     # the value (plus some auxiliary variables) and gradient of the model
-    value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, mask_non_gti_intervals, key)
+    value_aux, grads = eqx.filter_value_and_grad(loss, has_aux=True)(model, x, mask, x_sd, beta, mask_non_gti_intervals, key)
 
     # it returns transformed/processed gradients, and the optimizer state
     updates, opt_state = optimizer.update(grads, opt_state, model)
