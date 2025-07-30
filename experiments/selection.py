@@ -65,10 +65,12 @@ def _(pathlib):
     output_file_stem = 'signals_to_assess'
 
     output_file_without_suffix = pathlib.Path('annotations') / 'signals_to_assess'
+    selection_saved_file = pathlib.Path('annotations') / 'selected.xlsx'
     return (
         n_signals_to_keep,
         n_signals_to_keep_per_model_and_reference_window,
         output_file_without_suffix,
+        selection_saved_file,
     )
 
 
@@ -254,12 +256,13 @@ def _(mo):
 
 
 @app.cell
-def _(model_dir, save_button, signals_of_interest_table):
+def _(model_dir, save_button, selection_saved_file, signals_of_interest_table):
     # selection_saved_file = 'selected.xlsx'
-    selection_saved_file = model_dir / 'selected.xlsx'
+    # selection_saved_file = model_dir / 'selected.xlsx'
     if save_button.value:
-        signals_of_interest_table.value.to_excel(selection_saved_file, index_label='# window')
-    return (selection_saved_file,)
+        # signals_of_interest_table.value.to_excel(selection_saved_file, index_label='# window')
+        signals_of_interest_table.value.to_excel(model_dir / selection_saved_file, index_label='# window') # not tested
+    return
 
 
 @app.cell(hide_code=True)

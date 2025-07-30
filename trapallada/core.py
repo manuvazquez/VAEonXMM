@@ -6,10 +6,13 @@ import datetime
 
 import numpy as np
 import yaml
+from ruamel.yaml import YAML
 import pandas as pd
 import jax.random as jr
 import optax
 import equinox as eqx
+
+from sklearn.model_selection import ParameterGrid
 
 import trapallada.data
 import trapallada.model
@@ -109,17 +112,17 @@ def fit_vae_on_signals(train_dl, validation_dl, parameters: dict) -> tuple[eqx.M
 
         results_df.loc[
             epoch, [('training', 'loss'), ('training', 'loglikelihood'), ('training', 'kl')]
-            ] /= len(train_dl)
+            ] /= len(train_dl) # type: ignore
 
         # CAVEAT: the same `evaluation_key` is used every time
 
         # validation
         results_df.loc[
             epoch, [('validation', 'loss'), ('validation', 'loglikelihood'), ('validation', 'kl')]
-        ] = trapallada.model.training.evaluate(
+        ] = trapallada.model.training.evaluate( # type: ignore
             model, validation_dl, trapallada.model.training.loss, parameters['loss']['x_sd'], parameters['loss']['beta'], mask_non_gti_intervals, evaluation_key)
 
-        print(results_df.loc[epoch].to_frame().T)
+        print(results_df.loc[epoch].to_frame().T) # type: ignore
 
         epoch += 1
 
@@ -137,15 +140,13 @@ def cl_fit_vae_on_signals(args: list | None = None):
 
     starting_time = time.time()
 
-    # TODO: should `signals_hyperparameters_file` be optional?
-
     parser = argparse.ArgumentParser(description='Fit a VAE model to a dataset.')
 
     parser.add_argument('parameters_file', type=pathlib.Path, help='parameters file')
     parser.add_argument('signals_file', type=pathlib.Path, help='signals file')
     parser.add_argument('masks_file', type=pathlib.Path, help='masks file')
     parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
-    parser.add_argument('signals_hyperparameters_file', type=pathlib.Path, nargs='?', default=None, help='hyperparameters used in assembling the signals')
+    parser.add_argument('data_preprocessing_parameters', type=pathlib.Path, nargs='?', default=None, help='data pre-processing parameters file')
     parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files',
         nargs='?')
     
@@ -190,7 +191,7 @@ def cl_fit_vae_on_signals(args: list | None = None):
         command_line_arguments.signals_file, command_line_arguments.metadata_file, command_line_arguments.masks_file, **parameters['data']
     )
 
-    # `True` if there is there a beforehand known label for the corresponding window
+    # `True` if there is a beforehand known label for the corresponding window
     has_label = ds.metadata_df['source'].isin([e + '.FTZ' for e in trapallada.data.Labels().signals_without_prefix])
     
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
@@ -234,20 +235,20 @@ def cl_fit_vae_on_signals(args: list | None = None):
         masks_file=command_line_arguments.masks_file.relative_to(home_dir).as_posix(),
         metadata_file=command_line_arguments.metadata_file.relative_to(home_dir).as_posix())
 
-    # if a file with hyperparameters for the signals was passed...
-    if command_line_arguments.signals_hyperparameters_file:
-    
+    # if a file with data pre-processing parameters for the signals was passed...
+    if command_line_arguments.data_preprocessing_parameters:
+
         # ...it is read...
-        with command_line_arguments.signals_hyperparameters_file.open() as f:
-            
+        with command_line_arguments.data_preprocessing_parameters.open() as f:
+
             data_hyperparameters = yaml.safe_load(f)
 
         # ...and its content added to the `parameters` dictionary
-        parameters['dataset']['hyperparameters'] = data_hyperparameters
+        parameters['dataset']['data_preprocessing_parameters'] = data_hyperparameters
 
         # another file used for training is recorded
-        parameters['dataset']['files']['signals_hyperparameters_file'] = command_line_arguments.\
-            signals_hyperparameters_file.relative_to(home_dir).as_posix()
+        parameters['dataset']['files']['data_preprocessing_parameters_file'] = command_line_arguments.\
+            data_preprocessing_parameters.relative_to(home_dir).as_posix()
 
     with open(yaml_filename, 'w') as f:
         
@@ -284,6 +285,91 @@ def cl_fit_vae_on_signals(args: list | None = None):
         mlflow.log_artifact(parquet_filename)
         # mlflow.log_input(mlflow.data.Dataset(name='XMM-Newton Science Archive', source='https://nxsa.esac.esa.int/nxsa-web/#home'))
 
-        if command_line_arguments.signals_hyperparameters_file:
-            
-            mlflow.log_artifact(command_line_arguments.signals_hyperparameters_file)
+        if command_line_arguments.data_preprocessing_parameters:
+
+            mlflow.log_artifact(command_line_arguments.data_preprocessing_parameters)
+
+
+def cl_grid_fit_vae_on_signals(args: list | None = None):
+    """
+    Grid search for `fit_vae_on_signals` function.
+    """
+
+    parser = argparse.ArgumentParser(description='Grid-fit a VAE model to a dataset.')
+
+    parser.add_argument('parameters_file', type=pathlib.Path, help='parameters file')
+    parser.add_argument('signals_file', type=pathlib.Path, help='signals file')
+    parser.add_argument('masks_file', type=pathlib.Path, help='masks file')
+    parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
+    parser.add_argument('data_preprocessing_parameters', type=pathlib.Path, nargs='?', default=None, help='data pre-processing parameters file')
+    
+    command_line_arguments = parser.parse_args(args)
+
+    # for the sake of readability
+    dataset_inferred_name = command_line_arguments.signals_file.parent.stem
+    training_inferred_name = command_line_arguments.parameters_file.stem
+
+    if '.' in command_line_arguments.parameters_file.stem:
+        
+        print('The *name* of the parameters file should NOT include a dot (.)')
+
+        raise SystemExit
+    
+    # ...it is inferred from that of the parameters file and the (name of the) dataset determines the output directory
+    output_base_dir = command_line_arguments.parameters_file.parent / dataset_inferred_name / training_inferred_name
+    
+    # it is created if it does not exist
+    output_base_dir.mkdir(parents=True, exist_ok=True)
+
+    # a YAML parser
+    yaml = YAML()
+
+    # quotes are preserved in the output file
+    yaml.preserve_quotes = True
+
+    # the parameters file is read
+    with command_line_arguments.parameters_file.open('r') as f:
+        
+        parameters = yaml.load(f)
+
+    # every possible combination of parameters is generated
+    grid = ParameterGrid({
+        tuple(k.split('.')): v 
+        for k, v in parameters['grid search'].items()
+        }) # type: ignore
+
+    # for every combination of parameters...
+    for parameters_combination in grid:
+
+        subdir_components = []
+
+        # for parameter's path and value...
+        for path, value in parameters_combination.items():
+
+            # ...the path is set in the `parameters` dictionary
+            trapallada.util.set_path_in_dict(path, parameters, value)
+
+            subdir_components.append(f'{path[-1]}_{value}')
+
+        subdir = '_'.join(subdir_components)
+
+        output_dir = output_base_dir  / subdir
+        output_dir.mkdir(exist_ok=True, parents=True)
+
+        # the modified parameter file is saved in the new directory
+        new_parameters_file = output_dir / command_line_arguments.parameters_file.name
+
+        with new_parameters_file.open('w') as f:
+
+            yaml.dump(parameters, f)
+
+        cl_fit_vae_on_signals([
+            new_parameters_file.as_posix(),
+            command_line_arguments.signals_file.as_posix(),
+            command_line_arguments.masks_file.as_posix(),
+            command_line_arguments.metadata_file.as_posix(),
+            command_line_arguments.data_preprocessing_parameters.as_posix(),
+            '--output-dir',
+            output_dir.as_posix()
+        ])
+    

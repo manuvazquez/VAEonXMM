@@ -125,8 +125,9 @@ def dataloaders_from_dataset(
 def sample_dataset_parameters(subdir='rates_large_infs', include_parameters: bool = False):
 
     # basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
-    basedir = trapallada.util.get_base_directory() / 'data' / 'rates_large_infs'
+    # basedir = trapallada.util.get_base_directory() / 'data' / 'rates_large_infs'
     # basedir = trapallada.util.get_base_directory() / 'data' / 'mini_channels'
+    basedir = trapallada.util.get_base_directory() / 'data' / subdir
 
     assert basedir.exists()
 

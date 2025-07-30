@@ -92,9 +92,25 @@ select_gpu_and_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAM
   
   {{uv_command}} trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
+[private]
+select_gpu_and_grid_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
+  #!/usr/bin/env bash
+
+  export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
+  echo Selecting GPU \# $CUDA_VISIBLE_DEVICES
+  if [ "$CUDA_VISIBLE_DEVICES" -eq -1 ]; then
+    echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
+  fi
+  
+  {{uv_command}} trap_grid_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
+
 [group('training')]
 [doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
 fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
+
+[group('training')]
+[doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
+grid_fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_grid_fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
 [group('training')]
 [doc("PARAMETERS: a YAML file")]
@@ -102,9 +118,14 @@ fit_test PARAMETERS="parameters.yaml": && (fit tmp_dir/PARAMETERS "mini_rate")
   cp {{PARAMETERS}} {{tmp_dir}}
 
 [group('training')]
-fit_test_fft PARAMETERS="parameters.yaml": && (fit tmp_dir/"fft_" + PARAMETERS "mini_rate")
-  cp {{PARAMETERS}} {{tmp_dir}}/"fft_"{{PARAMETERS}}
-  patch {{tmp_dir}}/"fft_"{{PARAMETERS}} < "samples/fft.patch"
+[doc("PARAMETERS: a YAML file")]
+grid_fit_test PARAMETERS="parameters.yaml": && (grid_fit tmp_dir/PARAMETERS "mini_rate")
+  cp {{PARAMETERS}} {{tmp_dir}}
+
+# [group('training')]
+# fit_test_fft PARAMETERS="parameters.yaml": && (fit tmp_dir/"fft_" + PARAMETERS "mini_rate")
+#   cp {{PARAMETERS}} {{tmp_dir}}/"fft_"{{PARAMETERS}}
+#   patch {{tmp_dir}}/"fft_"{{PARAMETERS}} < "samples/fft.patch"
 
 # ========================================= data =====================================================
 

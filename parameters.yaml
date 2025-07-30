@@ -51,3 +51,7 @@ VAE:
     class: Decoder # <---- FFT (NonNegativeDecoder/NonNegativeConditionalDecoder)
     parameters:
       << : [*model]
+
+grid search:
+  model.dim_z: [2, 5, 10, 20, 50]
+  loss.beta: [0.01, 0.1, 0.5, 1, 5, 10]

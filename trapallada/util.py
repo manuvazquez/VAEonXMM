@@ -195,3 +195,17 @@ def get_base_directory():
         base_dir = base_dir.parent
 
     return base_dir
+
+def set_path_in_dict(path: tuple[str], d: dict, value) -> None:
+    """
+    Sets a value in a nested dictionary using a tuple as path.
+    Args:
+        path (tuple[str]): A tuple representing the path in the dictionary.
+        d (dict): The dictionary to modify.
+        value: The value to set at the specified path."""
+    
+    for k in path[:-1]:
+
+        d = d[k]
+
+    d[path[-1]] = value

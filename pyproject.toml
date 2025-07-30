@@ -20,6 +20,7 @@ dependencies = [
     "pandas",
     "plotly",
     "pyarrow",
+    "ruamel-yaml>=0.18.14",
     "scikit-learn",
     "scipy",
     "statsmodels>=0.14.4",
@@ -36,6 +37,7 @@ package = true
 
 [project.scripts]
 "trap_fit_vae_on_signals.py" = "trapallada.core:cl_fit_vae_on_signals"
+"trap_grid_fit_vae_on_signals.py" = "trapallada.core:cl_grid_fit_vae_on_signals"
 "trap_download_obs.py" = "trapallada.xsa.util:cl_download_observations"
 "trap_pack_obs.py" = "trapallada.xsa.util:cl_tars_to_array"
 

@@ -6,8 +6,11 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import equinox as eqx
-from jaxtyping import Float, Int, Array
+from jaxtyping import Float, Int, Array, PRNGKeyArray
+
+import numpyro.distributions as dist
 
 from sklearn.manifold import TSNE
 from scipy.cluster.hierarchy import linkage, fcluster
@@ -244,3 +247,45 @@ def wasserstein_cluster(mean: Float[Array, 'i feature'], sd: Float[Array, 'i fea
     labels = fcluster(Z, t=n_clusters, criterion='maxclust')
 
     return labels
+
+def data_losses(
+        model: eqx.Module, dataloader: DataLoader, x_sd: float, mask_non_gti_intervals: bool, rng_key: PRNGKeyArray):
+
+    log_likelihood, kl_divergence = [], []
+
+    for (_, x, mask), key in zip(dataloader, jr.split(rng_key, len(dataloader))):
+
+        # from torch to numpy/jax
+        x = x.numpy()
+        mask = mask.numpy()
+
+        batch_size, n_channels, _ = x.shape
+        
+        overall_times = jnp.array(mask.shape).prod() * n_channels
+        overall_good_times = mask.sum() * n_channels
+
+        x_pred, z_mean, z_sd = jax.vmap(model)(x, jr.split(key, batch_size)) # type: ignore
+
+        # if this is a Conditional VAE...
+        if isinstance(model, trapallada.model.nn.CVAE):
+            
+            # ...it is assumed that the last channel is the condition, and hence must not be reconstructed
+            x = x.at[:, :-1, :].get()
+
+        assert mask.ndim == 2
+
+        # reconstruction term
+        if mask_non_gti_intervals:
+            log_likelihood_value = (dist.Normal(loc=x_pred, scale=x_sd).log_prob(x) * mask[:, None, :]).sum(axis=(-1, -2)) / overall_good_times
+        else:
+            log_likelihood_value = dist.Normal(loc=x_pred, scale=x_sd).log_prob(x).sum(axis=(-1, -2)) / overall_times
+
+        # KL divergence (notice the mask cannot be applied here because it "lives" in the time domain)
+        kl_value = -0.5 * jnp.sum(1. + 2.*jnp.log(z_sd) - z_mean**2 - z_sd**2, axis=-1)
+    
+        # loss_value, (log_likelihood_value, kl_value) = loss_function(model, x, mask, x_sd, beta, mask_non_gti_intervals, subkey)
+
+        log_likelihood.append(log_likelihood_value)
+        kl_divergence.append(kl_value)
+
+    return log_likelihood, kl_divergence
