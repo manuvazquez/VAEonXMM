@@ -516,8 +516,9 @@ class TSNE:
 
     def highlight_windows_of_interest(self):
         
-        # signals_of_interest = XMMNewtonMetadata().signals_and_labels
-        signals_of_interest = trapallada.data.Labels().signals_and_labels
+        signals_of_interest = trapallada.data.Labels(
+            **{k: v for k,v in trapallada.data.labels_files().items() if k == 'reference_signals_file'}
+        ).reference_signals_and_labels
         
         for signal, name in signals_of_interest:
 
@@ -529,71 +530,24 @@ class TSNE:
             
             self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
 
-# class XMMNewtonMetadata:
+# class Latents:
 
-#     def __init__(self, data_file: str | pathlib.Path | None = None):
+#     def __init__(self, dl, encoder: eqx.Module, dim_z: int):
 
-#         if data_file is None:
-            
-#             self.data_file = get_base_directory() / 'interesting.yaml'
+#         self.dim_z = dim_z
+        
+#         z_s = []
+        
+#         for _, x, _ in dl:
+#             z_s.append(jax.vmap(encoder)(x.numpy())) # type: ignore
 
-#         else:
-            
-#             # just in case a `str` was passed...
-#             self.data_file = pathlib.Path(data_file)
-        
-#         with self.data_file.open() as f:
+#         self.z_s = jnp.vstack(z_s)
 
-#             self.data = yaml.safe_load(f)
-        
-#     @property
-#     def signals(self):
-        
-#         return list(self.data['signals of interest'].keys())
-#     @property
-#     def signals_to_labels(self):
-        
-#         return self.data['signals of interest']
+#     def plot_ith(self, i_z: int):
+
+#         fig = px.scatter(x=jnp.arange(self.dim_z), y=self.z_s[i_z, :self.dim_z], error_y=self.z_s[i_z, self.dim_z:])
     
-#     @property
-#     def signals_and_labels(self):
-        
-#         return list(map(list, self.data['signals of interest'].items()))
-    
-#     def __str__(self):
-        
-#         return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
-    
-#     def __repr__(self):
-        
-#         return self.__str__()
-
-# def get_xmm_newton_metadata():
-    
-#     return XMMNewtonMetadata().data
-
-# def get_signals_of_interest():
-
-#     return XMMNewtonMetadata().signals_and_labels
-
-class Latents:
-
-    def __init__(self, dl, encoder: eqx.Module, dim_z: int):
-
-        self.dim_z = dim_z
-        
-        z_s = []
-        
-        for _, x, _ in dl:
-            z_s.append(jax.vmap(encoder)(x.numpy()))
-
-        self.z_s = jnp.vstack(z_s)
-
-    def plot_ith(self, i_z: int):
-
-        fig = px.scatter(x=jnp.arange(self.dim_z), y=self.z_s[i_z, :self.dim_z], error_y=self.z_s[i_z, self.dim_z:])
-    
-        return fig
+#         return fig
 
 def make_save_button_widget(regions, regions_file):
     

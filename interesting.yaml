@@ -9,9 +9,9 @@ signals:
 # the *same* information in a more readable format
 signals of interest:
   0605950101/P0605950101PNX000SRCTSR8001: Javi
-  0840380201/P0840380201PNX000SRCTSR8004: Cataclysmic # low count rate
+  # 0840380201/P0840380201PNX000SRCTSR8004: Cataclysmic # low count rate; not a reference signal
   0690744401/P0690744401PNX000SRCTSR8002: I # infinity values in *some* signals
-  0148850101/P0148850101PNX000SRCTSR8004: II # low count rate
+  # 0148850101/P0148850101PNX000SRCTSR8004: II # low count rate; ; not a reference signal
   0740290301/P0740290301PNX000SRCTSR8002: III
   0720173901/P0720173901PNX000SRCTSR8001: IV
 

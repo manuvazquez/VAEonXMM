@@ -2,13 +2,14 @@ home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
 tmp_dir := '/tmp/'
 
-# light_curves_dir := join(home_dir, 'Sync/research/light curves')
-
 trapallada_dir := justfile_directory()
 trapallada_data_dir := join(trapallada_dir, 'data')
 
-# data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada')
-# data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada2')
+# annotations
+
+reference_signals_file := join(trapallada_dir, 'interesting.yaml')
+annotated_windows_file := join(trapallada_dir, 'annotations', 'annotated_windows.parquet')
+
 data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada3')
 
 conda_environment := "trap"
@@ -80,8 +81,10 @@ run_assessment:
 
 # ====================================================================================================
 
+# FIXME: "select_gpu_and_fit" ALWAYS uses annotated windows and reference signals files
+
 [private]
-select_gpu_and_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
+select_gpu_and_fit SCRIPT PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
   #!/usr/bin/env bash
 
   export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
@@ -90,27 +93,17 @@ select_gpu_and_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAM
     echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
   fi
   
-  {{uv_command}} trap_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
+  {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
-[private]
-select_gpu_and_grid_fit PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
-  #!/usr/bin/env bash
-
-  export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
-  echo Selecting GPU \# $CUDA_VISIBLE_DEVICES
-  if [ "$CUDA_VISIBLE_DEVICES" -eq -1 ]; then
-    echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
-  fi
-  
-  {{uv_command}} trap_grid_fit_vae_on_signals.py {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
+  # {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}" "--reference-signals-file" "{{reference_signals_file}}" "--annotated-windows-file" "{{annotated_windows_file}}"
 
 [group('training')]
 [doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
-fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
+fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit "trap_fit_vae_on_signals.py"  PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
 [group('training')]
 [doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
-grid_fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_grid_fit PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
+grid_fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit "trap_grid_fit_vae_on_signals.py" PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
 
 [group('training')]
 [doc("PARAMETERS: a YAML file")]

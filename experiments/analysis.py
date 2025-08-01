@@ -417,7 +417,9 @@ def _(mo):
 @app.cell
 def _(trapallada):
     # xmm_newton_metadata = trapallada.analysis.get_xmm_newton_metadata()
-    xmm_newton_metadata = trapallada.data.Labels().data
+    xmm_newton_metadata = trapallada.data.Labels(
+        **{k: v for k,v in trapallada.data.labels_files().items() if k == 'reference_signals_file'}
+    ).reference_signals_data
     xmm_newton_metadata
     return (xmm_newton_metadata,)
 

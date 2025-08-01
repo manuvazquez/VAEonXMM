@@ -3,6 +3,7 @@ import argparse
 import signal
 import time
 import datetime
+import sys
 
 import numpy as np
 import yaml
@@ -147,9 +148,11 @@ def cl_fit_vae_on_signals(args: list | None = None):
     parser.add_argument('masks_file', type=pathlib.Path, help='masks file')
     parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
     parser.add_argument('data_preprocessing_parameters', type=pathlib.Path, nargs='?', default=None, help='data pre-processing parameters file')
-    parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files',
-        nargs='?')
-    
+    # parser.add_argument('data_preprocessing_parameters', type=pathlib.Path, default=None, help='data pre-processing parameters file')
+    parser.add_argument('-r', '--reference-signals-file', type=pathlib.Path, default=None, help='file with reference signals for validation')
+    parser.add_argument('-a', '--annotated-windows-file', type=pathlib.Path, default=None, help='file with annotated windows for validation')
+    parser.add_argument('-o', '--output-dir', type=pathlib.Path, default=None, help='directory for output files')
+
     command_line_arguments = parser.parse_args(args)
 
     # for the sake of readability
@@ -192,14 +195,35 @@ def cl_fit_vae_on_signals(args: list | None = None):
     )
 
     # `True` if there is a beforehand known label for the corresponding window
-    has_label = ds.metadata_df['source'].isin([e + '.FTZ' for e in trapallada.data.Labels().signals_without_prefix])
-    
+    # has_label = ds.metadata_df['source'].isin([e + '.FTZ' for e in trapallada.data.Labels().signals_without_prefix])
+    # annotated_windows_file = trapallada.util.get_base_directory() / 'annotations' / 'signals_to_assess.parquet'
+    has_label = ds.metadata_df['source'].isin(
+        [e + '.FTZ' 
+         for e in trapallada.data.Labels(
+             reference_signals_file=command_line_arguments.reference_signals_file,
+             annotated_windows_file=command_line_arguments.annotated_windows_file
+            ).signals_without_prefix]
+    )
+    i_windows_to_validation = np.flatnonzero(has_label)
+    n_windows_to_validation = len(i_windows_to_validation)
+
+    # if there are NO annotated windows...
+    if n_windows_to_validation == 0:
+        
+        i_windows_to_validation = None
+
+    # if there are annotated windows
+    else:
+
+        # CAVEAT: some windows might be annotated with "I don't know"
+        logger.info(f'{n_windows_to_validation} annotated windows pushed to the validation set')
+
     # ...and split into training and validation sets (here in the form of `DataLoader`s)
     train_dl, validation_dl = trapallada.data.dataloaders_from_dataset(
         ds,
         parameters['training']['train_test_split'] | dict(random_state=parameters['PRNG seeds']['training-validation splitting']),
         parameters['training']['batch_size'], parameters['PRNG seeds']['training dataloader'],
-        i_to_validation=np.flatnonzero(has_label)
+        i_to_validation=i_windows_to_validation
     )
 
     # the model is trained
@@ -249,6 +273,14 @@ def cl_fit_vae_on_signals(args: list | None = None):
         # another file used for training is recorded
         parameters['dataset']['files']['data_preprocessing_parameters_file'] = command_line_arguments.\
             data_preprocessing_parameters.relative_to(home_dir).as_posix()
+
+    if command_line_arguments.reference_signals_file:
+
+        parameters['dataset']['files']['reference_signals_file'] = command_line_arguments.reference_signals_file.relative_to(home_dir).as_posix()
+
+    if command_line_arguments.annotated_windows_file:
+
+        parameters['dataset']['files']['annotated_windows_file'] = command_line_arguments.annotated_windows_file.relative_to(home_dir).as_posix()
 
     with open(yaml_filename, 'w') as f:
         
@@ -302,6 +334,8 @@ def cl_grid_fit_vae_on_signals(args: list | None = None):
     parser.add_argument('masks_file', type=pathlib.Path, help='masks file')
     parser.add_argument('metadata_file', type=pathlib.Path, help='associated metadata for signals file')
     parser.add_argument('data_preprocessing_parameters', type=pathlib.Path, nargs='?', default=None, help='data pre-processing parameters file')
+    parser.add_argument('-r', '--reference-signals-file', type=pathlib.Path, default=None, help='file with reference signals for validation')
+    parser.add_argument('-a', '--annotated-windows-file', type=pathlib.Path, default=None, help='file with annotated windows for validation')
     
     command_line_arguments = parser.parse_args(args)
 
@@ -337,7 +371,7 @@ def cl_grid_fit_vae_on_signals(args: list | None = None):
         tuple(k.split('.')): v 
         for k, v in parameters['grid search'].items()
         }) # type: ignore
-
+    
     # for every combination of parameters...
     for parameters_combination in grid:
 
@@ -363,13 +397,8 @@ def cl_grid_fit_vae_on_signals(args: list | None = None):
 
             yaml.dump(parameters, f)
 
-        cl_fit_vae_on_signals([
-            new_parameters_file.as_posix(),
-            command_line_arguments.signals_file.as_posix(),
-            command_line_arguments.masks_file.as_posix(),
-            command_line_arguments.metadata_file.as_posix(),
-            command_line_arguments.data_preprocessing_parameters.as_posix(),
-            '--output-dir',
-            output_dir.as_posix()
-        ])
+        cl_fit_vae_on_signals(
+            [new_parameters_file.as_posix()] + (args if args else sys.argv[1:])[1:] +
+            ['--output-dir', output_dir.as_posix()]
+        )
     

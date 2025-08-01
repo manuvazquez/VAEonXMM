@@ -122,70 +122,112 @@ def dataloaders_from_dataset(
 
     return train_dl, validation_dl
 
-def sample_dataset_parameters(subdir='rates_large_infs', include_parameters: bool = False):
+def sample_dataset_parameters(subdir='rates_large_infs', include_parameters: bool = False) -> dict[str, pathlib.Path]:
+    
+    base_dir = trapallada.util.get_base_directory()
 
     # basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
     # basedir = trapallada.util.get_base_directory() / 'data' / 'rates_large_infs'
     # basedir = trapallada.util.get_base_directory() / 'data' / 'mini_channels'
-    basedir = trapallada.util.get_base_directory() / 'data' / subdir
+    data_dir = base_dir / 'data' / subdir
 
-    assert basedir.exists()
+    assert data_dir.exists()
 
     res = dict(
-        signals_filename=basedir / 'signals.pt',
-        masks_filename=basedir / 'masks.pt',
-        metadata_filename=basedir / 'metadata.parquet',
+        signals_filename=data_dir / 'signals.pt',
+        masks_filename=data_dir / 'masks.pt',
+        metadata_filename=data_dir / 'metadata.parquet',
         )
     
     if include_parameters:
-        res['data_preprocessing_parameters_filename'] = basedir / 'data_preprocessing_parameters.yaml'
+        
+        res['data_preprocessing_parameters_filename'] = data_dir / 'data_preprocessing_parameters.yaml'
 
     for file in res.values():
+        
         assert file.exists(), f'"{file}" does not exist'
     
     return res
 
 class Labels:
 
-    def __init__(self, data_file: str | pathlib.Path | None = None):
+    def __init__(self, reference_signals_file: str | pathlib.Path | None = None, annotated_windows_file: str | pathlib.Path | None = None):
 
-        if data_file is None:
+        self.signals: list[str] = []
+
+        # if reference_signals_file is None:
             
-            self.data_file = trapallada.util.get_base_directory() / 'interesting.yaml'
+        #     self.reference_signals_file = trapallada.util.get_base_directory() / 'interesting.yaml'
 
-        else:
+        # else:
             
-            # just in case a `str` was passed...
-            self.data_file = pathlib.Path(data_file)
-        
-        with self.data_file.open() as f:
+        #     # just in case a `str` was passed...
+        #     self.reference_signals_file = pathlib.Path(reference_signals_file)
 
-            self.data = yaml.safe_load(f)
+        self.reference_signals_data: dict[str, list[str]] | None = None
         
-    @property
-    def signals(self):
+        if reference_signals_file is not None:
+
+            with open(reference_signals_file) as f:
+
+                self.reference_signals_data = yaml.safe_load(f)
+
+            self.signals += list(self.reference_signals_data['signals of interest'].keys())
+
+        # if a file with annotated windows is provided...
+        if annotated_windows_file is not None:
+            
+            self.annotated_windows_file = pd.read_parquet(annotated_windows_file)
+            
+            self.signals += self.annotated_windows_file['signal'].unique().tolist()
         
-        return list(self.data['signals of interest'].keys())
+    # @property
+    # def signals(self):
+        
+    #     return list(self.reference_signals_data['signals of interest'].keys())
     
     @property
     def signals_without_prefix(self):
         
         return [e.split('/')[1 ]for e in self.signals]
     
-    @property
-    def signals_to_labels(self):
+    # @property
+    # def signals_to_labels(self):
         
-        return self.data['signals of interest']
+    #     return self.reference_signals_data['signals of interest']
     
     @property
-    def signals_and_labels(self):
-        
-        return list(map(list, self.data['signals of interest'].items()))
+    def reference_signals_and_labels(self):
+
+        if self.reference_signals_data is None:
+            return []
+        else:
+            return list(map(list, self.reference_signals_data['signals of interest'].items()))
     
     def __str__(self):
-        
-        return pd.DataFrame(self.signals_to_labels.items(), columns=['signal', 'alias']).to_string()
-    
+
+        res = 'Reference signals:\n'    
+
+        if self.reference_signals_data is not None:
+            res += pd.DataFrame(self.reference_signals_data['signals of interest'].items(), columns=['signal', 'alias']).to_string()
+
+        return res
+
     def __repr__(self):
         
         return self.__str__()
+
+def labels_files() -> dict[str, pathlib.Path]:
+    
+    base_dir = trapallada.util.get_base_directory()
+
+    res = dict(
+        reference_signals_file=base_dir / 'interesting.yaml',
+        annotated_windows_file=base_dir / 'annotations' / 'annotated_windows.parquet',
+        )
+
+    for file in res.values():
+        
+        assert file.exists(), f'"{file}" does not exist'
+    
+    return res
