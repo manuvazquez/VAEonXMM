@@ -25,7 +25,10 @@ import trapallada.logging as log
 
 logger = log.setup_logging(__name__)
 
-def load_dir(dir, analysis_also: bool=False):
+def load_dir(
+        dir: str | pathlib.Path, analysis_also: bool=False
+    ) -> tuple[trapallada.data.SignalsDataset, pd.DataFrame, eqx.Module, pd.DataFrame, dict] |\
+          tuple[trapallada.data.SignalsDataset, pd.DataFrame, eqx.Module, pd.DataFrame, dict, pd.DataFrame]:
 
     # it's turned into a `Pathlib` object
     dir = pathlib.Path(dir)

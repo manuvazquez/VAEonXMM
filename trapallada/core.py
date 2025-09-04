@@ -312,9 +312,9 @@ def cl_fit_vae_on_signals(args: list | None = None):
             
             mlflow.log_metrics({'_'.join(k):v for k,v in res.to_dict().items()}, step=i_res)
 
-        mlflow.log_artifact(yaml_filename)
-        mlflow.log_artifact(eqx_filename)
-        mlflow.log_artifact(parquet_filename)
+        mlflow.log_artifact(yaml_filename.as_posix())
+        mlflow.log_artifact(eqx_filename.as_posix())
+        mlflow.log_artifact(parquet_filename.as_posix())
         # mlflow.log_input(mlflow.data.Dataset(name='XMM-Newton Science Archive', source='https://nxsa.esac.esa.int/nxsa-web/#home'))
 
         if command_line_arguments.data_preprocessing_parameters:

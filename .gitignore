@@ -17,3 +17,11 @@ graphs
 # uv
 uv.lock
 .python-version
+
+notas.md
+TODO.md
+
+# some directories to ignore
+results
+papers
+annotations

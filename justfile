@@ -81,10 +81,8 @@ run_assessment:
 
 # ====================================================================================================
 
-# FIXME: "select_gpu_and_fit" ALWAYS uses annotated windows and reference signals files
-
 [private]
-select_gpu_and_fit SCRIPT PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="":
+select_gpu_and_fit SCRIPT PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYPERPARAMETERS_FILE="" ANNOTATED_WINDOWS_TO_VALIDATION="true":
   #!/usr/bin/env bash
 
   export CUDA_VISIBLE_DEVICES=$(select-gpu.sh)
@@ -92,27 +90,31 @@ select_gpu_and_fit SCRIPT PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYP
   if [ "$CUDA_VISIBLE_DEVICES" -eq -1 ]; then
     echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
   fi
-  
-  {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
+
+  {{ if ANNOTATED_WINDOWS_TO_VALIDATION == "true" { "echo ❗ Using annotated windows and reference signals files" } else { "" } }}
+
+  # {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
 
   # {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}" "--reference-signals-file" "{{reference_signals_file}}" "--annotated-windows-file" "{{annotated_windows_file}}"
 
-[group('training')]
-[doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
-fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit "trap_fit_vae_on_signals.py"  PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
+  {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}" {{ if ANNOTATED_WINDOWS_TO_VALIDATION == "true" { "--reference-signals-file " +  reference_signals_file + " --annotated-windows-file " + annotated_windows_file } else { "" } }}
 
 [group('training')]
 [doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
-grid_fit PARAMETERS DATA_FILES_DIR: (select_gpu_and_fit "trap_grid_fit_vae_on_signals.py" PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml")
+fit PARAMETERS DATA_FILES_DIR  ANNOTATED_WINDOWS_TO_VALIDATION="true": (select_gpu_and_fit "trap_fit_vae_on_signals.py"  PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml" ANNOTATED_WINDOWS_TO_VALIDATION)
+
+[group('training')]
+[doc("PARAMETERS: a YAML file; DATA_FILES_DIR: the *sub*-directory (of the predetermined data directory) where .pt and .parquet files are located")]
+grid_fit PARAMETERS DATA_FILES_DIR  ANNOTATED_WINDOWS_TO_VALIDATION="true": (select_gpu_and_fit "trap_grid_fit_vae_on_signals.py" PARAMETERS DATA_FILES_DIR + "/signals.pt" DATA_FILES_DIR + "/masks.pt" DATA_FILES_DIR + "/metadata.parquet" DATA_FILES_DIR + "/data_preprocessing_parameters.yaml" ANNOTATED_WINDOWS_TO_VALIDATION)
 
 [group('training')]
 [doc("PARAMETERS: a YAML file")]
-fit_test PARAMETERS="parameters.yaml": && (fit tmp_dir/PARAMETERS "mini_rate")
+fit_test PARAMETERS="parameters.yaml"  ANNOTATED_WINDOWS_TO_VALIDATION="true": && (fit tmp_dir/PARAMETERS "mini_rate" ANNOTATED_WINDOWS_TO_VALIDATION)
   cp {{PARAMETERS}} {{tmp_dir}}
 
 [group('training')]
 [doc("PARAMETERS: a YAML file")]
-grid_fit_test PARAMETERS="parameters.yaml": && (grid_fit tmp_dir/PARAMETERS "mini_rate")
+grid_fit_test PARAMETERS="parameters.yaml" ANNOTATED_WINDOWS_TO_VALIDATION="true": && (grid_fit tmp_dir/PARAMETERS "mini_rate" ANNOTATED_WINDOWS_TO_VALIDATION)
   cp {{PARAMETERS}} {{tmp_dir}}
 
 # [group('training')]

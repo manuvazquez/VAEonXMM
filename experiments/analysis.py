@@ -201,8 +201,13 @@ def _(mo):
 
 
 @app.cell
-def _(dim_z, mo):
-    z_cols = [f'z_{i}' for i in range(1, dim_z+1)]
+def _(dim_z, ds, mo, radio, slider):
+    # z_cols = [f'z_{i}' for i in range(1, dim_z + 1)]
+    if radio.value == 'vae':
+        z_cols = [f'z_{i}' for i in range(1, dim_z + 1)]
+    else:
+        z_cols = [f'z_{i}' for i in range(1, ds[0][1].shape[0]**2 * slider.value + 1)]
+
     z_sd_cols = [f'z_sd_{i}' for i in range(1, dim_z+1)]
     z_cols, z_cols
     mo.hstack((z_cols, z_sd_cols))
@@ -322,9 +327,9 @@ def _(analysis_df):
 
 
 @app.cell
-def _(analysis_df):
-    # analysis_df.dtypes
-    analysis_df['wasserstein cluster in z']
+def _(analysis_df, radio):
+    if radio.value == 'vae':
+        analysis_df['wasserstein cluster in z']
     return
 
 
@@ -353,8 +358,11 @@ def _(mo):
 
 
 @app.cell
-def _():
-    available_clusterings = ['cluster in z', 'cluster in projected space', 'wasserstein cluster in z']
+def _(radio):
+    available_clusterings = ['cluster in z', 'cluster in projected space']
+
+    if radio.value == 'vae':
+        available_clusterings += ['wasserstein cluster in z']
     return (available_clusterings,)
 
 
@@ -365,8 +373,9 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, available_clusterings):
-    analysis_df[available_clusterings].dtypes
+def _(analysis_df, available_clusterings, radio):
+    if radio.value == 'vae':
+        analysis_df[available_clusterings].dtypes
     return
 
 
@@ -516,9 +525,10 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, px):
-    latents_sd_df = analysis_df.filter(regex=r'z_sd_\d+').agg(['mean', 'std']).T
-    px.scatter(latents_sd_df, x=latents_sd_df.index, y='mean', error_y='std')
+def _(analysis_df, mo, px, radio):
+    if radio.value == 'vae':
+        latents_sd_df = analysis_df.filter(regex=r'z_sd_\d+').agg(['mean', 'std']).T
+        mo.output.append(px.scatter(latents_sd_df, x=latents_sd_df.index, y='mean', error_y='std'))
     return
 
 
@@ -641,11 +651,14 @@ def _(mo):
 def _(
     analysis_df,
     full_signals_dir,
+    mo,
     on_plot_hover_columns,
+    radio,
     trapallada,
     tsne_columns,
 ):
-    trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z')
+    if radio.value == 'vae':
+        mo.output.append(trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z'))
     return
 
 
