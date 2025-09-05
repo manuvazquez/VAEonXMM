@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.14.12"
+__generated_with = "0.15.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""> Check the signals in some clusters""")
+    mo.md(r"""> Windows selected to be evaluated by the annotator""")
     return
 
 
@@ -65,13 +65,26 @@ def _(pathlib):
     output_file_stem = 'signals_to_assess'
 
     output_file_without_suffix = pathlib.Path('annotations') / 'signals_to_assess'
-    selection_saved_file = pathlib.Path('annotations') / 'selected.xlsx'
+    reference_windows_saved_file = pathlib.Path('annotations') / 'reference_windows.xlsx'
     return (
         n_signals_to_keep,
         n_signals_to_keep_per_model_and_reference_window,
         output_file_without_suffix,
-        selection_saved_file,
+        reference_windows_saved_file,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""File with the *reference* **signals**""")
+    return
+
+
+@app.cell
+def _(trapallada):
+    reference_signals_file = trapallada.data.labels_files()['reference_signals_file']
+    reference_signals_file
+    return (reference_signals_file,)
 
 
 @app.cell(hide_code=True)
@@ -201,13 +214,13 @@ def _(mo):
 
 
 @app.cell
-def _(metadata_df, mo, trapallada):
+def _(metadata_df, mo, reference_signals_file, trapallada):
     signals_of_interest_df = metadata_df[
-        metadata_df['signal'].isin(trapallada.data.Labels().signals)
+        metadata_df['signal'].isin(trapallada.data.Labels(reference_signals_file).signals)
     ]
     mo.hstack((
         signals_of_interest_df.drop_duplicates('source'),
-        trapallada.data.Labels().signals_without_prefix
+        trapallada.data.Labels(reference_signals_file).signals_without_prefix
     ))
     return (signals_of_interest_df,)
 
@@ -256,12 +269,15 @@ def _(mo):
 
 
 @app.cell
-def _(model_dir, save_button, selection_saved_file, signals_of_interest_table):
-    # selection_saved_file = 'selected.xlsx'
-    # selection_saved_file = model_dir / 'selected.xlsx'
+def _(
+    model_dir,
+    reference_windows_saved_file,
+    save_button,
+    signals_of_interest_table,
+):
     if save_button.value:
-        # signals_of_interest_table.value.to_excel(selection_saved_file, index_label='# window')
-        signals_of_interest_table.value.to_excel(model_dir / selection_saved_file, index_label='# window') # not tested
+        # signals_of_interest_table.value.to_excel(reference_windows_saved_file, index_label='# window')
+        signals_of_interest_table.value.to_excel(model_dir / reference_windows_saved_file, index_label='# window') # not tested
     return
 
 
@@ -272,21 +288,15 @@ def _(mo):
 
 
 @app.cell
-def _(pd, selection_saved_file):
-    selected_df = pd.read_excel(selection_saved_file)
-    selected_df.head()
-    return (selected_df,)
+def _(pd, reference_windows_saved_file):
+    reference_windows_df = pd.read_excel(reference_windows_saved_file)
+    reference_windows_df
+    return (reference_windows_df,)
 
 
 @app.cell
-def _(selected_df):
-    set(selected_df['signal'])
-    return
-
-
-@app.cell
-def _(selected_df):
-    selected_df
+def _(reference_windows_df):
+    set(reference_windows_df['signal'])
     return
 
 
@@ -302,12 +312,12 @@ def _(mo):
 
 
 @app.cell
-def _(metadata_df, selected_df):
+def _(metadata_df, reference_windows_df):
     # windows belonging to the "reference signals" are not `eligible`...
-    eligible = ~metadata_df['signal'].isin(set(selected_df['signal']))
+    eligible = ~metadata_df['signal'].isin(set(reference_windows_df['signal']))
 
     # ...unless they are one the above selected
-    eligible.loc[selected_df['# window']] = True
+    eligible.loc[reference_windows_df['# window']] = True
 
     i_eligible = metadata_df[eligible].index.to_numpy()
     return (i_eligible,)
@@ -326,7 +336,7 @@ def _(mo):
 
 
 @app.cell
-def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
+def _(i_eligible, metadata_df, np, pathlib, pd, reference_windows_df, scipy):
     def rank_windows(file: str | pathlib.Path, return_distances: bool = False):
 
         # just in case a `str` was passed
@@ -339,10 +349,10 @@ def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
         assert len(df) == len(metadata_df)
 
         z = df.filter(regex=r'z_\d+').values
-        z_selected = z[selected_df['# window']]
+        z_selected = z[reference_windows_df['# window']]
 
         # '# window` should yield an actual index (which is also a label in the `DataFrame`)
-        assert np.allclose(z_selected, df.filter(regex=r'z_\d+').loc[selected_df['# window']].values)
+        assert np.allclose(z_selected, df.filter(regex=r'z_\d+').loc[reference_windows_df['# window']].values)
 
         # a submatrix with only the "eligible" windows (`z_selected` should be among them)
         z_eligible = z[i_eligible]
@@ -350,10 +360,10 @@ def _(i_eligible, metadata_df, np, pathlib, pd, scipy, selected_df):
         distances = scipy.spatial.distance.cdist(z_selected, z_eligible)
 
         # for the sake of convenience and readability
-        i_selected = np.arange(len(selected_df))
+        i_selected = np.arange(len(reference_windows_df))
 
         # we look up the original indexes of selected windows in `i_eligible` (to get their indexes in `z_eligible`)
-        i_selected_window_within_eligible = np.where(i_eligible[:, None]==selected_df['# window'].to_numpy())[0]
+        i_selected_window_within_eligible = np.where(i_eligible[:, None]==reference_windows_df['# window'].to_numpy())[0]
 
         # the closest distance is always 0 (to the element itself)...
         assert (distances[i_selected, i_selected_window_within_eligible] == 0.).all()

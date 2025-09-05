@@ -195,8 +195,6 @@ def cl_fit_vae_on_signals(args: list | None = None):
     )
 
     # `True` if there is a beforehand known label for the corresponding window
-    # has_label = ds.metadata_df['source'].isin([e + '.FTZ' for e in trapallada.data.Labels().signals_without_prefix])
-    # annotated_windows_file = trapallada.util.get_base_directory() / 'annotations' / 'signals_to_assess.parquet'
     has_label = ds.metadata_df['source'].isin(
         [e + '.FTZ' 
          for e in trapallada.data.Labels(
