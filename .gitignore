@@ -9,6 +9,7 @@ iframe_figures
 *.jpg
 *.FTZ
 *.PNG
+*.png
 logs
 .directory
 mlruns
@@ -24,4 +25,4 @@ TODO.md
 # some directories to ignore
 results
 papers
-annotations
+# annotations

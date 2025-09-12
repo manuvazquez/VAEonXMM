@@ -79,6 +79,10 @@ serve_assessment:
 run_assessment:
   {{uv_command}} marimo run experiments/assessment.py
 
+[group('results')]
+vae_vs_ar:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py
+
 # ====================================================================================================
 
 [private]
@@ -91,11 +95,7 @@ select_gpu_and_fit SCRIPT PARAMETERS DATA_FILE MASKS_FILE METADATA_FILE DATA_HYP
     echo "⚠️ nvidia-smi not found. CUDA_VISIBLE_DEVICES not set" >&2
   fi
 
-  {{ if ANNOTATED_WINDOWS_TO_VALIDATION == "true" { "echo ❗ Using annotated windows and reference signals files" } else { "" } }}
-
-  # {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}"
-
-  # {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}" "--reference-signals-file" "{{reference_signals_file}}" "--annotated-windows-file" "{{annotated_windows_file}}"
+  {{ if ANNOTATED_WINDOWS_TO_VALIDATION == "true" { "echo ❗ Using annotated windows and reference signals files to assemble the validation set" } else { "" } }}
 
   {{uv_command}} {{SCRIPT}} {{PARAMETERS}} "{{trapallada_data_dir}}"/"{{DATA_FILE}}" "{{trapallada_data_dir}}"/"{{MASKS_FILE}}" "{{trapallada_data_dir}}"/"{{METADATA_FILE}}" "{{trapallada_data_dir}}"/"{{DATA_HYPERPARAMETERS_FILE}}" {{ if ANNOTATED_WINDOWS_TO_VALIDATION == "true" { "--reference-signals-file " +  reference_signals_file + " --annotated-windows-file " + annotated_windows_file } else { "" } }}
 

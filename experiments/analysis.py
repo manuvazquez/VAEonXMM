@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.12"
+__generated_with = "0.15.3"
 app = marimo.App(width="full")
 
 
@@ -81,6 +81,13 @@ def _(mo, radio):
         slider = mo.ui.form(element=mo.ui.slider(start=2, stop=20, label="AR process order", value=5))
         mo.output.append(slider)
     return (slider,)
+
+
+@app.cell
+def _(mo, radio, slider):
+    if radio.value == 'ar':
+        mo.stop(slider.value is None, mo.md("**Choose the order of the AR model**"))
+    return
 
 
 @app.cell(hide_code=True)
@@ -206,10 +213,11 @@ def _(dim_z, ds, mo, radio, slider):
     if radio.value == 'vae':
         z_cols = [f'z_{i}' for i in range(1, dim_z + 1)]
     else:
+        mo.stop(slider.value is None, mo.md("**Choose the order of the AR model**"))
         z_cols = [f'z_{i}' for i in range(1, ds[0][1].shape[0]**2 * slider.value + 1)]
 
     z_sd_cols = [f'z_sd_{i}' for i in range(1, dim_z+1)]
-    z_cols, z_cols
+    z_cols, z_sd_cols
     mo.hstack((z_cols, z_sd_cols))
     return z_cols, z_sd_cols
 
