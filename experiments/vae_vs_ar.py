@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.3"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -310,9 +310,9 @@ def _(mo):
 
 @app.cell
 def _(pd, res_df):
-    res_df_1 = res_df[~pd.isna(res_df['Label'])]
-    res_df_1.shape
-    return (res_df_1,)
+    no_undecided_res_df = res_df[~pd.isna(res_df['Label'])]
+    no_undecided_res_df.shape
+    return (no_undecided_res_df,)
 
 
 @app.cell(hide_code=True)
@@ -322,8 +322,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    res_df_1['Type'].value_counts(dropna=False).plot(kind='bar')
+def _(no_undecided_res_df):
+    no_undecided_res_df['Type'].value_counts(dropna=False).plot(kind='bar')
     return
 
 
@@ -334,8 +334,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    vae_selected_df = res_df_1[res_df_1['Selected by'] == 'VAE'].drop(columns=['Selected by'])
+def _(no_undecided_res_df):
+    vae_selected_df = no_undecided_res_df[no_undecided_res_df['Selected by'] == 'VAE'].drop(columns=['Selected by'])
     return (vae_selected_df,)
 
 
@@ -346,8 +346,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    ar_selected_df = res_df_1[res_df_1['Selected by'] == 'AR'].drop(columns=['Selected by'])
+def _(no_undecided_res_df):
+    ar_selected_df = no_undecided_res_df[no_undecided_res_df['Selected by'] == 'AR'].drop(columns=['Selected by'])
     return (ar_selected_df,)
 
 
@@ -358,8 +358,8 @@ def _(mo):
 
 
 @app.cell
-def _(pd, res_df_1):
-    random_selected_df = res_df_1[pd.isna(res_df_1['Selected by'])].drop(columns=['Selected by'])
+def _(no_undecided_res_df, pd):
+    random_selected_df = no_undecided_res_df[pd.isna(no_undecided_res_df['Selected by'])].drop(columns=['Selected by'])
     random_selected_df.shape
     return (random_selected_df,)
 
@@ -371,8 +371,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    interesting_df = res_df_1[res_df_1['Label'] == 'Interesting']
+def _(no_undecided_res_df):
+    interesting_df = no_undecided_res_df[no_undecided_res_df['Label'] == 'Interesting']
     interesting_df.shape
     return
 
@@ -390,8 +390,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    overall_precision = res_df_1['Event'].mean().item()
+def _(no_undecided_res_df):
+    overall_precision = no_undecided_res_df['Event'].mean().item()
     overall_precision
     return
 
@@ -607,8 +607,8 @@ def _(mo):
 
 
 @app.cell
-def _(losses_df, res_df_1):
-    score = -losses_df.loc[res_df_1.index]['log_likelihood'].values
+def _(losses_df, no_undecided_res_df):
+    score = -losses_df.loc[no_undecided_res_df.index]['log_likelihood'].values
     score.shape
     return
 
@@ -687,15 +687,13 @@ def _(
         scores = distances[i_windows_of_interest]
 
         roc_auc: float = roc_auc_score(labels, scores)
-        # roc_curve = RocCurveDisplay.from_predictions(labels, scores, name=algorithm_name)
-
-        fpr, tpr, thresholds = roc_curve(labels, scores)
-
         average_precision: float = average_precision_score(labels, scores)
 
         precision, recall, thr = precision_recall_curve(labels, scores)
         mask = (precision >= min_precision)
         best_recall_at_min_precision: float = recall[mask].max().item()
+
+        fpr, tpr, thresholds = roc_curve(labels, scores)
 
         fig = px.area(
             x=fpr, y=tpr,
@@ -707,17 +705,11 @@ def _(
             type='line', line=dict(dash='dash'),
             x0=0, x1=1, y0=0, y1=1
         )
-    
+
         # fig.update_yaxes(scaleanchor="x", scaleratio=1)
         # fig.update_xaxes(constrain='domain')
         fig.update_xaxes(range=[0, 1])
         fig.update_yaxes(range=[0, 1])
-
-        # fig.update_layout(
-        #     margin=dict(t=120)    # increase top margin in px
-        # )
-
-        # return roc_auc, average_precision, best_recall_at_min_precision, roc_curve
 
         # return MahalanobisBasedMetrics(average_precision, best_recall_at_min_precision, roc_curve)
         return MahalanobisBasedMetrics(average_precision, best_recall_at_min_precision, fig)
@@ -731,8 +723,8 @@ def _(mo):
 
 
 @app.cell
-def _(res_df_1):
-    y = res_df_1['Event'].astype(int)
+def _(no_undecided_res_df):
+    y = no_undecided_res_df['Event'].astype(int)
     return (y,)
 
 
@@ -743,10 +735,8 @@ def _(mo):
 
 
 @app.cell
-def _(mahalanobis_based_metrics, res_df_1, y, z_mean):
-    res_vae = mahalanobis_based_metrics(z_mean, y, res_df_1.index.values, algorithm_name='VAE')
-    # res_vae[-1].figure_.savefig('vae_roc_curve.png')
-    # res_vae[:-1], res_vae[-1].figure_
+def _(mahalanobis_based_metrics, no_undecided_res_df, y, z_mean):
+    res_vae = mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values, algorithm_name='VAE')
     res_vae[-1]
     return
 
@@ -758,10 +748,8 @@ def _(mo):
 
 
 @app.cell
-def _(ar_df, mahalanobis_based_metrics, res_df_1, y):
-    res_ar = mahalanobis_based_metrics(ar_df.filter(regex='z_\\d+').values, y, res_df_1.index.values, algorithm_name='AR')
-    # res_ar[-1].figure_.savefig('ar_roc_curve.png')
-    # res_ar[:-1], res_ar[-1].figure_
+def _(ar_df, mahalanobis_based_metrics, no_undecided_res_df, y):
+    res_ar = mahalanobis_based_metrics(ar_df.filter(regex='z_\\d+').values, y, no_undecided_res_df.index.values, algorithm_name='AR')
     res_ar[-1]
     return
 

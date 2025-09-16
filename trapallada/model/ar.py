@@ -39,7 +39,7 @@ def ols_window_fit(signals: Float[Array, 'channels time'], p: int = 2) -> Float[
         The coefficients of the VAR model.
     """
 
-    # so that time rungs along the horizontal axis
+    # so that time runs along the horizontal axis
     signals = signals.T
 
     # setting up A and b to solve the equation Ax = b

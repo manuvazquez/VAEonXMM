@@ -18,6 +18,8 @@ import trapallada.util
 
 logger = log.setup_logging(__name__)
     
+# TODO: this is a dataset of *windows*, not of *signals* (the appropriate files should also be renamed)
+
 class SignalsDataset(Dataset):
 
     def __init__(
