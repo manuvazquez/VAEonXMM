@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"files.exclude": {
+			"__marimo__": true,
 			".venv": true,
 			"**/__pycache__": true,
 			"**/*.csv": true,

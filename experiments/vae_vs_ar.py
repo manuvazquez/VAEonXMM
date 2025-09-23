@@ -46,15 +46,11 @@ def _():
     import trapallada.model.nn
     return (
         Array,
-        DataLoader,
         EmpiricalCovariance,
         Float,
         Int,
         auc,
         average_precision_score,
-        jax,
-        jnp,
-        jr,
         namedtuple,
         pd,
         precision_recall_curve,
@@ -199,7 +195,7 @@ def _(mo):
 @app.cell
 def _(annotations_dir):
     reference_windows_file = annotations_dir / 'reference_windows.xlsx'
-    return (reference_windows_file,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -274,7 +270,7 @@ def _(output_file, res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A new column which is `True` for every *event of interest*""")
+    mo.md(r"""A new column which is `True` for every *event of interest*. `Nan`s are considered *non-event*s.""")
     return
 
 
@@ -297,8 +293,14 @@ def _(res_df):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""*Events* vs *non-events*""")
+    return
+
+
+@app.cell
 def _(res_df):
-    res_df['Event'].value_counts(dropna=False)
+    res_df['Event'].value_counts()
     return
 
 
@@ -437,34 +439,8 @@ def _(random_selected_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Distances""")
+    mo.md(r"""# Latent space""")
     return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""A `DataFrame` with the *reference* windows...""")
-    return
-
-
-@app.cell
-def _(pd, reference_windows_file):
-    selected_df = pd.read_excel(reference_windows_file)
-    selected_df
-    return (selected_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""...and their indexes""")
-    return
-
-
-@app.cell
-def _(selected_df):
-    i_reference_windows = selected_df['# window'].values
-    i_reference_windows
-    return (i_reference_windows,)
 
 
 @app.cell(hide_code=True)
@@ -497,119 +473,25 @@ def _(vae_df):
     z_mean = vae_df.filter(regex=r'z_\d+').values
     z_sd = vae_df.filter(regex=r'z_sd_\d+').values
     z_mean.shape, z_sd.shape
-    return z_mean, z_sd
+    return (z_mean,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The Wasserstein distance between *every one* of the (mean and standard deviation for the) reference windows and the rest.""")
+    mo.md(r"""Mean and standard deviation are stacked together""")
     return
 
 
 @app.cell
-def _(i_reference_windows, jax, trapallada, z_mean, z_sd):
-    vae_distances = jax.vmap(
-        trapallada.results.analysis.wasserstein_between_one_and_many_gaussians, in_axes=(0, 0, None, None)
-        )(
-            z_mean[i_reference_windows],
-            z_sd[i_reference_windows],
-            z_mean, z_sd
-    )
-    # assert (vae_distances[jnp.arange(len(i_reference_windows)), i_reference_windows] == 0.0).all().item()
-    vae_distances.shape
-    return (vae_distances,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""The minimum is taken""")
-    return
-
-
-@app.cell
-def _(i_reference_windows, vae_distances):
-    vae_rank = vae_distances.min(axis=0)
-    assert (vae_rank[i_reference_windows] == 0.0).all().item()
+def _():
+    # z_mean_sd = jnp.hstack([z_mean, z_sd])
+    # z_mean_sd.shape
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Latent space""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Results from the simulation are loaded""")
-    return
-
-
-@app.cell
-def _(res_dir, trapallada):
-    ds, _, model, _, parameters = trapallada.results.analysis.load_dir(res_dir) # type: ignore
-    return ds, model, parameters
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""A `DataLoader` is assembled""")
-    return
-
-
-@app.cell
-def _(DataLoader, ds):
-    batch_size = 128
-    dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
-    return (dl,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""The log-likelihood and the KL divergence *for every window* in the dataset...""")
-    return
-
-
-@app.cell
-def _(dl, jr, model, parameters, trapallada):
-    log_likelihood, kl_divergence = trapallada.results.analysis.data_losses(
-        model,
-        dl,
-        parameters['loss']['x_sd'],
-        parameters['training']['mask_non_gti_intervals'],
-        jr.PRNGKey(parameters['PRNG seeds']['sampling']['validation set']),
-    )
-    return kl_divergence, log_likelihood
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""...are used to compute the lossess, i.e., `-ELBO`""")
-    return
-
-
-@app.cell
-def _(ds, jnp, kl_divergence, log_likelihood, parameters, pd):
-    losses_df = pd.DataFrame({
-        "log_likelihood": jnp.concat(log_likelihood),
-        "kl_divergence": jnp.concat(kl_divergence)
-    })
-    losses_df['loss'] = -losses_df['log_likelihood'] + parameters['loss']['beta'] * losses_df['kl_divergence']
-    assert len(ds) == len(losses_df)
-    losses_df
-    return (losses_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Losses or negative log-likelihoods might be used as scores...""")
-    return
-
-
-@app.cell
-def _(losses_df, no_undecided_res_df):
-    score = -losses_df.loc[no_undecided_res_df.index]['log_likelihood'].values
-    score.shape
+    mo.md(r"""## AR""")
     return
 
 
@@ -628,20 +510,7 @@ def _(ar_analysis_file, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Mean and standard deviation are stacked together""")
-    return
-
-
-@app.cell
-def _(jnp, z_mean, z_sd):
-    z_mean_sd = jnp.hstack([z_mean, z_sd])
-    z_mean_sd.shape
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""### Mahalanobis distance-based comparison""")
+    mo.md(r"""## Mahalanobis distance-based comparison""")
     return
 
 
@@ -738,6 +607,12 @@ def _(mo):
 def _(mahalanobis_based_metrics, no_undecided_res_df, y, z_mean):
     res_vae = mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values, algorithm_name='VAE')
     res_vae[-1]
+    return
+
+
+@app.cell
+def _(no_undecided_res_df, trapallada, y, z_mean):
+    trapallada.results.analysis.mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values)
     return
 
 

@@ -88,7 +88,7 @@ class Encoder(eqx.Module):
 
         return x
 
-    def debug_call(self, x: Float[Array, '1 length']) -> Float[Array, 'twice_dim_z']:
+    def debug_call(self, x: Float[Array, 'channel length']) -> Float[Array, 'twice_dim_z']:
 
         for layer in self.layers:
 
@@ -247,10 +247,13 @@ class VAE(eqx.Module):
 
 def assemble_vae(parameters: dict) -> eqx.Module:
 
-    # vae_class = globals()[parameters['VAE']['class']]
+    # `globals()` is used to retrieve the class objects from their names
     vae_class = globals()[parameters['VAE'].get('class', 'VAE')]
     encoder_class = globals()[parameters['VAE']['encoder']['class']]
     decoder_class = globals()[parameters['VAE']['decoder']['class']]
+
+    # CAVEAT: `input_size` parameter, required by both encoder and decoder is not actually read from the parameters
+    # file, but must be inserted into the `parameters` dictionary by the caller
 
     encoder = encoder_class(
         **parameters['VAE']['encoder']['parameters'],

@@ -10,7 +10,7 @@ trapallada_data_dir := join(trapallada_dir, 'data')
 reference_signals_file := join(trapallada_dir, 'interesting.yaml')
 annotated_windows_file := join(trapallada_dir, 'annotations', 'annotated_windows.parquet')
 
-data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada3')
+data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada')
 
 conda_environment := "trap"
 

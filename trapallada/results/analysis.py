@@ -17,6 +17,9 @@ from scipy.cluster.hierarchy import linkage, fcluster
 from torch.utils.data import DataLoader, Dataset
 import hdbscan
 
+from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve, roc_curve, auc
+from sklearn.covariance import EmpiricalCovariance
+
 import trapallada.data
 import trapallada.model.nn
 import trapallada.util
@@ -292,3 +295,40 @@ def data_losses(
         kl_divergence.append(kl_value)
 
     return log_likelihood, kl_divergence
+
+def mahalanobis_based_metrics(
+        x: Float[Array, 'window feature'],
+        labels: Int[Array, 'window'],
+        i_windows_of_interest: Int[Array, 'window'],
+        min_precision: float = 0.7,
+        return_labels_scores: bool = False,
+    ) -> tuple | dict:
+
+    assert len(i_windows_of_interest) == len(labels), f'# windows of interest ({len(i_windows_of_interest)}) != # labels ({len(labels)})'
+
+    # covariance matrix (and mean) is estimated...
+    cov = EmpiricalCovariance().fit(x)
+
+    # Mahalanobis distance (given the above covariance) from every sample to the mean (a measure of *outlierness*)
+    distances = cov.mahalanobis(x)
+
+    # the distances for the windows of interest are kept as scores
+    scores = distances[i_windows_of_interest]
+
+    roc_auc: float = roc_auc_score(labels, scores)
+    average_precision: float = average_precision_score(labels, scores)
+
+    precision, recall, thr = precision_recall_curve(labels, scores)
+    mask = (precision >= min_precision)
+    best_recall_at_min_precision: float = recall[mask].max().item()
+
+    metrics = {
+        'roc_auc': roc_auc,
+        'average_precision': average_precision,
+        'best_recall_at_min_precision': best_recall_at_min_precision,
+    }
+
+    if return_labels_scores:
+        return metrics, (labels, scores)
+    else:
+        return metrics
