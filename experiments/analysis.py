@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.3"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -22,6 +22,8 @@ def _():
 
     import pandas as pd
 
+    import yaml
+
     from torch.utils.data import DataLoader
 
     import plotly
@@ -33,7 +35,7 @@ def _():
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
-    return DataLoader, go, make_subplots, pathlib, pd, px, trapallada
+    return DataLoader, go, make_subplots, pathlib, pd, px, trapallada, yaml
 
 
 @app.cell
@@ -703,9 +705,8 @@ def _(mo):
 @app.cell
 def _(analysis_df, trapallada):
     signals_of_interest_df = analysis_df[
-        analysis_df['signal'].isin(trapallada.data.Labels().signals)
+        analysis_df['signal'].isin(trapallada.data.Labels(reference_signals_file=trapallada.data.labels_files()['reference_signals_file']).signals)
     ]
-    # signals_of_interest_df.drop_duplicates('source').filter(regex=re_drop_columns)
     signals_of_interest_df.drop_duplicates('source')
     return
 
@@ -767,7 +768,25 @@ def _(
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
-    return (mo_plot,)
+    return mo_plot, tsne_plot_fig
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Plots are saved""")
+    return
+
+
+@app.cell
+def _(mo_plot, model_dir, pathlib, tsne_plot_fig, yaml):
+    output_dir = pathlib.Path.cwd() / 'plots'
+    output_dir.mkdir(exist_ok=True)
+
+    tsne_plot_fig.write_image(f'{output_dir / f'tSNE_{model_dir.name}'}.pdf')
+    if mo_plot.ranges != {}:
+        with open(f'{output_dir / f'tSNE_region_{model_dir.name}'}.yaml', 'w') as f:
+            yaml.dump(mo_plot.ranges, f)
+    return
 
 
 @app.cell(hide_code=True)
@@ -812,8 +831,11 @@ def _(
             pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
         else:
             pred = None
-        mo.output.append(trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred))
+        full_signal_plot_fig = trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred)
+        mo.output.append(full_signal_plot_fig)
         mo.output.append('---')
+
+        # full_signal_plot_fig.write_image(f'{output_dir / f'tSNE_region_{i_row}_{model_dir.name}'}.pdf')
     return
 
 

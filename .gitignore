@@ -1,8 +1,9 @@
-light curves
 changelog
+
 __pycache__
 *.egg-info
 .ipynb_checkpoints/
+
 data/
 iframe_figures
 *.tar
@@ -15,6 +16,7 @@ logs
 mlruns
 ./results
 graphs
+
 # uv
 uv.lock
 .python-version
@@ -26,3 +28,5 @@ TODO.md
 results
 bib
 # annotations
+
+*.pdf

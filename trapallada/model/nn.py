@@ -77,7 +77,6 @@ class Encoder(eqx.Module):
             jnp.ravel,
             eqx.nn.Linear(in_features=self.layers_spatial_sizes[-1], out_features=2*dim_z, key=subkey),
             lambda x: x.at[dim_z:].set(jax.nn.softplus(x[dim_z:]) + 1e-3)
-            # lambda x: x.at[dim_z:].set(jax.nn.softplus(x[dim_z:]))
         ])
 
     def __call__(self, x: Float[Array, '1 length']) -> Float[Array, 'twice_dim_z']:
@@ -89,6 +88,8 @@ class Encoder(eqx.Module):
         return x
 
     def debug_call(self, x: Float[Array, 'channel length']) -> Float[Array, 'twice_dim_z']:
+
+        print(f'initial shape: {x.shape}')
 
         for layer in self.layers:
 

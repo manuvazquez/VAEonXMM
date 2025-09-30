@@ -70,4 +70,5 @@ dev = [
     "marimo",
     "openai>=1.84.0",
     "nbdime>=4.0.2",
+    "kaleido>=1.1.0",
 ]

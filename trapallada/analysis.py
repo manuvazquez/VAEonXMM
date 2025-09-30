@@ -388,16 +388,6 @@ def make_combo_widget(results_dir: pathlib.Path):
     
     return combo
 
-# def get_base_directory():
-    
-#     base_dir = pathlib.Path.cwd()
-    
-#     while not (base_dir / '.git').exists():
-        
-#         base_dir = base_dir.parent
-
-#     return base_dir
-
 def save_regions(regions: list[dict], output_file: pathlib.Path | str):
 
     with open(output_file, 'w') as f:
@@ -529,25 +519,6 @@ class TSNE:
                 continue
             
             self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
-
-# class Latents:
-
-#     def __init__(self, dl, encoder: eqx.Module, dim_z: int):
-
-#         self.dim_z = dim_z
-        
-#         z_s = []
-        
-#         for _, x, _ in dl:
-#             z_s.append(jax.vmap(encoder)(x.numpy())) # type: ignore
-
-#         self.z_s = jnp.vstack(z_s)
-
-#     def plot_ith(self, i_z: int):
-
-#         fig = px.scatter(x=jnp.arange(self.dim_z), y=self.z_s[i_z, :self.dim_z], error_y=self.z_s[i_z, self.dim_z:])
-    
-#         return fig
 
 def make_save_button_widget(regions, regions_file):
     

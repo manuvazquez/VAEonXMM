@@ -11,11 +11,10 @@ loss:
   x_sd: 0.15 # <---- FFT
   beta: 1.
 model: &model
-  # channels: [12, 12, 12]
   channels:
-  - 8
-  - 16
-  - 32
+  - 12
+  - 12
+  - 12
   dim_z: 40
   kernel_sizes: # <---- FFT (due to redundancy)
   - 64

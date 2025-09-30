@@ -176,3 +176,11 @@ def window(signal: str, path_to_full_signals: str | pathlib.Path, window_start: 
         showlegend=False
     )
     return fig
+
+# def roc(
+#         labels: Int[Array, 'window'],
+#         scores: Float[Array, 'window'],
+#         algorithm_name: str | None = None,
+#     ):
+
+#     pass
