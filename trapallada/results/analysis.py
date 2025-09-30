@@ -1,4 +1,5 @@
 import pathlib
+from collections.abc import Generator
 
 import yaml
 import pandas as pd
@@ -332,3 +333,22 @@ def mahalanobis_based_metrics(
         return metrics, (labels, scores)
     else:
         return metrics
+
+def i_windows_of_interest(analysis_df: pd.DataFrame) -> Generator[tuple[pd.Index, str]]:
+    
+    signals_of_interest = trapallada.data.Labels(
+        **{k: v for k,v in trapallada.data.labels_files().items() if k == 'reference_signals_file'}
+    ).reference_signals_and_labels
+    
+    for signal, name in signals_of_interest:
+
+        # in principle, there will more than one
+        index = analysis_df[analysis_df['signal'] ==  signal].index
+
+        if index.empty:
+            
+            print(f'{signal} not found')
+            
+            continue
+        
+        yield index, f'{signal.split("/")[1]} ({name})'

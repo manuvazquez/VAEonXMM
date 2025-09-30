@@ -629,7 +629,7 @@ def _(
     trapallada,
     tsne_columns,
 ):
-    trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in z')
+    trapallada.results.plot.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in z')
     return
 
 
@@ -647,7 +647,7 @@ def _(
     trapallada,
     tsne_columns,
 ):
-    trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in projected space')
+    trapallada.results.plot.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='cluster in projected space')
     return
 
 
@@ -668,7 +668,7 @@ def _(
     tsne_columns,
 ):
     if radio.value == 'vae':
-        mo.output.append(trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z'))
+        mo.output.append(trapallada.results.plot.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z'))
     return
 
 
@@ -763,7 +763,7 @@ def _(
     trapallada,
     tsne_columns,
 ):
-    tsne_plot = trapallada.analysis.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
+    tsne_plot = trapallada.results.plot.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
     tsne_plot_fig = tsne_plot.make_fig()
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
@@ -778,14 +778,41 @@ def _(mo):
 
 
 @app.cell
-def _(mo_plot, model_dir, pathlib, tsne_plot_fig, yaml):
+def _(
+    analysis_df,
+    mo_plot,
+    model_dir,
+    pathlib,
+    trapallada,
+    tsne_columns,
+    tsne_plot_fig,
+    yaml,
+):
     output_dir = pathlib.Path.cwd() / 'plots'
     output_dir.mkdir(exist_ok=True)
 
+    # scatterplot
     tsne_plot_fig.write_image(f'{output_dir / f'tSNE_{model_dir.name}'}.pdf')
+
+    scatter_df = analysis_df[tsne_columns].copy()
+    scatter_df['reference'] = 0
+
+    for indexes, _ in trapallada.results.analysis.i_windows_of_interest(analysis_df):
+        scatter_df.loc[indexes, 'reference'] = 1
+
+    scatter_df.to_csv(f'{output_dir / f'tSNE_{model_dir.name}'}.csv', index=False)
+
+    # range
     if mo_plot.ranges != {}:
         with open(f'{output_dir / f'tSNE_region_{model_dir.name}'}.yaml', 'w') as f:
             yaml.dump(mo_plot.ranges, f)
+    return (scatter_df,)
+
+
+@app.cell
+def _(scatter_df):
+    scatter_df.tail(15)
+    # scatter_df
     return
 
 
