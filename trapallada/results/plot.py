@@ -3,6 +3,7 @@ import pathlib
 
 import pandas as pd
 from jaxtyping import Array, Float
+import equinox as eqx
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -11,9 +12,11 @@ from plotly.subplots import make_subplots
 from IPython.display import display, Markdown
 
 import trapallada.xsa.util
-# import trapallada.data
+import trapallada.data
 import trapallada.plot
 import trapallada.results.analysis
+
+import marimo as mo
 
 
 def full_signals(
@@ -192,7 +195,7 @@ class TSNE:
 
         self.fig = None
 
-    def make_fig(self, color_column: str = 'main_type'):
+    def make_fig(self, color_column: str | None = 'main_type'):
 
         self.fig = px.scatter(
             self.analysis_df.reset_index(), # `index` is usually one of the *hover columns*
@@ -205,6 +208,8 @@ class TSNE:
         return self.fig
     
     def mark_rectangle(self, x_range: list[float], y_range: list[float], text: str):
+
+        assert self.fig is not None, 'Figure not created yet. Call `make_fig()` first.'
 
         # the rectangle is overimposed on the picture
         self.fig.add_shape(
@@ -245,9 +250,15 @@ class TSNE:
             print(self.analysis_df.filter(regex='^(?!z_|tsne_|set$)').loc[i])
             
             signal_id, *start_end = self.analysis_df.loc[i, ['signal', 'start', 'end']]
-            display(trapallada.plot.full_signals(signal_id, self.full_signals_dir, *start_end))
+            display(full_signals(signal_id, self.full_signals_dir, *start_end))
 
-    def inspect_regions(self, regions: list[dict[str, tuple[float, float]]], labels, n_samples: int = 5, dont_plot_signals: bool = False):
+    def inspect_regions(
+            self,
+            regions: list[dict[str, tuple[float, float]]],
+            labels, n_samples: int = 5, dont_plot_signals: bool = False
+        ):
+
+        assert self.fig is not None, 'Figure not created yet. Call `make_fig()` first.'
         
         for region, label in zip(regions, labels):
             
@@ -273,7 +284,9 @@ class TSNE:
 
             self.sample_and_plot_range(n_samples, **r)
 
-    def highlight_window(self, indexes: list[int], name: str):
+    def highlight_window(self, indexes: list[int] | pd.Index, name: str):
+
+        assert self.fig is not None, 'Figure not created yet. Call `make_fig()` first.'
 
         self.fig.add_trace(go.Scatter(
             self.analysis_df.loc[indexes, self.columns].
@@ -286,21 +299,6 @@ class TSNE:
 
     def highlight_windows_of_interest(self):
         
-        # signals_of_interest = trapallada.data.Labels(
-        #     **{k: v for k,v in trapallada.data.labels_files().items() if k == 'reference_signals_file'}
-        # ).reference_signals_and_labels
-        
-        # for signal, name in signals_of_interest:
-
-        #     # in principle, there will more than one
-        #     index = self.analysis_df[self.analysis_df['signal'] ==  signal].index
-
-        #     if index.empty:
-        #         print(f'{signal} not found')
-        #         continue
-            
-        #     self.highlight_window(index, f'{signal.split("/")[1]} ({name})')
-        
         for indexes, name in trapallada.results.analysis.i_windows_of_interest(self.analysis_df):
         
             self.highlight_window(indexes, name)
@@ -312,3 +310,39 @@ class TSNE:
 #     ):
 
 #     pass
+
+def marimo_selected(
+        mo_plot,
+        analysis_df: pd.DataFrame, 
+        model: eqx.Module,
+        model_name: str,
+        full_signals_dir: str | pathlib.Path,
+        max_n_samples_to_show: int = 30,
+        re_drop_columns: str = '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC|signal)'
+    ):
+
+    i_selected = [e['index'] for e in mo_plot.points if e]
+
+    selected_samples = analysis_df.loc[i_selected]
+
+    belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
+    print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
+    selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
+
+    if len(selected_samples) > max_n_samples_to_show:
+        selected_samples = selected_samples.drop_duplicates(subset=['signal'])
+        print('Too many selected, plotting just one window for every signal...')
+        if len(selected_samples) > max_n_samples_to_show:
+            selected_samples = selected_samples.sample(max_n_samples_to_show)
+            print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
+
+    for i_row, row in selected_samples.iterrows():
+        mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
+        signal_id, *start_end = row[['signal', 'start', 'end']]
+        if model_name == 'vae':
+            pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
+        else:
+            pred = None
+        full_signal_plot_fig = full_signals(signal_id, full_signals_dir, *start_end, pred)
+        mo.output.append(full_signal_plot_fig)
+        mo.output.append('---')

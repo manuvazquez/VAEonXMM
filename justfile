@@ -1,3 +1,5 @@
+mod python '/home/manu/python/python.just'
+
 home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
 tmp_dir := '/tmp/'
@@ -25,7 +27,7 @@ default_server := "skoll"
 marimo_server := "0.0.0.0"
 marimo_port := "2719"
 
-import '~/python/import.just'
+# import '~/python/import.just'
 
 default:
   just --list

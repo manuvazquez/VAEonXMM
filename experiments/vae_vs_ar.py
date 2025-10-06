@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.5"
 app = marimo.App(width="full")
 
 
@@ -42,6 +42,7 @@ def _():
 
     import trapallada.util
     import trapallada.results.analysis
+    import trapallada.results.plot
     import trapallada.model.training
     import trapallada.model.nn
     return (
@@ -52,6 +53,8 @@ def _():
         auc,
         average_precision_score,
         namedtuple,
+        np,
+        pathlib,
         pd,
         precision_recall_curve,
         px,
@@ -245,7 +248,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The `DataFrame`s with the labels and the `Selected by` column are merged together...""")
+    mo.md(r"""The `DataFrame`s with the labels and the `Selected by` column are merged together.""")
     return
 
 
@@ -258,25 +261,32 @@ def _(labels_df, pd, selected_by_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""...and saved""")
+    mo.md(r"""A new column which is `True` for every **actual** *event of interest* (not `background`). `Nan`s are kept.""")
+    return
+
+
+@app.cell
+def _(np, pd, res_df):
+    # res_df['Event'] = res_df.eval('Label == "Interesting" & Type != "background"')
+    res_df['Event'] = np.where(
+        res_df['Label'].isna(),
+        pd.NA,
+        (res_df['Label'] == 'Interesting') & (res_df['Type'] != 'background')
+    )
+    res_df['Event'] = res_df['Event'].astype('boolean')
+    res_df
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""It is saved for *external* use.""")
     return
 
 
 @app.cell
 def _(output_file, res_df):
     res_df.to_parquet(output_file, index=True)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""A new column which is `True` for every *event of interest*. `Nan`s are considered *non-event*s.""")
-    return
-
-
-@app.cell
-def _(res_df):
-    res_df['Event'] = res_df.eval('Label == "Interesting" & Type != "background"')
     return
 
 
@@ -292,7 +302,7 @@ def _(res_df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""*Events* vs *non-events*""")
     return
@@ -311,8 +321,9 @@ def _(mo):
 
 
 @app.cell
-def _(pd, res_df):
-    no_undecided_res_df = res_df[~pd.isna(res_df['Label'])]
+def _(res_df):
+    # no_undecided_res_df = res_df[~pd.isna(res_df['Label'])]
+    no_undecided_res_df = res_df[res_df['Event'].notna()]
     no_undecided_res_df.shape
     return (no_undecided_res_df,)
 
@@ -486,6 +497,47 @@ def _(mo):
 def _():
     # z_mean_sd = jnp.hstack([z_mean, z_sd])
     # z_mean_sd.shape
+    return
+
+
+@app.cell
+def _(vae_df_merged):
+    vae_df_merged.loc[25125]
+    return
+
+
+@app.cell
+def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
+    vae_df['main_type'] = vae_df['main_type'].fillna('UNKNOWN')
+
+    tsne_columns = [f'tsne_{i}' for i in range(1, 3)]
+
+    xrange, yrange = list(zip(vae_df[tsne_columns].min(), vae_df[tsne_columns].max()))
+
+    # *_, parameters = trapallada.results.analysis.load_dir(res_dir)
+    _, _, model, _, parameters = trapallada.results.analysis.load_dir(res_dir)
+    full_signals_dir = (pathlib.Path.home() / parameters['dataset']['files']['signals_file']).parent / 'full_signals'
+
+    vae_df_merged = vae_df.merge(res_df[['Event']], left_index=True, right_index=True, how='left')
+    vae_df_merged['Color'] = vae_df_merged['Event'].apply(lambda x: 'Unlabeled' if pd.isna(x) else 'Event' if x else 'NO Event')
+
+    on_plot_hover_columns = ['index', 'source', 'main_type']
+
+    # tsne_plot = trapallada.results.plot.TSNE(vae_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
+    # tsne_plot_fig = tsne_plot.make_fig(color_column=None)
+
+    tsne_plot = trapallada.results.plot.TSNE(vae_df_merged, tsne_columns, full_signals_dir, on_plot_hover_columns)
+    tsne_plot_fig = tsne_plot.make_fig(color_column='Color')
+
+    tsne_plot.highlight_windows_of_interest()
+    mo_plot = mo.ui.plotly(tsne_plot_fig)
+    mo_plot
+    return full_signals_dir, mo_plot, model, vae_df_merged
+
+
+@app.cell
+def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
+    trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'VAE', full_signals_dir, max_n_samples_to_show=30)
     return
 
 

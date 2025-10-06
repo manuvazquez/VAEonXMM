@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.5"
 app = marimo.App(width="full")
 
 
@@ -693,7 +693,7 @@ def _(mo):
 @app.cell
 def _():
     re_drop_columns= '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC|signal)'
-    return (re_drop_columns,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -704,8 +704,9 @@ def _(mo):
 
 @app.cell
 def _(analysis_df, trapallada):
+    # reference_signals = trapallada.data.Labels(reference_signals_file=trapallada.data.labels_files()['reference_signals_file']).signals
     signals_of_interest_df = analysis_df[
-        analysis_df['signal'].isin(trapallada.data.Labels(reference_signals_file=trapallada.data.labels_files()['reference_signals_file']).signals)
+        analysis_df['signal'].isin(trapallada.data.Labels().signals)
     ]
     signals_of_interest_df.drop_duplicates('source')
     return
@@ -806,13 +807,20 @@ def _(
     if mo_plot.ranges != {}:
         with open(f'{output_dir / f'tSNE_region_{model_dir.name}'}.yaml', 'w') as f:
             yaml.dump(mo_plot.ranges, f)
-    return (scatter_df,)
+    return
 
 
 @app.cell
-def _(scatter_df):
-    scatter_df.tail(15)
-    # scatter_df
+def _(
+    analysis_df,
+    full_signals_dir,
+    max_n_samples_to_show,
+    mo_plot,
+    model,
+    radio,
+    trapallada,
+):
+    trapallada.results.plot.marimo_selected(mo_plot, analysis_df, model, radio.value, full_signals_dir, max_n_samples_to_show)
     return
 
 
@@ -823,46 +831,38 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, max_n_samples_to_show, mo_plot, trapallada):
-    i_selected = [e['index'] for e in mo_plot.points if e]
+def _():
+    # i_selected = [e['index'] for e in mo_plot.points if e]
 
-    selected_samples = analysis_df.loc[i_selected]
+    # selected_samples = analysis_df.loc[i_selected]
 
-    belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
-    print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
-    selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
+    # belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
+    # print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
+    # selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
 
-    if len(selected_samples) > max_n_samples_to_show:
-        selected_samples = selected_samples.drop_duplicates(subset=['signal'])
-        print('Too many selected, plotting just one window for every signal...')
-        if len(selected_samples) > max_n_samples_to_show:
-            selected_samples = selected_samples.sample(max_n_samples_to_show)
-            print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
-    return (selected_samples,)
+    # if len(selected_samples) > max_n_samples_to_show:
+    #     selected_samples = selected_samples.drop_duplicates(subset=['signal'])
+    #     print('Too many selected, plotting just one window for every signal...')
+    #     if len(selected_samples) > max_n_samples_to_show:
+    #         selected_samples = selected_samples.sample(max_n_samples_to_show)
+    #         print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
+    return
 
 
 @app.cell
-def _(
-    full_signals_dir,
-    mo,
-    model,
-    radio,
-    re_drop_columns,
-    selected_samples,
-    trapallada,
-):
-    for i_row, row in selected_samples.iterrows():
-        mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
-        signal_id, *start_end = row[['signal', 'start', 'end']]
-        if radio.value == 'vae':
-            pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
-        else:
-            pred = None
-        full_signal_plot_fig = trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred)
-        mo.output.append(full_signal_plot_fig)
-        mo.output.append('---')
+def _():
+    # for i_row, row in selected_samples.iterrows():
+    #     mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
+    #     signal_id, *start_end = row[['signal', 'start', 'end']]
+    #     if radio.value == 'vae':
+    #         pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
+    #     else:
+    #         pred = None
+    #     full_signal_plot_fig = trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred)
+    #     mo.output.append(full_signal_plot_fig)
+    #     mo.output.append('---')
 
-        # full_signal_plot_fig.write_image(f'{output_dir / f'tSNE_region_{i_row}_{model_dir.name}'}.pdf')
+    #     # full_signal_plot_fig.write_image(f'{output_dir / f'tSNE_region_{i_row}_{model_dir.name}'}.pdf')
     return
 
 

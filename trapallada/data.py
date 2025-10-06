@@ -157,14 +157,10 @@ class Labels:
 
         self.signals: list[str] = []
 
-        # if reference_signals_file is None:
+        # if no file with reference signals or annotated windows is provided, a default one is used...
+        if reference_signals_file is None and annotated_windows_file is None:
             
-        #     self.reference_signals_file = trapallada.util.get_base_directory() / 'interesting.yaml'
-
-        # else:
-            
-        #     # just in case a `str` was passed...
-        #     self.reference_signals_file = pathlib.Path(reference_signals_file)
+            reference_signals_file = pathlib.Path(labels_files()['reference_signals_file'])
 
         self.reference_signals_data: dict[str, list[str]] | None = None
         

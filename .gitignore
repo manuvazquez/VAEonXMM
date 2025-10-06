@@ -25,7 +25,7 @@ notas.md
 TODO.md
 
 # some directories to ignore
-results
+./results
 bib
 # annotations
 
