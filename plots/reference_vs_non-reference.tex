@@ -1,0 +1,54 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    xlabel={t-SNE${}_1$},
+    ylabel={t-SNE${}_2$},
+    title={Latent space projection (t-SNE)},
+    grid=major,
+    clip=true,
+    % legend pos=north east,
+    legend pos=north west,
+    % legend style={
+    %     at={(1.05,0.5)},        % position relative to axis
+    %     anchor=west,            % anchor point of the legend box
+    % },
+    legend cell align=left,
+    legend image post style={xscale=1.4,yscale=1.4,opacity=1,fill opacity=1}, % crisp legend symbols
+  ]
+
+    % --- Non-reference: reference == 0 (transparent blue cloud) ---
+    \addplot[
+      only marks,
+      mark=*,
+      mark size=0.6pt,
+      % transparency belongs in mark options so only the fill is faded
+      mark options={fill=blue, draw opacity=0, fill opacity=0.18},
+      forget plot,
+    ]
+    table[
+      x=tsne_1, y=tsne_2, col sep=comma,
+      restrict expr to domain={\thisrow{reference}}{0:0},
+    ]{tSNE.csv};
+    % \addlegendentry{Non-reference}
+
+    % --- Reference: reference == 1 (opaque red triangles on top) ---
+    \addplot[
+      only marks,
+      mark=triangle*,
+      mark size=1.2pt,
+      color=red, fill=red,
+    ]
+    table[
+      x=tsne_1, y=tsne_2, col sep=comma,
+      restrict expr to domain={\thisrow{reference}}{1:1},
+    ]{tSNE.csv};
+    \addlegendentry{Reference}
+
+  \end{axis}
+\end{tikzpicture}
+\end{document}

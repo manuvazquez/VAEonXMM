@@ -1,0 +1,82 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    xlabel={t-SNE${}_1$},
+    ylabel={t-SNE${}_2$},
+    title={Latent space projection (t-SNE)},
+    grid=major,
+    clip=true,
+    legend pos=north west,
+    legend cell align=left,
+    legend image post style={xscale=1.4,yscale=1.4,opacity=1,fill opacity=1},
+    %
+    scatter/classes={
+      Unlabeled={
+        mark=*,
+        % mark size=4.6pt,
+        draw opacity=0,
+        fill=gray,
+        fill opacity=0.01,
+        % mark options={fill=green, fill opacity=0.05, draw opacity=0}
+      },
+      {NO Event}={
+        mark=diamond*,
+        % mark size=4.6pt,
+        % draw opacity=0,
+        fill=red,
+        % fill opacity=1.
+      },
+      Event={
+        mark=square*,
+        % mark size=4.6pt,
+        % draw opacity=0,
+        fill=green
+      }
+    },
+  ]
+
+    % one pass: use the "Color" column to pick class styles
+    \addplot[
+      scatter,
+      only marks,
+      scatter src=explicit symbolic,
+    ]
+    table[
+      x=tsne_1, y=tsne_2,
+      meta=Color,
+      col sep=comma,
+      trim cells=true,
+      ignore chars={ },
+    ]{tSNE.csv};
+    % ]{tSNE_sample.csv};
+
+    % ---------------- Legend entries ----------------
+    % You can add them in any order you want
+    \addlegendimage{
+      only marks, mark=*,
+      draw opacity=0,
+      fill=blue, fill opacity=0.3
+    }
+    \addlegendentry{Unlabeled}
+    
+    \addlegendimage{
+      only marks, mark=diamond*,
+      draw opacity=0, fill=red
+    }
+    \addlegendentry{No Event}
+    
+    \addlegendimage{
+      only marks, mark=square*, 
+      draw opacity=0, fill=green
+    }
+    \addlegendentry{Event}
+
+  \end{axis}
+\end{tikzpicture}
+
+\end{document}

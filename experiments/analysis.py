@@ -18,6 +18,7 @@ def _():
 
 @app.cell
 def _():
+    import os
     import pathlib
 
     import pandas as pd
@@ -35,7 +36,7 @@ def _():
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
-    return DataLoader, go, make_subplots, pathlib, pd, px, trapallada, yaml
+    return DataLoader, go, make_subplots, pathlib, pd, px, trapallada
 
 
 @app.cell
@@ -769,7 +770,7 @@ def _(
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
-    return mo_plot, tsne_plot_fig
+    return (mo_plot,)
 
 
 @app.cell(hide_code=True)
@@ -779,34 +780,33 @@ def _(mo):
 
 
 @app.cell
-def _(
-    analysis_df,
-    mo_plot,
-    model_dir,
-    pathlib,
-    trapallada,
-    tsne_columns,
-    tsne_plot_fig,
-    yaml,
-):
-    output_dir = pathlib.Path.cwd() / 'plots'
-    output_dir.mkdir(exist_ok=True)
+def _():
+    # output_dir = pathlib.Path.cwd() / 'plots' / model_dir.name
+    # output_dir.mkdir(exist_ok=True)
 
-    # scatterplot
-    tsne_plot_fig.write_image(f'{output_dir / f'tSNE_{model_dir.name}'}.pdf')
+    # # scatterplot
+    # tsne_plot_fig.write_image(output_dir / 'tSNE.pdf')
 
-    scatter_df = analysis_df[tsne_columns].copy()
-    scatter_df['reference'] = 0
+    # scatter_df = analysis_df[tsne_columns].copy()
+    # scatter_df['reference'] = 0
 
-    for indexes, _ in trapallada.results.analysis.i_windows_of_interest(analysis_df):
-        scatter_df.loc[indexes, 'reference'] = 1
+    # for indexes, _ in trapallada.results.analysis.i_windows_of_interest(analysis_df):
+    #     scatter_df.loc[indexes, 'reference'] = 1
 
-    scatter_df.to_csv(f'{output_dir / f'tSNE_{model_dir.name}'}.csv', index=False)
+    # scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
 
-    # range
-    if mo_plot.ranges != {}:
-        with open(f'{output_dir / f'tSNE_region_{model_dir.name}'}.yaml', 'w') as f:
-            yaml.dump(mo_plot.ranges, f)
+    # # range
+    # if mo_plot.ranges != {}:
+    #     with open(f'{output_dir / f'tSNE_region'}.yaml', 'w') as f:
+    #         yaml.dump(mo_plot.ranges, f)
+
+    # os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', output_dir / (model_dir.name + '.tex'))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Some filtering of the selection""")
     return
 
 
@@ -821,48 +821,6 @@ def _(
     trapallada,
 ):
     trapallada.results.plot.marimo_selected(mo_plot, analysis_df, model, radio.value, full_signals_dir, max_n_samples_to_show)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Some filtering of the selection""")
-    return
-
-
-@app.cell
-def _():
-    # i_selected = [e['index'] for e in mo_plot.points if e]
-
-    # selected_samples = analysis_df.loc[i_selected]
-
-    # belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
-    # print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
-    # selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
-
-    # if len(selected_samples) > max_n_samples_to_show:
-    #     selected_samples = selected_samples.drop_duplicates(subset=['signal'])
-    #     print('Too many selected, plotting just one window for every signal...')
-    #     if len(selected_samples) > max_n_samples_to_show:
-    #         selected_samples = selected_samples.sample(max_n_samples_to_show)
-    #         print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
-    return
-
-
-@app.cell
-def _():
-    # for i_row, row in selected_samples.iterrows():
-    #     mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
-    #     signal_id, *start_end = row[['signal', 'start', 'end']]
-    #     if radio.value == 'vae':
-    #         pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
-    #     else:
-    #         pred = None
-    #     full_signal_plot_fig = trapallada.results.plot.full_signals(signal_id, full_signals_dir, *start_end, pred)
-    #     mo.output.append(full_signal_plot_fig)
-    #     mo.output.append('---')
-
-    #     # full_signal_plot_fig.write_image(f'{output_dir / f'tSNE_region_{i_row}_{model_dir.name}'}.pdf')
     return
 
 

@@ -19,6 +19,7 @@ def _():
 @app.cell
 def _():
     import pathlib
+    import os
     from collections import namedtuple
 
     import pandas as pd
@@ -54,6 +55,7 @@ def _():
         average_precision_score,
         namedtuple,
         np,
+        os,
         pathlib,
         pd,
         precision_recall_curve,
@@ -532,12 +534,58 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
     tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
-    return full_signals_dir, mo_plot, model, vae_df_merged
+    return full_signals_dir, mo_plot, model, tsne_columns, vae_df_merged
 
 
 @app.cell
 def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
     trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'VAE', full_signals_dir, max_n_samples_to_show=30)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Plots are saved""")
+    return
+
+
+@app.cell
+def _(
+    mo_plot,
+    os,
+    pathlib,
+    res_dir,
+    trapallada,
+    tsne_columns,
+    vae_df_merged,
+    yaml,
+):
+    output_dir = pathlib.Path.cwd() / 'plots' / res_dir.name
+    output_dir.mkdir(exist_ok=True)
+
+    scatter_df = vae_df_merged[tsne_columns + ['Color']].copy()
+    scatter_df['reference'] = 0
+
+    for indexes, _ in trapallada.results.analysis.i_windows_of_interest(vae_df_merged):
+        scatter_df.loc[indexes, 'reference'] = 1
+
+    scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
+
+    # range
+    if mo_plot.ranges != {}:
+        with open(f'{output_dir / f'tSNE_region'}.yaml', 'w') as f:
+            yaml.dump(mo_plot.ranges, f)
+
+
+    dest = output_dir / (res_dir.name + '.tex')
+    if not dest.exists():
+        os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
+    return (scatter_df,)
+
+
+@app.cell
+def _(scatter_df):
+    scatter_df
     return
 
 
