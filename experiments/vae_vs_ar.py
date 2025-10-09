@@ -22,6 +22,7 @@ def _():
     import os
     from collections import namedtuple
 
+    import yaml
     import pandas as pd
 
     import numpy as np
@@ -63,6 +64,7 @@ def _():
         roc_auc_score,
         roc_curve,
         trapallada,
+        yaml,
     )
 
 
@@ -126,11 +128,23 @@ def _(file_browser, mo):
     return (res_dir,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The file with the analysis for the VAE...""")
+    return
+
+
 @app.cell
 def _(mo, res_dir):
     vae_analysis_file = res_dir / 'vae.parquet'
     mo.stop(not vae_analysis_file.exists(), mo.md("**Analysis for VAE must be run.**"))
     return (vae_analysis_file,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""...and the one with AR coefficients""")
+    return
 
 
 @app.cell
@@ -263,13 +277,12 @@ def _(labels_df, pd, selected_by_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A new column which is `True` for every **actual** *event of interest* (not `background`). `Nan`s are kept.""")
+    mo.md(r"""A new column which is `True` for every **actual** *event of interest* (not `background`). `Nan`s are kept (through the *boolean* `dtype` as opposed to just *bool*).""")
     return
 
 
 @app.cell
 def _(np, pd, res_df):
-    # res_df['Event'] = res_df.eval('Label == "Interesting" & Type != "background"')
     res_df['Event'] = np.where(
         res_df['Label'].isna(),
         pd.NA,
@@ -318,95 +331,19 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Let us get rid of the undecided (`NaN`s)""")
-    return
-
-
-@app.cell
-def _(res_df):
-    # no_undecided_res_df = res_df[~pd.isna(res_df['Label'])]
-    no_undecided_res_df = res_df[res_df['Event'].notna()]
-    no_undecided_res_df.shape
-    return (no_undecided_res_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""How many windows of each `Type`? Notice the `Type` of the `NOT interesting` is `NaN`""")
-    return
-
-
-@app.cell
-def _(no_undecided_res_df):
-    no_undecided_res_df['Type'].value_counts(dropna=False).plot(kind='bar')
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""The *sub*`DataFrame`s for VAE...""")
-    return
-
-
-@app.cell
-def _(no_undecided_res_df):
-    vae_selected_df = no_undecided_res_df[no_undecided_res_df['Selected by'] == 'VAE'].drop(columns=['Selected by'])
-    return (vae_selected_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r""", AR, ...""")
-    return
-
-
-@app.cell
-def _(no_undecided_res_df):
-    ar_selected_df = no_undecided_res_df[no_undecided_res_df['Selected by'] == 'AR'].drop(columns=['Selected by'])
-    return (ar_selected_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""...and *random*""")
-    return
-
-
-@app.cell
-def _(no_undecided_res_df, pd):
-    random_selected_df = no_undecided_res_df[pd.isna(no_undecided_res_df['Selected by'])].drop(columns=['Selected by'])
-    random_selected_df.shape
-    return (random_selected_df,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Another *sub*`DataFrame` with those that were annotated as `Interesting` (the latter encompass signals identified as *background*)""")
-    return
-
-
-@app.cell
-def _(no_undecided_res_df):
-    interesting_df = no_undecided_res_df[no_undecided_res_df['Label'] == 'Interesting']
-    interesting_df.shape
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""# Precision""")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Precision* is computed dismissing "interesting" events that are *background*. Overall precision *in the selection*: out of the total number of selected windows (by any of the algorithms or randomly), how many are interesting (not background).""")
+    mo.md(r"""*Precision* is computed based on (decided) `Event`s of interest. Overall precision *in the selection*: out of the total number of selected windows (by any of the algorithms or randomly), how many are interesting (not background).""")
     return
 
 
 @app.cell
-def _(no_undecided_res_df):
-    overall_precision = no_undecided_res_df['Event'].mean().item()
+def _(res_df):
+    overall_precision = res_df['Event'].mean().item()
     overall_precision
     return
 
@@ -418,8 +355,8 @@ def _(mo):
 
 
 @app.cell
-def _(vae_selected_df):
-    vae_precision = vae_selected_df['Event'].mean().item()
+def _(res_df):
+    vae_precision = res_df[res_df['Selected by'] == 'VAE']['Event'].mean().item()
     vae_precision
     return
 
@@ -431,8 +368,8 @@ def _(mo):
 
 
 @app.cell
-def _(ar_selected_df):
-    ar_precision = ar_selected_df['Event'].mean().item()
+def _(res_df):
+    ar_precision = res_df[res_df['Selected by'] == 'AR']['Event'].mean().item()
     ar_precision
     return
 
@@ -444,8 +381,8 @@ def _(mo):
 
 
 @app.cell
-def _(random_selected_df):
-    random_precision = random_selected_df['Event'].mean().item()
+def _(pd, res_df):
+    random_precision = res_df[pd.isna(res_df['Selected by'])]['Event'].mean().item()
     random_precision
     return
 
@@ -503,8 +440,8 @@ def _():
 
 
 @app.cell
-def _(vae_df_merged):
-    vae_df_merged.loc[25125]
+def _():
+    # vae_df_merged.loc[25125]
     return
 
 
@@ -516,7 +453,6 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 
     xrange, yrange = list(zip(vae_df[tsne_columns].min(), vae_df[tsne_columns].max()))
 
-    # *_, parameters = trapallada.results.analysis.load_dir(res_dir)
     _, _, model, _, parameters = trapallada.results.analysis.load_dir(res_dir)
     full_signals_dir = (pathlib.Path.home() / parameters['dataset']['files']['signals_file']).parent / 'full_signals'
 
@@ -525,13 +461,10 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 
     on_plot_hover_columns = ['index', 'source', 'main_type']
 
-    # tsne_plot = trapallada.results.plot.TSNE(vae_df, tsne_columns, full_signals_dir, on_plot_hover_columns)
-    # tsne_plot_fig = tsne_plot.make_fig(color_column=None)
-
     tsne_plot = trapallada.results.plot.TSNE(vae_df_merged, tsne_columns, full_signals_dir, on_plot_hover_columns)
     tsne_plot_fig = tsne_plot.make_fig(color_column='Color')
 
-    tsne_plot.highlight_windows_of_interest()
+    # tsne_plot.highlight_windows_of_interest()
     mo_plot = mo.ui.plotly(tsne_plot_fig)
     mo_plot
     return full_signals_dir, mo_plot, model, tsne_columns, vae_df_merged
@@ -539,8 +472,8 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 
 @app.cell
 def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
-    trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'VAE', full_signals_dir, max_n_samples_to_show=30)
-    return
+    plotted_samples = trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=30)
+    return (plotted_samples,)
 
 
 @app.cell(hide_code=True)
@@ -551,9 +484,13 @@ def _(mo):
 
 @app.cell
 def _(
+    full_signals_dir,
     mo_plot,
+    model,
     os,
     pathlib,
+    pd,
+    plotted_samples,
     res_dir,
     trapallada,
     tsne_columns,
@@ -573,19 +510,69 @@ def _(
 
     # range
     if mo_plot.ranges != {}:
-        with open(f'{output_dir / f'tSNE_region'}.yaml', 'w') as f:
+
+        region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
+
+        region_subdir.mkdir(parents=True, exist_ok=True)
+
+        print(f'Region subdir: {region_subdir}')
+
+        with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
+        
             yaml.dump(mo_plot.ranges, f)
+
+        for i_row, row in plotted_samples.iterrows():
+        
+            signal_id, *start_end = row[['signal', 'start', 'end']]
+        
+            pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
+        
+            signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
+        
+            windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
+            windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
+        
+            for df, filename in zip([windows_df, windows_pred_df], [f'window_{i_row}.csv', f'prediction_{i_row}.csv']):
+        
+                df.reset_index(inplace=True)
+                # df['TIME'] = df['TIME'].astype('int64') / 1e9
+                df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
+                df.to_csv(region_subdir / filename, index=False)
 
 
     dest = output_dir / (res_dir.name + '.tex')
     if not dest.exists():
         os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
-    return (scatter_df,)
+    return (output_dir,)
 
 
 @app.cell
-def _(scatter_df):
-    scatter_df
+def _():
+    # # plotted_samples
+
+    # if mo_plot.ranges != {}:
+
+    #     for i_row, row in plotted_samples.iterrows():
+        
+    #         signal_id, *start_end = row[['signal', 'start', 'end']]
+        
+    #         pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
+        
+    #         signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
+        
+    #         windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
+    #         windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
+        
+    #         for df, filename in zip([windows_df, windows_pred_df], [f'window_{i_row}.csv', f'prediction_{i_row}.csv']):
+        
+    #             df.reset_index(inplace=True)
+    #             # df['TIME'] = df['TIME'].astype('int64') / 1e9
+    #             df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    #             df.to_csv(region_subdir / filename, index=False)
+        
+    #         # full_signal_plot_fig = full_signals(signal_id, full_signals_dir, *start_end, pred)
+
+    #         # break
     return
 
 
@@ -611,6 +598,31 @@ def _(ar_analysis_file, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## Mahalanobis distance-based comparison""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Let us get rid of the undecided (`NaN`s)""")
+    return
+
+
+@app.cell
+def _(res_df):
+    no_undecided_res_df = res_df[res_df['Event'].notna()]
+    no_undecided_res_df.shape
+    return (no_undecided_res_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""How many windows of each `Type`? Notice the `Type` of the `NOT interesting` is `NaN`""")
+    return
+
+
+@app.cell
+def _(no_undecided_res_df):
+    no_undecided_res_df['Type'].value_counts(dropna=False).plot(kind='bar')
     return
 
 
@@ -697,6 +709,12 @@ def _(no_undecided_res_df):
     return (y,)
 
 
+@app.cell
+def _(res_df):
+    res_df[res_df['Event'].notna()]
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""For VAE""")
@@ -711,8 +729,10 @@ def _(mahalanobis_based_metrics, no_undecided_res_df, y, z_mean):
 
 
 @app.cell
-def _(no_undecided_res_df, trapallada, y, z_mean):
+def _(no_undecided_res_df, output_dir, trapallada, y, z_mean):
     trapallada.results.analysis.mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values)
+    _, labels_scores = trapallada.results.analysis.mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values, return_labels_scores=True)
+    trapallada.results.plot.roc(*labels_scores, output_dir / 'vae_roc.csv')
     return
 
 

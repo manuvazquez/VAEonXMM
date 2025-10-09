@@ -1,0 +1,45 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+% \usetikzlibrary{fillbetween}
+\usepgfplotslibrary{fillbetween}
+
+\pgfplotsset{compat=1.18}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=7cm, height=7cm,
+    xmin=0, xmax=1, ymin=0, ymax=1,
+    xlabel={False Positive Rate}, ylabel={True Positive Rate},
+    grid=major, axis on top,
+    tick label style={font=\small},
+    % title={\textbf{VAE} - ROC Curve},
+  ]
+
+    % Random classifier diagonal
+    \addplot [black, dashed, thick, opacity=0.6]
+      coordinates {(0,0) (1,1)};
+
+    % ROC curve (reads only FPR & TPR; Thresholds column is ignored)
+    \addplot [
+      name path=roc,
+      draw=blue,
+      line width=1pt,
+      fill=blue,
+      fill opacity=0.30
+    ] table [x=FPR, y=TPR, col sep=comma] {vae_roc.csv};
+
+    % Fill the area under the curve down to y=0
+    \path [name path=baseline] (axis cs:0,0) -- (axis cs:1,0);
+    \addplot [blue!40, opacity=0.35] fill between[of=baseline and roc];
+
+    \node[
+      anchor=center,
+      fill=white, fill opacity=0.75, text opacity=1,
+      rounded corners=1pt, inner sep=1.5pt,
+      font=\footnotesize\bfseries
+    ] at (rel axis cs:0.38,0.62) {AUC = 0.89};
+
+  \end{axis}
+\end{tikzpicture}
+\end{document}

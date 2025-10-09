@@ -2,12 +2,15 @@
 import pathlib
 
 import pandas as pd
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Int
 import equinox as eqx
 
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+
+# from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve, roc_curve, auc
+from sklearn.metrics import roc_curve
 
 from IPython.display import display, Markdown
 
@@ -303,14 +306,6 @@ class TSNE:
         
             self.highlight_window(indexes, name)
 
-# def roc(
-#         labels: Int[Array, 'window'],
-#         scores: Float[Array, 'window'],
-#         algorithm_name: str | None = None,
-#     ):
-
-#     pass
-
 def marimo_selected(
         mo_plot,
         analysis_df: pd.DataFrame, 
@@ -319,30 +314,47 @@ def marimo_selected(
         full_signals_dir: str | pathlib.Path,
         max_n_samples_to_show: int = 30,
         re_drop_columns: str = '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC|signal)'
-    ):
+    ) -> pd.DataFrame:
 
     i_selected = [e['index'] for e in mo_plot.points if e]
 
-    selected_samples = analysis_df.loc[i_selected]
+    plotted_samples = analysis_df.loc[i_selected]
 
-    belongs_to_reference_signals = selected_samples['signal'].isin(trapallada.data.Labels().signals)
+    belongs_to_reference_signals = plotted_samples['signal'].isin(trapallada.data.Labels().signals)
     print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
-    selected_samples = selected_samples.drop(selected_samples[belongs_to_reference_signals].index)
+    plotted_samples = plotted_samples.drop(plotted_samples[belongs_to_reference_signals].index)
 
-    if len(selected_samples) > max_n_samples_to_show:
-        selected_samples = selected_samples.drop_duplicates(subset=['signal'])
+    if len(plotted_samples) > max_n_samples_to_show:
+        plotted_samples = plotted_samples.drop_duplicates(subset=['signal'])
         print('Too many selected, plotting just one window for every signal...')
-        if len(selected_samples) > max_n_samples_to_show:
-            selected_samples = selected_samples.sample(max_n_samples_to_show)
+        if len(plotted_samples) > max_n_samples_to_show:
+            plotted_samples = plotted_samples.sample(max_n_samples_to_show)
             print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
 
-    for i_row, row in selected_samples.iterrows():
+    for i_row, row in plotted_samples.iterrows():
         mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
         signal_id, *start_end = row[['signal', 'start', 'end']]
         if model_name == 'vae':
-            pred = model.decoder(selected_samples.filter(regex=r'z_\d+').loc[i_row])
+            pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
         else:
             pred = None
         full_signal_plot_fig = full_signals(signal_id, full_signals_dir, *start_end, pred)
         mo.output.append(full_signal_plot_fig)
         mo.output.append('---')
+    
+    return plotted_samples
+
+
+def roc(
+        labels: Int[Array, 'window'],
+        scores: Float[Array, 'window'],
+        output_file: str | pathlib.Path = 'roc_curve.csv'
+    ):
+
+    fpr, tpr, thresholds = roc_curve(labels, scores)
+
+    pd.DataFrame({
+        'FPR': fpr,
+        'TPR': tpr,
+        'Thresholds': thresholds
+    }).to_csv(output_file, index=False)

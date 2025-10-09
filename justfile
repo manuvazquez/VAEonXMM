@@ -1,4 +1,5 @@
-mod python '/home/manu/python/python.just'
+mod python '~/python/python.just'
+mod mlflow '~/python/mlflow.just'
 
 home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
@@ -40,20 +41,20 @@ test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_acce
 
 # ========================================analysis ===================================================
 
-[group('analysis')]
-[doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
-run_parameterized_notebook NOTEBOOK DIR:
-  {{uv_command}} papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
+# [group('analysis')]
+# [doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
+# run_parameterized_notebook NOTEBOOK DIR:
+#   {{uv_command}} papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
 
-[group('analysis')]
-[doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
-run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-  {{uv_command}} papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
+# [group('analysis')]
+# [doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
+# run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
+#   {{uv_command}} papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
 
-[group('analysis')]
-[doc("MODEL_DIR: *absolute* path to a results directory (containing the eqx, yaml, and parquet files); GRAPH_DIR: *absolute* path to the directory with the graph files (nodes, edges); DATA_DIR: the path to the directory with the data; SUFFIX: optional suffix to append to the output file")]
-run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-  {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
+# [group('analysis')]
+# [doc("MODEL_DIR: *absolute* path to a results directory (containing the eqx, yaml, and parquet files); GRAPH_DIR: *absolute* path to the directory with the graph files (nodes, edges); DATA_DIR: the path to the directory with the data; SUFFIX: optional suffix to append to the output file")]
+# run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
+#   {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
 
 # ====================================================================================================
 
@@ -159,22 +160,22 @@ retrieve_from_cluster SERVER=default_server DIRECTORY="results":
   rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
 
-[group('infracstructure')]
-mlflow_ui:
-  echo {{env_var('MLFLOW_TRACKING_URI')}}
-  {{uv_command}} mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+# [group('infracstructure')]
+# mlflow_ui:
+#   echo {{env_var('MLFLOW_TRACKING_URI')}}
+#   {{uv_command}} mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
-[group('infracstructure')]
-mlflow_server:
-  {{uv_command}} mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
+# [group('infracstructure')]
+# mlflow_server:
+#   {{uv_command}} mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
 
-[group('infracstructure')]
-connect_to_remote_mlflow_ui SERVER=default_server BROWSER="falkon":
-  #!/usr/bin/env bash
-  ssh -N -L 10000:localhost:8080 {{SERVER}} &
-  SSH_PID=$!
-  {{BROWSER}} http://localhost:10000
-  kill $SSH_PID
+# [group('infracstructure')]
+# connect_to_remote_mlflow_ui SERVER=default_server BROWSER="falkon":
+#   #!/usr/bin/env bash
+#   ssh -N -L 10000:localhost:8080 {{SERVER}} &
+#   SSH_PID=$!
+#   {{BROWSER}} http://localhost:10000
+#   kill $SSH_PID
 
 [doc("FILE: the name of the html file; NAME: new name for the file; SERVER: remote server where the notebook will be published")]
 [group('infracstructure')]
