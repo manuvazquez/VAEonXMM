@@ -508,72 +508,48 @@ def _(
 
     scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
 
-    # range
+    # if some region has been selected...
     if mo_plot.ranges != {}:
 
         region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
-
-        region_subdir.mkdir(parents=True, exist_ok=True)
+        # region_subdir.mkdir(parents=True, exist_ok=True)
 
         print(f'Region subdir: {region_subdir}')
 
         with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
-        
+
             yaml.dump(mo_plot.ranges, f)
 
-        for i_row, row in plotted_samples.iterrows():
-        
+        for window_id, row in plotted_samples.iterrows():
+
+            window_subdir = region_subdir / str(window_id)
+            window_subdir.mkdir(parents=True, exist_ok=True)
+
             signal_id, *start_end = row[['signal', 'start', 'end']]
-        
-            pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
-        
+
+            pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[window_id])
+
             signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
-        
+
             windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
             windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
-        
-            for df, filename in zip([windows_df, windows_pred_df], [f'window_{i_row}.csv', f'prediction_{i_row}.csv']):
-        
+
+            for df, filename in zip([windows_df, windows_pred_df], ['window.csv', f'prediction.csv']):
+
                 df.reset_index(inplace=True)
                 # df['TIME'] = df['TIME'].astype('int64') / 1e9
                 df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
-                df.to_csv(region_subdir / filename, index=False)
+                df.to_csv(window_subdir / filename, index=False)
+
+            signals_df.reset_index(inplace=True)
+            signals_df['TIME'] = signals_df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
+            signals_df.to_csv(window_subdir / 'full_signal.csv', index=False)
 
 
     dest = output_dir / (res_dir.name + '.tex')
     if not dest.exists():
         os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
     return (output_dir,)
-
-
-@app.cell
-def _():
-    # # plotted_samples
-
-    # if mo_plot.ranges != {}:
-
-    #     for i_row, row in plotted_samples.iterrows():
-        
-    #         signal_id, *start_end = row[['signal', 'start', 'end']]
-        
-    #         pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
-        
-    #         signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
-        
-    #         windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
-    #         windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
-        
-    #         for df, filename in zip([windows_df, windows_pred_df], [f'window_{i_row}.csv', f'prediction_{i_row}.csv']):
-        
-    #             df.reset_index(inplace=True)
-    #             # df['TIME'] = df['TIME'].astype('int64') / 1e9
-    #             df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
-    #             df.to_csv(region_subdir / filename, index=False)
-        
-    #         # full_signal_plot_fig = full_signals(signal_id, full_signals_dir, *start_end, pred)
-
-    #         # break
-    return
 
 
 @app.cell(hide_code=True)

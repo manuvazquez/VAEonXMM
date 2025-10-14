@@ -160,23 +160,6 @@ retrieve_from_cluster SERVER=default_server DIRECTORY="results":
   rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
   @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
 
-# [group('infracstructure')]
-# mlflow_ui:
-#   echo {{env_var('MLFLOW_TRACKING_URI')}}
-#   {{uv_command}} mlflow ui --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
-
-# [group('infracstructure')]
-# mlflow_server:
-#   {{uv_command}} mlflow server --host 127.0.0.1 --port 8080 --backend-store-uri {{env_var('MLFLOW_TRACKING_URI')}}
-
-# [group('infracstructure')]
-# connect_to_remote_mlflow_ui SERVER=default_server BROWSER="falkon":
-#   #!/usr/bin/env bash
-#   ssh -N -L 10000:localhost:8080 {{SERVER}} &
-#   SSH_PID=$!
-#   {{BROWSER}} http://localhost:10000
-#   kill $SSH_PID
-
 [doc("FILE: the name of the html file; NAME: new name for the file; SERVER: remote server where the notebook will be published")]
 [group('infracstructure')]
 publish_html_on_cluster FILE NAME SERVER=default_server:

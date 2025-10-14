@@ -1,0 +1,132 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots,dateplot} % <-- dateplot is the key
+\pgfplotsset{compat=1.18}
+
+\usepackage{pgfplotstable}
+
+\def\subdir{11099}
+
+\pgfplotstableread[col sep=comma]{\subdir/prediction.csv}\predtable
+
+% first TIME
+\pgfplotstablegetelem{0}{TIME}\of\predtable
+\edef\LeftTime{\pgfplotsretval}
+
+% last TIME = (#rows - 1)
+\pgfplotstablegetrowsof{\predtable}
+\pgfmathtruncatemacro{\LastRow}{\pgfplotsretval-1}
+
+\pgfplotstablegetelem{\LastRow}{TIME}\of\predtable
+\edef\RightTime{\pgfplotsretval}
+
+
+\begin{document}
+\begin{tikzpicture}[
+  full signal/.style={
+    thick,mark repeat=50,
+    color=blue,
+    mark=*,
+    mark options={fill=blue!40},
+  },
+  prediction/.style={
+    color=red,
+    thick,
+    % dashed,
+  },
+]
+  \begin{groupplot}[
+    group style={
+      group size=1 by 5,
+      vertical sep=8mm,
+      xlabels at=edge bottom,
+      xticklabels at=edge bottom
+    },
+    width=10.5cm, height=4cm,
+    grid=major,
+    set layers,
+    axis background/.style={fill=none},
+    date coordinates in=x,          % <-- interpret x values as dates
+    xticklabel=\year-\month-\day,   % <-- label format (customize freely)
+    xticklabel style={rotate=45, anchor=east},
+  ]
+
+  % =====================================================================================
+  
+  % \nextgroupplot[
+  %   title={RATE1}, ylabel={Rate},
+  % ]
+  % \pgfplotsextra{
+  %   \begin{pgfonlayer}{axis background}
+  %     \fill[green!25]
+  %       (axis cs:\LeftTime,\pgfkeysvalueof{/pgfplots/ymin})
+  %       rectangle
+  %       (axis cs:\RightTime,\pgfkeysvalueof{/pgfplots/ymax});
+  %   \end{pgfonlayer}
+  % }
+  % \addplot[
+  %   full signal,
+  % ]
+  % table [x=TIME, y=RATE1, col sep=comma] {\subdir/full_signal.csv};
+  % \addplot[
+  %   prediction,
+  % ]
+  % table [x=TIME, y=RATE1, col sep=comma] {\subdir/prediction.csv};
+
+  % =====================================================================================
+\pgfplotsinvokeforeach{1,2,3,4}{
+  \nextgroupplot[
+    title={RATE#1}, ylabel={Rate},
+  ]
+    \pgfplotsextra{
+      \begin{pgfonlayer}{axis background}
+        \fill[green!25]
+          (axis cs:\LeftTime,\pgfkeysvalueof{/pgfplots/ymin})
+          rectangle
+          (axis cs:\RightTime,\pgfkeysvalueof{/pgfplots/ymax});
+      \end{pgfonlayer}
+    }
+
+    \addplot[full signal]
+      table [x=TIME, y=RATE#1, col sep=comma] {\subdir/full_signal.csv};
+    \addplot[prediction]
+      table [x=TIME, y=RATE#1, col sep=comma] {\subdir/prediction.csv};
+}
+
+
+  % =====================================================================================
+
+  % --- Bottom axis ---
+  \nextgroupplot[
+    title={RATE5}, ylabel={Rate},
+    clip=false,
+    legend style={
+      at={(0.5,-0.6)}, anchor=north,
+      legend columns=-1,
+      draw=none, font=\small,
+      /tikz/every even column/.append style={column sep=0.7em},
+    },
+  ]
+  \pgfplotsextra{
+    \begin{pgfonlayer}{axis background}
+      \fill[green!25]
+        (axis cs:\LeftTime,\pgfkeysvalueof{/pgfplots/ymin})
+        rectangle
+        (axis cs:\RightTime,\pgfkeysvalueof{/pgfplots/ymax});
+    \end{pgfonlayer}
+  }
+  \addplot[
+    full signal,
+  ]
+  table [x=TIME, y=RATE4, col sep=comma] {\subdir/full_signal.csv};
+  \addlegendentry{Full signal}
+
+  \addplot[
+    prediction,
+  ]
+  table [x=TIME, y=RATE4, col sep=comma] {\subdir/prediction.csv};
+  \addlegendentry{Reconstruction}
+
+  \end{groupplot}
+\end{tikzpicture}
+\end{document}
