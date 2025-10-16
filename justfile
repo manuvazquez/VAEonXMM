@@ -1,5 +1,6 @@
 mod python '~/python/python.just'
 mod mlflow '~/python/mlflow.just'
+mod latex
 
 home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
@@ -15,7 +16,7 @@ annotated_windows_file := join(trapallada_dir, 'annotations', 'annotated_windows
 
 data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada')
 
-conda_environment := "trap"
+# conda_environment := "trap"
 
 # i) PYTHONBREAKPOINT=ipdb.set_trace indicates Python to use ipdb for debugging
 # ii) --no-sync doesn't try to update venv before running the command (useuful when having a CUDA-enabled

@@ -3,6 +3,32 @@
 \pgfplotsset{compat=1.18}
 \pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
 
+% \newcommand{\subdir}{paper_main}
+\providecommand{\dataFile}{paper_main/tSNE.csv}
+\newcommand{\zoomBoxFile}{paper_main/44-58_91-100/coordinates.csv}
+
+\ifdefined\zoomBoxFile
+
+  % \pgfplotstableread[col sep=comma]{\zoomBoxFile}\zoombox
+  % \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xA{\pgfplotsretval}
+  % \pgfplotstablegetelem{0}{y}\of\zoombox \edef\yA{\pgfplotsretval}
+  % \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xB{\pgfplotsretval}
+  % \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yB{\pgfplotsretval}
+
+  % % Normalize to bottom-left (xa,ya) and top-right (xb,yb) just in case
+  % \pgfmathsetmacro{\xa}{min(\xA,\xB)}
+  % \pgfmathsetmacro{\xb}{max(\xA,\xB)}
+  % \pgfmathsetmacro{\ya}{min(\yA,\yB)}
+  % \pgfmathsetmacro{\yb}{max(\yA,\yB)}
+
+  \pgfplotstableread[col sep=comma]{\zoomBoxFile}\zoombox
+  \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xa{\pgfplotsretval}
+  \pgfplotstablegetelem{0}{y}\of\zoombox \edef\ya{\pgfplotsretval}
+  \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xb{\pgfplotsretval}
+  \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yb{\pgfplotsretval}
+
+\else {} \fi
+
 \begin{document}
 \begin{tikzpicture}
   \begin{axis}[
@@ -33,7 +59,7 @@
     table[
       x=tsne_1, y=tsne_2, col sep=comma,
       restrict expr to domain={\thisrow{reference}}{0:0},
-    ]{tSNE.csv};
+    ]{\dataFile};
     % \addlegendentry{Non-reference}
 
     % --- Reference: reference == 1 (opaque red triangles on top) ---
@@ -46,8 +72,21 @@
     table[
       x=tsne_1, y=tsne_2, col sep=comma,
       restrict expr to domain={\thisrow{reference}}{1:1},
-    ]{tSNE.csv};
+    ]{\dataFile};
     \addlegendentry{Reference}
+
+  \ifdefined\zoomBoxFile
+
+    \draw[
+      brown,
+      thick,
+      % rounded corners=1pt,
+      % fill=red,
+      % fill opacity=0.06
+    ]
+      (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);
+
+  \else {} \fi
 
   \end{axis}
 \end{tikzpicture}

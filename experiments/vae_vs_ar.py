@@ -512,13 +512,14 @@ def _(
     if mo_plot.ranges != {}:
 
         region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
-        # region_subdir.mkdir(parents=True, exist_ok=True)
+        region_subdir.mkdir(parents=True, exist_ok=True)
 
         print(f'Region subdir: {region_subdir}')
 
         with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
 
             yaml.dump(mo_plot.ranges, f)
+            pd.DataFrame(mo_plot.ranges).to_csv(region_subdir / 'coordinates.csv', index=False)
 
         for window_id, row in plotted_samples.iterrows():
 
