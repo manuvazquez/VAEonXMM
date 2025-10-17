@@ -47,25 +47,7 @@ def _():
     import trapallada.results.plot
     import trapallada.model.training
     import trapallada.model.nn
-    return (
-        Array,
-        EmpiricalCovariance,
-        Float,
-        Int,
-        auc,
-        average_precision_score,
-        namedtuple,
-        np,
-        os,
-        pathlib,
-        pd,
-        precision_recall_curve,
-        px,
-        roc_auc_score,
-        roc_curve,
-        trapallada,
-        yaml,
-    )
+    return np, os, pathlib, pd, trapallada, yaml
 
 
 @app.cell(hide_code=True)
@@ -215,6 +197,18 @@ def _(mo):
 def _(annotations_dir):
     reference_windows_file = annotations_dir / 'reference_windows.xlsx'
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The best recall at this minimum precision will be computed for each algorithm""")
+    return
+
+
+@app.cell
+def _():
+    min_precision = 0.7
+    return (min_precision,)
 
 
 @app.cell(hide_code=True)
@@ -494,6 +488,7 @@ def _(
     res_dir,
     trapallada,
     tsne_columns,
+    vae_df,
     vae_df_merged,
     yaml,
 ):
@@ -546,11 +541,20 @@ def _(
             signals_df['TIME'] = signals_df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
             signals_df.to_csv(window_subdir / 'full_signal.csv', index=False)
 
+            with open(window_subdir/ 'signal.txt', 'w') as f:
+                f.write(vae_df.loc[window_id, 'signal'].split('/')[1])
+
 
     dest = output_dir / (res_dir.name + '.tex')
     if not dest.exists():
         os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
     return (output_dir,)
+
+
+@app.cell
+def _():
+    # vae_df.loc[window_id, 'signal']
+    return
 
 
 @app.cell(hide_code=True)
@@ -605,77 +609,6 @@ def _(no_undecided_res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A function to compare the methods based on Mahalanobis distance (through an [estimated covariance](https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EmpiricalCovariance.html#sklearn.covariance.EmpiricalCovariance.mahalanobis)) and different binary classification metrics. This function assumes **the larger the distance from the mean, the more likely a point (i.e., a window) is to be an event of interest**.""")
-    return
-
-
-@app.cell
-def _(
-    Array,
-    EmpiricalCovariance,
-    Float,
-    Int,
-    auc,
-    average_precision_score,
-    namedtuple,
-    precision_recall_curve,
-    px,
-    roc_auc_score,
-    roc_curve,
-):
-    # so that named values are returned
-    MahalanobisBasedMetrics = namedtuple('MahalanobisBasedMetrics', ['average_precision', 'best_recall_at_min_precision', 'roc_curve'])
-
-    def mahalanobis_based_metrics(
-            x: Float[Array, 'window feature'],
-            labels: Int[Array, 'window'],
-            i_windows_of_interest: Int[Array, 'window'],
-            min_precision: float = 0.7,
-            algorithm_name: str | None = None,
-        # ) -> tuple[float, float, float, matplotlib.figure.Figure]:
-        ) -> MahalanobisBasedMetrics:
-
-        # covariance matrix (and mean) is estimated...
-        cov = EmpiricalCovariance().fit(x)
-
-        # Mahalanobis distance (given the above covariance) from every sample to the mean (a measure of *outlierness*)
-        distances = cov.mahalanobis(x)
-
-        # the distances for the windows of interest are kept as scores
-        scores = distances[i_windows_of_interest]
-
-        roc_auc: float = roc_auc_score(labels, scores)
-        average_precision: float = average_precision_score(labels, scores)
-
-        precision, recall, thr = precision_recall_curve(labels, scores)
-        mask = (precision >= min_precision)
-        best_recall_at_min_precision: float = recall[mask].max().item()
-
-        fpr, tpr, thresholds = roc_curve(labels, scores)
-
-        fig = px.area(
-            x=fpr, y=tpr,
-            title=f'<b>{algorithm_name}</b> (AUC={auc(fpr, tpr):.2f}, AP={average_precision:.2f}, BR@{min_precision}={best_recall_at_min_precision:.2f})',
-            labels=dict(x='False Positive Rate', y='True Positive Rate'),
-            width=500, height=500,
-        )
-        fig.add_shape(
-            type='line', line=dict(dash='dash'),
-            x0=0, x1=1, y0=0, y1=1
-        )
-
-        # fig.update_yaxes(scaleanchor="x", scaleratio=1)
-        # fig.update_xaxes(constrain='domain')
-        fig.update_xaxes(range=[0, 1])
-        fig.update_yaxes(range=[0, 1])
-
-        # return MahalanobisBasedMetrics(average_precision, best_recall_at_min_precision, roc_curve)
-        return MahalanobisBasedMetrics(average_precision, best_recall_at_min_precision, fig)
-    return (mahalanobis_based_metrics,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""The *label* is `1` if `Event` is `True` and `0` otherwise.""")
     return
 
@@ -694,23 +627,38 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""An auxiliary function to save the results of both algorithms.""")
+    return
+
+
+@app.cell
+def _(output_dir, pd):
+    def save_results(df: pd.DataFrame, metrics: dict, algorithm: str):
+
+        df.to_csv(output_dir / f'{algorithm}_roc.csv', index=False)
+        with open(output_dir / f'{algorithm}_auc.txt', 'w') as f:
+            f.write(f'{metrics['roc_auc']:.2f}')
+    return (save_results,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""For VAE""")
     return
 
 
 @app.cell
-def _(mahalanobis_based_metrics, no_undecided_res_df, y, z_mean):
-    res_vae = mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values, algorithm_name='VAE')
-    res_vae[-1]
-    return
-
-
-@app.cell
-def _(no_undecided_res_df, output_dir, trapallada, y, z_mean):
-    trapallada.results.analysis.mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values)
-    _, labels_scores = trapallada.results.analysis.mahalanobis_based_metrics(z_mean, y, no_undecided_res_df.index.values, return_labels_scores=True)
-    trapallada.results.plot.roc(*labels_scores, output_dir / 'vae_roc.csv')
-    return
+def _(min_precision, no_undecided_res_df, save_results, trapallada, y, z_mean):
+    vae_metrics, (labels, vae_scores) = trapallada.results.analysis.mahalanobis_based_metrics(
+        z_mean, y, no_undecided_res_df.index.values, min_precision=min_precision, return_labels_scores=True)
+    vae_roc_fig, vae_roc_fig_df = trapallada.results.plot.roc(
+        labels, vae_scores,
+        title=f'<b>VAE</b> (AUC={vae_metrics['roc_auc']:.2f}, AP={vae_metrics['average_precision']:.2f}, BR@{min_precision}={vae_metrics['best_recall_at_min_precision']:.2f})',
+        return_plot_data=True
+    )
+    save_results(vae_roc_fig_df, vae_metrics, 'vae')
+    vae_roc_fig
+    return (labels,)
 
 
 @app.cell(hide_code=True)
@@ -720,9 +668,27 @@ def _(mo):
 
 
 @app.cell
-def _(ar_df, mahalanobis_based_metrics, no_undecided_res_df, y):
-    res_ar = mahalanobis_based_metrics(ar_df.filter(regex='z_\\d+').values, y, no_undecided_res_df.index.values, algorithm_name='AR')
-    res_ar[-1]
+def _(
+    ar_df,
+    labels,
+    min_precision,
+    no_undecided_res_df,
+    save_results,
+    trapallada,
+    y,
+):
+    ar_metrics, (_, ar_scores) = trapallada.results.analysis.mahalanobis_based_metrics(
+        ar_df.filter(regex='z_\\d+').values, y, no_undecided_res_df.index.values,
+        min_precision=min_precision, return_labels_scores=True
+    )
+    ar_roc_fig, ar_roc_fig_df = trapallada.results.plot.roc(
+        labels, ar_scores,
+        # title='AR',
+        title=f'<b>AR</b> (AUC={ar_metrics['roc_auc']:.2f}, AP={ar_metrics['average_precision']:.2f}, BR@{min_precision}={ar_metrics['best_recall_at_min_precision']:.2f})',
+        return_plot_data=True
+    )
+    save_results(ar_roc_fig_df, ar_metrics, 'ar')
+    ar_roc_fig
     return
 
 

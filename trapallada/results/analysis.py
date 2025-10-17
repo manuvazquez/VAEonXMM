@@ -305,6 +305,10 @@ def mahalanobis_based_metrics(
         return_labels_scores: bool = False,
     ) -> tuple | dict:
 
+    """
+    Compare the methods based on Mahalanobis distance (through an [estimated covariance](https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EmpiricalCovariance.html#sklearn.covariance.EmpiricalCovariance.mahalanobis)) and different binary classification metrics. This function assumes **the larger the distance from the mean, the more likely a point (i.e., a window) is to be an event of interest**.
+    """
+
     assert len(i_windows_of_interest) == len(labels), f'# windows of interest ({len(i_windows_of_interest)}) != # labels ({len(labels)})'
 
     # covariance matrix (and mean) is estimated...

@@ -3,6 +3,8 @@
 \pgfplotsset{compat=1.18}
 \pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
 
+\providecommand{\subdir}{beta_0.005_dim_z_10}
+
 \begin{document}
 \begin{tikzpicture}
   \begin{axis}[
@@ -52,7 +54,7 @@
       col sep=comma,
       trim cells=true,
       ignore chars={ },
-    ]{tSNE.csv};
+    ]{\subdir/tSNE.csv};
     % ]{tSNE_sample.csv};
 
     % ---------------- Legend entries ----------------

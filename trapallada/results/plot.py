@@ -348,13 +348,36 @@ def marimo_selected(
 def roc(
         labels: Int[Array, 'window'],
         scores: Float[Array, 'window'],
-        output_file: str | pathlib.Path = 'roc_curve.csv'
+        title: str = 'ROC Curve',
+        return_plot_data: bool = False
     ):
 
     fpr, tpr, thresholds = roc_curve(labels, scores)
 
-    pd.DataFrame({
-        'FPR': fpr,
-        'TPR': tpr,
-        'Thresholds': thresholds
-    }).to_csv(output_file, index=False)
+    fig = px.area(
+        x=fpr, y=tpr,
+        title=title,
+        labels=dict(x='False Positive Rate', y='True Positive Rate'),
+        width=500, height=500,
+    )
+    fig.add_shape(
+        type='line', line=dict(dash='dash'),
+        x0=0, x1=1, y0=0, y1=1
+    )
+
+    fig.update_xaxes(range=[0, 1])
+    fig.update_yaxes(range=[0, 1])
+
+    if return_plot_data:
+
+        df = pd.DataFrame({
+            'FPR': fpr,
+            'TPR': tpr,
+            'Thresholds': thresholds
+        })
+
+        return fig, df
+    
+    else:
+        
+        return fig

@@ -5,9 +5,20 @@
 
 \usepackage{pgfplotstable}
 
-% \def\subdir{11099}
-% \providecommand{\subdir}{11099}
 \providecommand{\subdir}{paper_main/106-117_-16-2/11099}
+
+\newread\signalfile
+\openin\signalfile=\subdir/signal.txt
+\read\signalfile to\signalName
+\closein\signalfile
+\edef\signalName{\unexpanded\expandafter{\signalName}}
+
+% \makeatletter
+% % Read the file, detokenize (so _ etc. are safe), then trim spaces
+% \edef\signalName{\zap@space\detokenize\expandafter{\input{\subdir/signal.txt}}\@empty}
+% \makeatother
+
+
 
 \pgfplotstableread[col sep=comma]{\subdir/prediction.csv}\predtable
 
@@ -26,10 +37,11 @@
 \begin{document}
 \begin{tikzpicture}[
   full signal/.style={
-    thick,mark repeat=50,
+    thick,
+    % mark repeat=50,
     color=blue,
-    mark=*,
-    mark options={fill=blue!40},
+    % mark=*,
+    % mark options={fill=blue!40},
   },
   prediction/.style={
     color=red,
@@ -49,33 +61,11 @@
     set layers,
     axis background/.style={fill=none},
     date coordinates in=x,          % <-- interpret x values as dates
-    xticklabel=\year-\month-\day,   % <-- label format (customize freely)
-    xticklabel style={rotate=45, anchor=east},
+    % xticklabel=\year-\month-\day,   % <-- label format (customize freely)
+    xticklabel=\month-\day~\hour:\minute,
+    xticklabel style={rotate=60, anchor=east},
   ]
 
-  % =====================================================================================
-  
-  % \nextgroupplot[
-  %   title={RATE1}, ylabel={Rate},
-  % ]
-  % \pgfplotsextra{
-  %   \begin{pgfonlayer}{axis background}
-  %     \fill[green!25]
-  %       (axis cs:\LeftTime,\pgfkeysvalueof{/pgfplots/ymin})
-  %       rectangle
-  %       (axis cs:\RightTime,\pgfkeysvalueof{/pgfplots/ymax});
-  %   \end{pgfonlayer}
-  % }
-  % \addplot[
-  %   full signal,
-  % ]
-  % table [x=TIME, y=RATE1, col sep=comma] {\subdir/full_signal.csv};
-  % \addplot[
-  %   prediction,
-  % ]
-  % table [x=TIME, y=RATE1, col sep=comma] {\subdir/prediction.csv};
-
-  % =====================================================================================
 \pgfplotsinvokeforeach{1,2,3,4}{
   \nextgroupplot[
     title={RATE#1}, ylabel={Rate},
@@ -95,7 +85,6 @@
       table [x=TIME, y=RATE#1, col sep=comma] {\subdir/prediction.csv};
 }
 
-
   % =====================================================================================
 
   % --- Bottom axis ---
@@ -103,7 +92,7 @@
     title={RATE5}, ylabel={Rate},
     clip=false,
     legend style={
-      at={(0.5,-0.6)}, anchor=north,
+      at={(0.5,-0.7)}, anchor=north,
       legend columns=-1,
       draw=none, font=\small,
       /tikz/every even column/.append style={column sep=0.7em},
@@ -121,7 +110,7 @@
     full signal,
   ]
   table [x=TIME, y=RATE4, col sep=comma] {\subdir/full_signal.csv};
-  \addlegendentry{Full signal}
+  \addlegendentry{Full signal (\signalName{}\hspace*{-.25em})}
 
   \addplot[
     prediction,

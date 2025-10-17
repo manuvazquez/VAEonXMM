@@ -3,25 +3,14 @@
 \pgfplotsset{compat=1.18}
 \pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
 
-% \newcommand{\subdir}{paper_main}
-\providecommand{\dataFile}{paper_main/tSNE.csv}
-\newcommand{\zoomBoxFile}{paper_main/44-58_91-100/coordinates.csv}
+% \providecommand{\dataFile}{paper_main/tSNE.csv}
+% \newcommand{\zoomSubdir}{paper_main/44-58_91-100/coordinates.csv}
+\providecommand{\dataDir}{paper_main}
+% \newcommand{\zoomSubdir}{44-58_91-100}
 
-\ifdefined\zoomBoxFile
+\ifdefined\zoomSubdir
 
-  % \pgfplotstableread[col sep=comma]{\zoomBoxFile}\zoombox
-  % \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xA{\pgfplotsretval}
-  % \pgfplotstablegetelem{0}{y}\of\zoombox \edef\yA{\pgfplotsretval}
-  % \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xB{\pgfplotsretval}
-  % \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yB{\pgfplotsretval}
-
-  % % Normalize to bottom-left (xa,ya) and top-right (xb,yb) just in case
-  % \pgfmathsetmacro{\xa}{min(\xA,\xB)}
-  % \pgfmathsetmacro{\xb}{max(\xA,\xB)}
-  % \pgfmathsetmacro{\ya}{min(\yA,\yB)}
-  % \pgfmathsetmacro{\yb}{max(\yA,\yB)}
-
-  \pgfplotstableread[col sep=comma]{\zoomBoxFile}\zoombox
+  \pgfplotstableread[col sep=comma]{\dataDir/\zoomSubdir/coordinates.csv}\zoombox
   \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xa{\pgfplotsretval}
   \pgfplotstablegetelem{0}{y}\of\zoombox \edef\ya{\pgfplotsretval}
   \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xb{\pgfplotsretval}
@@ -59,8 +48,7 @@
     table[
       x=tsne_1, y=tsne_2, col sep=comma,
       restrict expr to domain={\thisrow{reference}}{0:0},
-    ]{\dataFile};
-    % \addlegendentry{Non-reference}
+    ]{\dataDir/tSNE.csv};
 
     % --- Reference: reference == 1 (opaque red triangles on top) ---
     \addplot[
@@ -72,10 +60,10 @@
     table[
       x=tsne_1, y=tsne_2, col sep=comma,
       restrict expr to domain={\thisrow{reference}}{1:1},
-    ]{\dataFile};
+    ]{\dataDir/tSNE.csv};
     \addlegendentry{Reference}
 
-  \ifdefined\zoomBoxFile
+  \ifdefined\zoomSubdir
 
     \draw[
       brown,

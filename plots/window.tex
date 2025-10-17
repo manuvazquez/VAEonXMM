@@ -1,9 +1,10 @@
 \documentclass{standalone}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
-\usepgfplotslibrary{dateplot} % <-- IMPORTANT
+\usepgfplotslibrary{dateplot}
 
-\def\datafile{prediction_1303.csv}
+\providecommand{\dir}{paper_main/106-117_-16-2/18991}
+\newcommand{\datafile}{\dir/prediction.csv}
 
 \begin{document}
 \begin{tikzpicture}[
@@ -14,7 +15,8 @@
     xlabel=Time (UTC), ylabel=Rate,
     grid=both, legend pos=north west,
     date coordinates in=x,
-    xticklabel=\year-\month-\day~\hour:\minute,
+    % xticklabel=\year-\month-\day~\hour:\minute,
+    xticklabel=\month-\day~\hour:\minute,
     xticklabel style={rotate=45, anchor=east},
   ]
 

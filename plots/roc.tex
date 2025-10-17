@@ -1,9 +1,19 @@
 \documentclass{standalone}
 \usepackage{pgfplots}
-% \usetikzlibrary{fillbetween}
 \usepgfplotslibrary{fillbetween}
 
 \pgfplotsset{compat=1.18}
+
+\providecommand{\dataDir}{paper_main}
+\providecommand{\algo}{vae}
+
+\newcommand{\dataFile}{\dataDir/\algo_roc.csv}
+
+\newread\aucFile
+\openin\aucFile=\dataDir/\algo_auc.txt
+\read\aucFile to\auc
+\closein\aucFile
+\edef\auc{\unexpanded\expandafter{\auc}}
 
 \begin{document}
 \begin{tikzpicture}
@@ -27,7 +37,7 @@
       line width=1pt,
       fill=blue,
       fill opacity=0.30
-    ] table [x=FPR, y=TPR, col sep=comma] {vae_roc.csv};
+    ] table [x=FPR, y=TPR, col sep=comma] {\dataFile};
 
     % Fill the area under the curve down to y=0
     \path [name path=baseline] (axis cs:0,0) -- (axis cs:1,0);
@@ -38,7 +48,7 @@
       fill=white, fill opacity=0.75, text opacity=1,
       rounded corners=1pt, inner sep=1.5pt,
       font=\footnotesize\bfseries
-    ] at (rel axis cs:0.38,0.62) {AUC = 0.89};
+    ] at (rel axis cs:0.38,0.62) {AUC = \auc};
 
   \end{axis}
 \end{tikzpicture}
