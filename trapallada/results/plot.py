@@ -331,8 +331,16 @@ def marimo_selected(
             plotted_samples = plotted_samples.sample(max_n_samples_to_show)
             print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
 
+    output_tables = []
+    
     for i_row, row in plotted_samples.iterrows():
-        mo.output.append(row.filter(regex=re_drop_columns).to_frame().T)
+        mo.output.append(
+            row.filter(regex=re_drop_columns).to_frame().T
+        )
+        # output_tables.append(mo.ui.table(
+        #     row.filter(regex=re_drop_columns).to_frame().T
+        # ))
+        # mo.output.append(output_tables[-1])
         signal_id, *start_end = row[['signal', 'start', 'end']]
         if model_name == 'vae':
             pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[i_row])
@@ -343,6 +351,7 @@ def marimo_selected(
         mo.output.append('---')
     
     return plotted_samples
+    # return plotted_samples, output_tables
 
 
 def roc(

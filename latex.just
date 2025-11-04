@@ -6,9 +6,7 @@ latexmk_outdir := "-outdir=" + output_dir
 default:
   just -f {{source_file()}} --list
 
-# all: (reference_vs_non-reference "paper_main") (reference_vs_non-reference "ae_z_10") (embedded_window "paper_main/106-117_-16-2/11099")
-
-all: (reference_vs_non-reference "paper_main" "44-58_91-100") (reference_vs_non-reference "ae_z_10") (embedded_window "paper_main/106-117_-16-2/11099") (validation "paper_main") (roc "paper_main" "vae") (roc "paper_main" "ar")
+all: (reference_vs_non-reference "paper_main" "44-58_91-100") (reference_vs_non-reference "ae_z_10") (embedded_window "paper_main/106-117_-16-2/11099") (validation "paper_main" "-95--84_58-66") (validation "paper_main") (roc "paper_main" "vae") (roc "paper_main" "ar") (latent "paper_main")
 
 # ==================================================
 
@@ -30,11 +28,11 @@ embedded_window DIR: (embedded_window_allowing_clean DIR) (embedded_window_allow
 # ==================================================
 
 [private]
-validation_allowing_clean DIR CLEAN="false":
-    {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\subdir}{"{{DIR}}"}" -cd "plots/validation.tex"
+validation_allowing_clean DIR ZOOM_SUBDIR="" CLEAN="false":
+    {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\dataDir}{"{{DIR}}"}"{{if ZOOM_SUBDIR!="" {"\\\\newcommand{\\\\zoomSubdir}{"+ZOOM_SUBDIR+"}"} else {""} }} -cd "plots/validation.tex"
 
-validation DIR: (validation_allowing_clean DIR) (validation_allowing_clean DIR "true")
-  mv plots/validation.pdf plots/{{output_dir}}/validation_{{replace(DIR, "/", "_")}}.pdf
+validation DIR ZOOM_SUBDIR="": (validation_allowing_clean DIR ZOOM_SUBDIR) (validation_allowing_clean DIR ZOOM_SUBDIR "true")
+  mv plots/validation.pdf plots/{{output_dir}}/validation_{{replace(DIR, "/", "_")}}{{if ZOOM_SUBDIR!="" {ZOOM_SUBDIR} else {""} }}.pdf
 
 # ==================================================
 
@@ -45,4 +43,13 @@ roc_allowing_clean DIR ALGORITHM CLEAN="false":
 roc DIR ALGORITHM: (roc_allowing_clean DIR ALGORITHM) (roc_allowing_clean DIR ALGORITHM "true")
   mv plots/roc.pdf plots/{{output_dir}}/{{ALGORITHM}}_roc_{{replace(DIR, "/", "_")}}.pdf
 
-# roc DIR ALGORITHM: (roc_allowing_clean DIR ALGORITHM)
+# ==================================================
+
+[private]
+latent_allowing_clean DIR ZOOM_SUBDIRS="" CLEAN="false":
+    {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\dataDir}{"{{DIR}}"}"{{if ZOOM_SUBDIRS!="" {"\\\\newcommand{\\\\zoomSubdirs}{"+ZOOM_SUBDIRS+"}"} else {""} }} -cd "plots/latent.tex"
+
+latent DIR ZOOM_SUBDIRS="": (latent_allowing_clean DIR ZOOM_SUBDIRS) (latent_allowing_clean DIR ZOOM_SUBDIRS "true")
+  mv plots/latent.pdf plots/{{output_dir}}/latent_{{replace(DIR, "/", "_")}}{{if ZOOM_SUBDIRS!="" {"_"+ZOOM_SUBDIRS} else {""} }}.pdf
+
+paper_latent: (latent "paper_main" "94-108_9-25\",\"-8-9_-6-6")

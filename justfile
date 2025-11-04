@@ -1,3 +1,6 @@
+# set capture := 'none'
+# set shell := ['bash', '-uec']
+
 mod python '~/python/python.just'
 mod mlflow '~/python/mlflow.just'
 mod latex

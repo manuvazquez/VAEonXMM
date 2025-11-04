@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.17.0"
 app = marimo.App(width="full")
 
 
@@ -467,7 +467,27 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 @app.cell
 def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
     plotted_samples = trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=30)
+    # plotted_samples, output_tables = trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=30)
     return (plotted_samples,)
+
+
+@app.cell
+def _():
+    # pd.concat([e.value for e in output_tables])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Select *windows* to be highlighted""")
+    return
+
+
+@app.cell
+def _(mo, plotted_samples):
+    plotted_samples_table = mo.ui.table(plotted_samples)
+    plotted_samples_table
+    return (plotted_samples_table,)
 
 
 @app.cell(hide_code=True)
@@ -485,6 +505,7 @@ def _(
     pathlib,
     pd,
     plotted_samples,
+    plotted_samples_table,
     res_dir,
     trapallada,
     tsne_columns,
@@ -516,7 +537,9 @@ def _(
             yaml.dump(mo_plot.ranges, f)
             pd.DataFrame(mo_plot.ranges).to_csv(region_subdir / 'coordinates.csv', index=False)
 
-        for window_id, row in plotted_samples.iterrows():
+        for window_id, row in plotted_samples_table.value.iterrows():
+    
+        # for window_id, row in plotted_samples.iterrows():
 
             window_subdir = region_subdir / str(window_id)
             window_subdir.mkdir(parents=True, exist_ok=True)
@@ -533,7 +556,6 @@ def _(
             for df, filename in zip([windows_df, windows_pred_df], ['window.csv', f'prediction.csv']):
 
                 df.reset_index(inplace=True)
-                # df['TIME'] = df['TIME'].astype('int64') / 1e9
                 df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
                 df.to_csv(window_subdir / filename, index=False)
 
@@ -544,17 +566,14 @@ def _(
             with open(window_subdir/ 'signal.txt', 'w') as f:
                 f.write(vae_df.loc[window_id, 'signal'].split('/')[1])
 
+        if not plotted_samples_table.value.empty:
+            plotted_samples_table.value[tsne_columns].to_csv(region_subdir / 'selected_windows.csv', index=False)
+
 
     dest = output_dir / (res_dir.name + '.tex')
     if not dest.exists():
         os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
     return (output_dir,)
-
-
-@app.cell
-def _():
-    # vae_df.loc[window_id, 'signal']
-    return
 
 
 @app.cell(hide_code=True)

@@ -30,3 +30,6 @@ bib
 # annotations
 
 *.pdf
+*.synctex.gz
+*.fls
+*.aux

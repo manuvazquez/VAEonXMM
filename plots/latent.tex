@@ -1,0 +1,152 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+% \usepackage{pgfplotstable}
+
+\usetikzlibrary{positioning}
+
+\pgfplotsset{compat=1.18}
+\pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
+
+\providecommand{\dataDir}{paper_main}
+% \providecommand{\zoomSubdir}{-95--84_58-66}
+% \providecommand{\zoomSubdirs}{-8-9_-6-6}
+% \providecommand{\zoomSubdirs}{-8-9_-6-6,94-108_9-25}
+% \providecommand{\zoomSubdirs}{94-108_9-25}
+% \providecommand{\zoomSubdirs}{94-108_9-25,-8-9_-6-6}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    xlabel={t-SNE${}_1$},
+    ylabel={t-SNE${}_2$},
+    title={Latent space projection (t-SNE)},
+    grid=major,
+    clip=true,
+    scatter/classes={
+      Unlabeled={
+        mark=*,
+        % mark size=4.6pt,
+        draw opacity=0,
+        fill=gray,
+        fill opacity=0.01,
+        % mark options={fill=green, fill opacity=0.05, draw opacity=0}
+      },
+      {NO Event}={
+        mark=diamond*,
+        % mark size=4.6pt,
+        % draw opacity=0,
+        fill=red,
+        % fill opacity=1.
+      },
+      Event={
+        mark=square*,
+        % mark size=4.6pt,
+        % draw opacity=0,
+        fill=green
+      }
+    },
+  legend style={
+    at={(0.5,-0.2)}, % adjust position
+    anchor=north,     % attach legend’s top to that point
+    legend columns=-1 % put all entries in one horizontal row
+  },
+  ]
+
+    % one pass: use the "Color" column to pick class styles
+    \addplot[
+      scatter,
+      only marks,
+      scatter src=explicit symbolic,
+    ]
+    table[
+      x=tsne_1, y=tsne_2,
+      meta=Color,
+      col sep=comma,
+      trim cells=true,
+      ignore chars={ },
+    % ]{\dataDir/foo.csv};
+    ]{\dataDir/tSNE.csv};
+
+    % ---------------- Legend entries ----------------
+    % You can add them in any order you want
+    \addlegendimage{
+      only marks, mark=*,
+      draw opacity=0,
+      fill=blue, fill opacity=0.3
+    }
+    \addlegendentry{Unlabeled}
+    
+    \addlegendimage{
+      only marks, mark=diamond*,
+      draw opacity=0, fill=red
+    }
+    \addlegendentry{No Event}
+    
+    \addlegendimage{
+      only marks, mark=square*, 
+      draw opacity=0, fill=green
+    }
+    \addlegendentry{Event}
+
+\ifdefined\zoomSubdirs
+
+  % \zoomSubdirs is a comma-separated list like: -8-9_-6-6,-95--84_58-66
+  \foreach \subdir [count=\iSubdir from 1] in \zoomSubdirs {%
+    % Read the 2 corners of the rectangle from each coordinates.csv
+    \pgfplotstableread[col sep=comma]{\dataDir/\subdir/coordinates.csv}\zoombox
+
+    \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xa{\pgfplotsretval}
+    \pgfplotstablegetelem{0}{y}\of\zoombox \edef\ya{\pgfplotsretval}
+    \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xb{\pgfplotsretval}
+    \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yb{\pgfplotsretval}
+
+    % \pgfplotstablegetelem{0}{x}\of\zoombox \global\edef\xa{\pgfplotsretval}
+    % \pgfplotstablegetelem{0}{y}\of\zoombox \global\edef\ya{\pgfplotsretval}
+    % \pgfplotstablegetelem{1}{x}\of\zoombox \global\edef\xb{\pgfplotsretval}
+    % \pgfplotstablegetelem{1}{y}\of\zoombox \global\edef\yb{\pgfplotsretval}
+  
+    % \pgfplotstablegetelem{0}{x}\of{\zoombox}
+    % \pgfmathsetmacro{\xa}{\pgfplotsretval}
+    % \pgfplotstablegetelem{0}{y}\of{\zoombox}
+    % \pgfmathsetmacro{\ya}{\pgfplotsretval}
+    % \pgfplotstablegetelem{1}{x}\of{\zoombox}
+    % \pgfmathsetmacro{\xb}{\pgfplotsretval}
+    % \pgfplotstablegetelem{1}{y}\of{\zoombox}
+    % \pgfmathsetmacro{\yb}{\pgfplotsretval}
+
+    \typeout{[zoom \iSubdir] \subdir: xa=\xa, ya=\ya, xb=\xb, yb=\yb}%
+
+    % % Rectangle
+    \expanded{\noexpand\draw[black, thick] (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);}
+
+    % Corner label (#1, #2, …)
+    % \pgfmathtruncatemacro{\kk}{\iSubdir}
+    % \coordinate (region-\iSubdir) at (axis cs:\xa,\ya);
+    % \node[anchor=south,font=\footnotesize,above=1ex of {region nw \iSub}]
+    %   {#\iSubdir};
+
+    % \addplot+[black,thick,mark=none]
+    % coordinates {
+    %   (\xa,\ya) (\xb,\ya) (\xb,\yb) (\xa,\yb) (\xa,\ya)
+    % };
+
+    \expanded{\noexpand\node[right] at (axis cs:\xa,\ya) {\#\iSubdir};}
+
+    % Highlighted points for this region
+    \addplot+[
+      only marks,
+      mark=star,
+      mark size=2.2pt,
+      draw=blue,
+    ] table[
+      x=tsne_1, y=tsne_2,
+      col sep=comma,
+    ]{\dataDir/\subdir/selected_windows.csv};
+  }
+
+\fi
+
+  \end{axis}
+\end{tikzpicture}
+
+\end{document}
