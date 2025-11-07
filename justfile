@@ -1,9 +1,8 @@
-# set capture := 'none'
-# set shell := ['bash', '-uec']
-
 mod python '~/python/python.just'
+mod notebook '~/python/notebook.just'
 mod mlflow '~/python/mlflow.just'
 mod latex
+mod marimo
 
 home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
@@ -29,11 +28,6 @@ uv_command := "PYTHONBREAKPOINT=ipdb.set_trace uv run --no-sync"
 # default_server := "meiga05"
 default_server := "skoll"
 
-marimo_server := "0.0.0.0"
-marimo_port := "2719"
-
-# import '~/python/import.just'
-
 default:
   just --list
 
@@ -42,53 +36,6 @@ papermill FILE:
   cd "nbs" && uv run papermill {{FILE}} /tmp/{{file_name(FILE)}}
 
 test: (papermill "plot.ipynb") (papermill "xsa_util.ipynb") (papermill "xsa_access.ipynb") (papermill "util.ipynb") (papermill "model_nn.ipynb") (papermill "model_ar.ipynb") (papermill "results_analysis.ipynb") (papermill "data.ipynb")
-
-# ========================================analysis ===================================================
-
-# [group('analysis')]
-# [doc("NOTEBOOK: the name, without extension, of a notebook in experiments directory; DIR: the path to a results directory (containing the eqx, yaml, and parquet files)")]
-# run_parameterized_notebook NOTEBOOK DIR:
-#   {{uv_command}} papermill experiments/{{NOTEBOOK}}.ipynb {{parent_directory(DIR)}}/{{NOTEBOOK}}_{{file_stem(DIR)}}.ipynb -p model_subdir {{DIR}}
-
-# [group('analysis')]
-# [doc("MODEL_DIR: the path to a results directory (containing the eqx, yaml, and parquet files), relative to `trapallada`; GRAPH_DIR: the path to the directory with the graph files (nodes, edges), either absolute or relative to the Google Drive directory; SUFFIX: optional suffix to append to the output file")]
-# run_graphs_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-#   {{uv_command}} papermill experiments/graphs_post_processing.ipynb {{parent_directory(MODEL_DIR)}}/graphs_post_processing_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_subdir {{MODEL_DIR}} -p graph_subdir {{GRAPH_DIR}}
-
-# [group('analysis')]
-# [doc("MODEL_DIR: *absolute* path to a results directory (containing the eqx, yaml, and parquet files); GRAPH_DIR: *absolute* path to the directory with the graph files (nodes, edges); DATA_DIR: the path to the directory with the data; SUFFIX: optional suffix to append to the output file")]
-# run_validation_notebook MODEL_DIR GRAPH_DIR SUFFIX="":
-#   {{uv_command}} papermill experiments/validation.ipynb {{parent_directory(MODEL_DIR)}}/validation_{{file_stem(MODEL_DIR)}}{{SUFFIX}}.ipynb -p model_dir {{MODEL_DIR}} -p graph_dir {{GRAPH_DIR}}
-
-# ====================================================================================================
-
-[group('results')]
-analysis:
-  {{uv_command}} marimo edit experiments/analysis.py
-
-[group('results')]
-selection:
-  {{uv_command}} marimo edit experiments/selection.py
-
-[group('results')]
-assessment:
-  {{uv_command}} marimo edit experiments/assessment.py
-
-# [group('results')]
-# validation:
-#   {{uv_command}} marimo edit experiments/validation.py
-
-[group('results')]
-serve_assessment:
-  systemd-run --user --scope tmux new -s assesment '{{uv_command}} marimo run experiments/assessment.py --headless --no-token --host {{marimo_server}} --port {{marimo_port}}'
-
-[group('results')]
-run_assessment:
-  {{uv_command}} marimo run experiments/assessment.py
-
-[group('results')]
-vae_vs_ar:
-  {{uv_command}} marimo edit experiments/vae_vs_ar.py
 
 # ====================================================================================================
 

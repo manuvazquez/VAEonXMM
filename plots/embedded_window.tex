@@ -13,13 +13,6 @@
 \closein\signalfile
 \edef\signalName{\unexpanded\expandafter{\signalName}}
 
-% \makeatletter
-% % Read the file, detokenize (so _ etc. are safe), then trim spaces
-% \edef\signalName{\zap@space\detokenize\expandafter{\input{\subdir/signal.txt}}\@empty}
-% \makeatother
-
-
-
 \pgfplotstableread[col sep=comma]{\subdir/prediction.csv}\predtable
 
 % first TIME

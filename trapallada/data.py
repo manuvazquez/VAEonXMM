@@ -127,10 +127,6 @@ def dataloaders_from_dataset(
 def sample_dataset_parameters(subdir='rates_large_infs', include_parameters: bool = False) -> dict[str, pathlib.Path]:
     
     base_dir = trapallada.util.get_base_directory()
-
-    # basedir = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'rates_large_infs'
-    # basedir = trapallada.util.get_base_directory() / 'data' / 'rates_large_infs'
-    # basedir = trapallada.util.get_base_directory() / 'data' / 'mini_channels'
     data_dir = base_dir / 'data' / subdir
 
     assert data_dir.exists()
@@ -178,22 +174,12 @@ class Labels:
             self.annotated_windows_file = pd.read_parquet(annotated_windows_file)
             
             self.signals += self.annotated_windows_file['signal'].unique().tolist()
-        
-    # @property
-    # def signals(self):
-        
-    #     return list(self.reference_signals_data['signals of interest'].keys())
     
     @property
     def signals_without_prefix(self):
         
         return [e.split('/')[1 ]for e in self.signals]
-    
-    # @property
-    # def signals_to_labels(self):
-        
-    #     return self.reference_signals_data['signals of interest']
-    
+
     @property
     def reference_signals_and_labels(self):
 

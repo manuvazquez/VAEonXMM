@@ -18,7 +18,8 @@
     ylabel={t-SNE${}_2$},
     title={Latent space projection (t-SNE)},
     grid=major,
-    clip=true,
+    % clip=true,
+    clip=false,
     scatter/classes={
       Unlabeled={
         mark=o,
@@ -45,6 +46,7 @@
     % one pass: use the "Color" column to pick class styles
     \addplot[
       scatter,
+      forget plot,
       only marks,
       scatter src=explicit symbolic,
     ]
@@ -58,21 +60,35 @@
     ]{\dataDir/tSNE.csv};
 
     % ---------------- Legend entries ----------------
-    % \addlegendimage{}
-    % \addlegendentry{}
 
-    \addlegendimage{only marks, /pgfplots/scatter/classes/Unlabeled}
-    % \addlegendimage{
-    %   only marks, /pgfplots/scatter/classes/Unlabeled
-    %   fill=black,
-    % }
-    \addlegendentry{Unlabeled}
 
-    \addlegendimage{only marks, /pgfplots/scatter/classes/{NO Event}} % note braces for space
-    \addlegendentry{No Event}
+  \pgfplotsset{legend image post style={xshift=2pt}} % keeps hollow circle off the frame
 
-    \addlegendimage{only marks, /pgfplots/scatter/classes/Event}
-    \addlegendentry{Event}
+  % \addlegendimage{only marks, /pgfplots/scatter/classes/Unlabeled}
+  % \addlegendentry{Unlabeled}
+
+  % \addlegendimage{only marks, /pgfplots/scatter/classes/{NO Event}} % note braces for space
+  % \addlegendentry{No Event}
+
+  % \addlegendimage{only marks, /pgfplots/scatter/classes/Event}
+  % \addlegendentry{Event}
+
+  \addlegendimage{
+    only marks,
+    mark=o, mark size=3pt,
+    mark options={draw=gray, line width=0.8pt, fill=none}
+  }
+  \addlegendimage{
+    only marks,
+    mark=diamond*, mark size=3pt,
+    mark options={draw=red, fill=red}
+  }
+  \addlegendimage{
+    only marks,
+    mark=square*, mark size=3pt,
+    mark options={draw=green, fill=green}
+  }
+  \legend{Unlabeled, No Event, Event}
 
     % if zoom subdirs (comma-separated list like "-8-9_-6-6,-95--84_58-66") have been passed...  
     \ifdefined\zoomSubdirs

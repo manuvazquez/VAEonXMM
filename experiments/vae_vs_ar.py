@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -434,12 +434,6 @@ def _():
 
 
 @app.cell
-def _():
-    # vae_df_merged.loc[25125]
-    return
-
-
-@app.cell
 def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
     vae_df['main_type'] = vae_df['main_type'].fillna('UNKNOWN')
 
@@ -471,12 +465,6 @@ def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
     return (plotted_samples,)
 
 
-@app.cell
-def _():
-    # pd.concat([e.value for e in output_tables])
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""Select *windows* to be highlighted""")
@@ -497,6 +485,13 @@ def _(mo):
 
 
 @app.cell
+def _(mo):
+    save_button = mo.ui.run_button(label="Save zoom region")
+    save_button
+    return (save_button,)
+
+
+@app.cell
 def _(
     full_signals_dir,
     mo_plot,
@@ -507,72 +502,75 @@ def _(
     plotted_samples,
     plotted_samples_table,
     res_dir,
+    save_button,
     trapallada,
     tsne_columns,
     vae_df,
     vae_df_merged,
     yaml,
 ):
-    output_dir = pathlib.Path.cwd() / 'plots' / res_dir.name
-    output_dir.mkdir(exist_ok=True)
+    if save_button.value:
 
-    scatter_df = vae_df_merged[tsne_columns + ['Color']].copy()
-    scatter_df['reference'] = 0
+        output_dir = pathlib.Path.cwd() / 'plots' / res_dir.name
+        output_dir.mkdir(exist_ok=True)
 
-    for indexes, _ in trapallada.results.analysis.i_windows_of_interest(vae_df_merged):
-        scatter_df.loc[indexes, 'reference'] = 1
+        scatter_df = vae_df_merged[tsne_columns + ['Color']].copy()
+        scatter_df['reference'] = 0
 
-    scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
+        for indexes, _ in trapallada.results.analysis.i_windows_of_interest(vae_df_merged):
+            scatter_df.loc[indexes, 'reference'] = 1
 
-    # if some region has been selected...
-    if mo_plot.ranges != {}:
+        scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
 
-        region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
-        region_subdir.mkdir(parents=True, exist_ok=True)
+        # if some region has been selected...
+        if (mo_plot.ranges != {}):
 
-        print(f'Region subdir: {region_subdir}')
+            region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
+            region_subdir.mkdir(parents=True, exist_ok=True)
 
-        with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
+            print(f'Region subdir: {region_subdir}')
 
-            yaml.dump(mo_plot.ranges, f)
-            pd.DataFrame(mo_plot.ranges).to_csv(region_subdir / 'coordinates.csv', index=False)
+            with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
 
-        for window_id, row in plotted_samples_table.value.iterrows():
-    
-        # for window_id, row in plotted_samples.iterrows():
+                yaml.dump(mo_plot.ranges, f)
+                pd.DataFrame(mo_plot.ranges).to_csv(region_subdir / 'coordinates.csv', index=False)
 
-            window_subdir = region_subdir / str(window_id)
-            window_subdir.mkdir(parents=True, exist_ok=True)
+            for window_id, row in plotted_samples_table.value.iterrows():
 
-            signal_id, *start_end = row[['signal', 'start', 'end']]
+            # for window_id, row in plotted_samples.iterrows():
 
-            pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[window_id])
+                window_subdir = region_subdir / str(window_id)
+                window_subdir.mkdir(parents=True, exist_ok=True)
 
-            signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
+                signal_id, *start_end = row[['signal', 'start', 'end']]
 
-            windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
-            windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
+                pred = model.decoder(plotted_samples.filter(regex=r'z_\d+').loc[window_id])
 
-            for df, filename in zip([windows_df, windows_pred_df], ['window.csv', f'prediction.csv']):
+                signals_df, mask_series = trapallada.xsa.util.get_full_signals(signal_id, full_signals_dir)
 
-                df.reset_index(inplace=True)
-                df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
-                df.to_csv(window_subdir / filename, index=False)
+                windows_df = signals_df[(signals_df.index >= start_end[0]) & (signals_df.index <= start_end[1])].copy()
+                windows_pred_df = pd.DataFrame(pred.T, index=windows_df.index, columns=windows_df.columns.tolist())
 
-            signals_df.reset_index(inplace=True)
-            signals_df['TIME'] = signals_df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
-            signals_df.to_csv(window_subdir / 'full_signal.csv', index=False)
+                for df, filename in zip([windows_df, windows_pred_df], ['window.csv', f'prediction.csv']):
 
-            with open(window_subdir/ 'signal.txt', 'w') as f:
-                f.write(vae_df.loc[window_id, 'signal'].split('/')[1])
+                    df.reset_index(inplace=True)
+                    df['TIME'] = df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
+                    df.to_csv(window_subdir / filename, index=False)
 
-        if not plotted_samples_table.value.empty:
-            plotted_samples_table.value[tsne_columns].to_csv(region_subdir / 'selected_windows.csv', index=False)
+                signals_df.reset_index(inplace=True)
+                signals_df['TIME'] = signals_df["TIME"].dt.strftime("%Y-%m-%d %H:%M:%S")
+                signals_df.to_csv(window_subdir / 'full_signal.csv', index=False)
+
+                with open(window_subdir/ 'signal.txt', 'w') as f:
+                    f.write(vae_df.loc[window_id, 'signal'].split('/')[1])
+
+            if not plotted_samples_table.value.empty:
+                plotted_samples_table.value[tsne_columns].to_csv(region_subdir / 'selected_windows.csv', index=False)
 
 
-    dest = output_dir / (res_dir.name + '.tex')
-    if not dest.exists():
-        os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
+        dest = output_dir / (res_dir.name + '.tex')
+        if not dest.exists():
+            os.symlink(output_dir.parent / 'reference_vs_non-reference.tex', dest)
     return (output_dir,)
 
 

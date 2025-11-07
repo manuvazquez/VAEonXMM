@@ -320,8 +320,11 @@ def marimo_selected(
 
     plotted_samples = analysis_df.loc[i_selected]
 
-    belongs_to_reference_signals = plotted_samples['signal'].isin(trapallada.data.Labels().signals)
-    print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference signals...')
+    # belongs_to_reference_signals = plotted_samples['signal'].isin(trapallada.data.Labels().signals)
+    belongs_to_reference_signals = plotted_samples['signal'].isin(
+        trapallada.data.Labels(**trapallada.data.labels_files()).signals
+    )
+    print(f'dismissed {belongs_to_reference_signals.sum()} window(s) belonging to reference or annotated signals...')
     plotted_samples = plotted_samples.drop(plotted_samples[belongs_to_reference_signals].index)
 
     if len(plotted_samples) > max_n_samples_to_show:
@@ -331,7 +334,7 @@ def marimo_selected(
             plotted_samples = plotted_samples.sample(max_n_samples_to_show)
             print(f'Still too many, plotting {max_n_samples_to_show} randomly selected...')
 
-    output_tables = []
+    # output_tables = []
     
     for i_row, row in plotted_samples.iterrows():
         mo.output.append(
