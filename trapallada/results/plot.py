@@ -307,7 +307,7 @@ class TSNE:
             self.highlight_window(indexes, name)
 
 def marimo_selected(
-        mo_plot,
+        i_windows: list[int],
         analysis_df: pd.DataFrame, 
         model: eqx.Module,
         model_name: str,
@@ -316,9 +316,7 @@ def marimo_selected(
         re_drop_columns: str = '^(?!z_|tsne_|set$|RA|DEC|CRA|CDEC|signal)'
     ) -> pd.DataFrame:
 
-    i_selected = [e['index'] for e in mo_plot.points if e]
-
-    plotted_samples = analysis_df.loc[i_selected]
+    plotted_samples = analysis_df.loc[i_windows]
 
     # belongs_to_reference_signals = plotted_samples['signal'].isin(trapallada.data.Labels().signals)
     belongs_to_reference_signals = plotted_samples['signal'].isin(

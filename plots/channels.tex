@@ -1,0 +1,80 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots,dateplot} % <-- dateplot is the key
+\pgfplotsset{compat=1.18}
+
+\usepackage{pgfplotstable}
+
+\usepackage[dvipsnames]{xcolor}
+
+% \providecommand{\subdir}{paper_main/106-117_-16-2/11099}
+\providecommand{\subdir}{paper_main/91-114_13-41/689}
+
+\newread\signalfile
+\openin\signalfile=\subdir/signal.txt
+\read\signalfile to\signalName
+\closein\signalfile
+\edef\signalName{\unexpanded\expandafter{\signalName}}
+
+\pgfplotstableread[col sep=comma]{\subdir/prediction.csv}\predtable
+
+% first TIME
+\pgfplotstablegetelem{0}{TIME}\of\predtable
+\edef\LeftTime{\pgfplotsretval}
+
+% last TIME = (#rows - 1)
+\pgfplotstablegetrowsof{\predtable}
+\pgfmathtruncatemacro{\LastRow}{\pgfplotsretval-1}
+
+\pgfplotstablegetelem{\LastRow}{TIME}\of\predtable
+\edef\RightTime{\pgfplotsretval}
+
+\pgfplotscreateplotcyclelist{myrates}{
+  {blue,   solid},
+  {red,    solid},
+  {ForestGreen, solid},
+  {orange, solid},
+  {violet, solid},
+}
+
+\begin{document}
+\begin{tikzpicture}[
+  full signal/.style={
+    thick,
+    no marks
+  },
+]
+  \begin{axis}[
+    width=10.5cm, height=4cm,
+    grid=major,
+    set layers,
+    axis background/.style={fill=none},
+    date coordinates in=x,          % <-- interpret x values as dates
+    xticklabel=\month-\day~\hour:\minute,
+    xticklabel style={rotate=60, anchor=east},
+    cycle list name=myrates,
+    legend style={
+        at={(0.5,-1.02)}, anchor=south, draw=none,
+        legend columns=-1, font=\small
+    },
+  ]
+
+\pgfplotsinvokeforeach{1,2,3,4,5}{
+    \pgfplotsextra{
+      \begin{pgfonlayer}{axis background}
+        \fill[green!25]
+          (axis cs:\LeftTime,\pgfkeysvalueof{/pgfplots/ymin})
+          rectangle
+          (axis cs:\RightTime,\pgfkeysvalueof{/pgfplots/ymax});
+      \end{pgfonlayer}
+    }
+
+    \addplot+[full signal]
+      table [x=TIME, y=RATE#1, col sep=comma] {\subdir/full_signal.csv};
+}
+
+\legend{RATE1, RATE2, RATE3, RATE4, RATE5}
+
+  \end{axis}
+\end{tikzpicture}
+\end{document}

@@ -5,7 +5,8 @@
 
 \usepackage{pgfplotstable}
 
-\providecommand{\subdir}{paper_main/106-117_-16-2/11099}
+% \providecommand{\subdir}{paper_main/106-117_-16-2/11099}
+\providecommand{\subdir}{paper_main/91-114_13-41/689}
 
 \newread\signalfile
 \openin\signalfile=\subdir/signal.txt
@@ -61,7 +62,8 @@
 
 \pgfplotsinvokeforeach{1,2,3,4}{
   \nextgroupplot[
-    title={RATE#1}, ylabel={Rate},
+    title={RATE#1},
+    % ylabel={Rate},
   ]
     \pgfplotsextra{
       \begin{pgfonlayer}{axis background}
@@ -82,7 +84,8 @@
 
   % --- Bottom axis ---
   \nextgroupplot[
-    title={RATE5}, ylabel={Rate},
+    title={RATE5},
+    % ylabel={Rate},
     clip=false,
     legend style={
       at={(0.5,-0.7)}, anchor=north,

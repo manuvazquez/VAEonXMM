@@ -31,6 +31,15 @@ embedded_window DIR: (embedded_window_allowing_clean DIR) (embedded_window_allow
 
 # ==================================================
 
+# [private]
+# channels_allowing_clean DIR CLEAN="false":
+#     {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\subdir}{"{{DIR}}"}" -cd "plots/channels.tex"
+
+# channels DIR: (channels_allowing_clean DIR) (channels_allowing_clean DIR "true")
+#   mv plots/channels.pdf plots/{{output_dir}}/channels_{{replace(DIR, "/", "_")}}.pdf
+
+# ==================================================
+
 [private]
 validation_allowing_clean DIR ZOOM_SUBDIR="" CLEAN="false":
     {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\dataDir}{"{{DIR}}"}"{{if ZOOM_SUBDIR!="" {"\\\\newcommand{\\\\zoomSubdir}{"+ZOOM_SUBDIR+"}"} else {""} }} -cd "plots/validation.tex"
@@ -67,8 +76,11 @@ window DIR: (window_allowing_clean DIR) (window_allowing_clean DIR "true")
 
 # ==================================================
 
+east_region := "87-110_9-33"
+
 # paper_latent: (latent "paper_main" "94-108_9-25\",\"-8-9_-6-6")
-paper_latent: (latent "paper_main" "91-114_13-41") dolphin
+# paper_latent: (latent "paper_main" "91-114_13-41") dolphin
+paper_latent: (latent "paper_main" "89-104_-9-6\",\"-7-5_-6-5\",\"-7-6_98-112\",\"-119--98_-4-8\",\"-11-9_-107--78") dolphin
 
 # paper_windows DIR="plots/paper_main/91-114_13-41":
 #   #!/usr/bin/env bash
@@ -85,7 +97,7 @@ paper_latent: (latent "paper_main" "91-114_13-41") dolphin
 #     sleep 1
 #   done
 
-paper_embedded_windows DIR="plots/paper_main/91-114_13-41":
+embedded_windows_dir DIR="plots/paper_main/91-114_13-41":
   #!/usr/bin/env bash
 
   fd . {{DIR}} --min-depth 1 --max-depth 1 --type d --print0 |
@@ -99,3 +111,35 @@ paper_embedded_windows DIR="plots/paper_main/91-114_13-41":
     just latex::embedded_window "$rel"
     sleep 1
   done
+
+# 91-114_13-41
+
+# paper_embedded_windows: \
+#     (embedded_windows_dir "plots/paper_main/89-104_-9-6")\
+#     (embedded_windows_dir "plots/paper_main/-7-5_-6-5")\
+#     (embedded_windows_dir "plots/paper_main/-95--70_38-67")\
+#     (embedded_windows_dir "plots/paper_main/-7-6_98-112")\
+#     (embedded_windows_dir "plots/paper_main/-119--98_-4-8")\
+
+paper_embedded_windows: \
+    # (embedded_windows_dir "plots/paper_main/89-104_-9-6")\
+    (embedded_windows_dir "plots/paper_main/"+{{east_region}})\
+    (embedded_windows_dir "plots/paper_main/-7-5_-6-5")\
+    (embedded_windows_dir "plots/paper_main/-7-6_98-112")\
+    (embedded_windows_dir "plots/paper_main/-119--98_-4-8")\
+    (embedded_windows_dir "plots/paper_main/-11-9_-107--78")\
+
+# paper_channels DIR="plots/paper_main/91-114_13-41":
+#   #!/usr/bin/env bash
+
+#   fd . {{DIR}} --min-depth 1 --max-depth 1 --type d --print0 |
+#   while IFS= read -r -d '' d; do
+#     # get rid of the first component ("plots") in the path
+#     case "$d" in
+#       /*) rel="${d#/*/}" ;;  # /a/b/c -> b/c
+#       *)  rel="${d#*/}"  ;;  # a/b/c  -> b/c
+#     esac
+#     echo "Doing stuff in: $rel"
+#     just latex::channels "$rel"
+#     sleep 1
+#   done

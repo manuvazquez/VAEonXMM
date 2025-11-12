@@ -30,3 +30,9 @@ run_assessment:
 
 vae_vs_ar:
   {{uv_command}} marimo edit experiments/vae_vs_ar.py
+
+# paper_main_vae_vs_ar:
+#   {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main"
+
+paper_main_vae_vs_ar:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --x-range "[-10.1,10.1]" --y-range "[-10.1,10.1]"

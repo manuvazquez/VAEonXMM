@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.7"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""> Compare the performances of VAE and AR in identifying events of interes""")
+    mo.md(r"""
+    > Compare the performances of VAE and AR in identifying events of interes
+    """)
     return
 
 
@@ -50,9 +52,26 @@ def _():
     return np, os, pathlib, pd, trapallada, yaml
 
 
+@app.cell
+def _(mo):
+    args = mo.cli_args()
+    args
+    return (args,)
+
+
+@app.cell
+def _(args):
+    x_min, x_max = tuple(map(float, args['x-range'].strip('[]').split(',')))
+    y_min, y_max = tuple(map(float, args['y-range'].strip('[]').split(',')))
+    print(x_min, x_max, '\n', y_min, y_max)
+    return x_max, x_min, y_max, y_min
+
+
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""So that *plotly*'s pictures are correctly rendered""")
+    mo.md(r"""
+    So that *plotly*'s pictures are correctly rendered
+    """)
     return
 
 
@@ -65,13 +84,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Parameters""")
+    mo.md(r"""
+    # Parameters
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Base directory""")
+    mo.md(r"""
+    Base directory
+    """)
     return
 
 
@@ -84,13 +107,17 @@ def _(trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Results directory""")
+    mo.md(r"""
+    ## Results directory
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Directory with all the files""")
+    mo.md(r"""
+    Directory with all the files
+    """)
     return
 
 
@@ -104,15 +131,21 @@ def _(base_dir, mo):
 
 
 @app.cell
-def _(file_browser, mo):
-    res_dir = file_browser.path()
+def _(args, base_dir, file_browser, mo):
+    if 'results_subdir' in args:
+        res_dir = base_dir / 'results' / args['results_subdir']
+        assert res_dir.exists()
+    else:
+        res_dir = file_browser.path()
     mo.stop(res_dir is None, mo.md("**Choose a path.**"))
     return (res_dir,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The file with the analysis for the VAE...""")
+    mo.md(r"""
+    The file with the analysis for the VAE...
+    """)
     return
 
 
@@ -125,7 +158,9 @@ def _(mo, res_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""...and the one with AR coefficients""")
+    mo.md(r"""
+    ...and the one with AR coefficients
+    """)
     return
 
 
@@ -138,7 +173,9 @@ def _(mo, res_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Sub*directory with the labels""")
+    mo.md(r"""
+    *Sub*directory with the labels
+    """)
     return
 
 
@@ -151,7 +188,9 @@ def _(base_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The "selected by" file indicating the algorithm (VAE or AR) that selected every window.""")
+    mo.md(r"""
+    The "selected by" file indicating the algorithm (VAE or AR) that selected every window.
+    """)
     return
 
 
@@ -164,7 +203,9 @@ def _(annotations_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The file with the annotations provided by Javi López Santiago.""")
+    mo.md(r"""
+    The file with the annotations provided by Javi López Santiago.
+    """)
     return
 
 
@@ -177,7 +218,9 @@ def _(annotations_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Output file *merging* the above files""")
+    mo.md(r"""
+    Output file *merging* the above files
+    """)
     return
 
 
@@ -189,7 +232,9 @@ def _(annotations_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Windows* that were manually selected as representative of *signals* that were, in the beginning, marked as interesting.""")
+    mo.md(r"""
+    *Windows* that were manually selected as representative of *signals* that were, in the beginning, marked as interesting.
+    """)
     return
 
 
@@ -201,7 +246,9 @@ def _(annotations_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The best recall at this minimum precision will be computed for each algorithm""")
+    mo.md(r"""
+    The best recall at this minimum precision will be computed for each algorithm
+    """)
     return
 
 
@@ -213,13 +260,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Selected windows""")
+    mo.md(r"""
+    # Selected windows
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The *selected by* `DataFrame` stating the algorithm (VAE or AR) that selected every window.""")
+    mo.md(r"""
+    The *selected by* `DataFrame` stating the algorithm (VAE or AR) that selected every window.
+    """)
     return
 
 
@@ -232,7 +283,9 @@ def _(pd, selected_by_file):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The `DataFrame` with the labels provided by the annotator. Its index (window *id*) must be the same as that of the above `DataFrame`. The label `Interesting` actually stands for something that has been identified, but it might just be `background` (i.e., noise).""")
+    mo.md(r"""
+    The `DataFrame` with the labels provided by the annotator. Its index (window *id*) must be the same as that of the above `DataFrame`. The label `Interesting` actually stands for something that has been identified, but it might just be `background` (i.e., noise).
+    """)
     return
 
 
@@ -252,13 +305,17 @@ def _(annotations_file, pd, selected_by_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Annotations""")
+    mo.md(r"""
+    ## Annotations
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The `DataFrame`s with the labels and the `Selected by` column are merged together.""")
+    mo.md(r"""
+    The `DataFrame`s with the labels and the `Selected by` column are merged together.
+    """)
     return
 
 
@@ -271,7 +328,9 @@ def _(labels_df, pd, selected_by_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A new column which is `True` for every **actual** *event of interest* (not `background`). `Nan`s are kept (through the *boolean* `dtype` as opposed to just *bool*).""")
+    mo.md(r"""
+    A new column which is `True` for every **actual** *event of interest* (not `background`). `Nan`s are kept (through the *boolean* `dtype` as opposed to just *bool*).
+    """)
     return
 
 
@@ -289,7 +348,9 @@ def _(np, pd, res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""It is saved for *external* use.""")
+    mo.md(r"""
+    It is saved for *external* use.
+    """)
     return
 
 
@@ -301,7 +362,9 @@ def _(output_file, res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""How many windows of each label, including **unlabeled**""")
+    mo.md(r"""
+    How many windows of each label, including **unlabeled**
+    """)
     return
 
 
@@ -313,7 +376,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Events* vs *non-events*""")
+    mo.md(r"""
+    *Events* vs *non-events*
+    """)
     return
 
 
@@ -325,13 +390,17 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Precision""")
+    mo.md(r"""
+    # Precision
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Precision* is computed based on (decided) `Event`s of interest. Overall precision *in the selection*: out of the total number of selected windows (by any of the algorithms or randomly), how many are interesting (not background).""")
+    mo.md(r"""
+    *Precision* is computed based on (decided) `Event`s of interest. Overall precision *in the selection*: out of the total number of selected windows (by any of the algorithms or randomly), how many are interesting (not background).
+    """)
     return
 
 
@@ -344,7 +413,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## VAE""")
+    mo.md(r"""
+    ## VAE
+    """)
     return
 
 
@@ -357,7 +428,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## AR""")
+    mo.md(r"""
+    ## AR
+    """)
     return
 
 
@@ -370,7 +443,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Random""")
+    mo.md(r"""
+    ## Random
+    """)
     return
 
 
@@ -383,19 +458,25 @@ def _(pd, res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Latent space""")
+    mo.md(r"""
+    # Latent space
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## VAE""")
+    mo.md(r"""
+    ## VAE
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The `DataFrame` with the latent space (embeddings) obtained from the VAE""")
+    mo.md(r"""
+    The `DataFrame` with the latent space (embeddings) obtained from the VAE
+    """)
     return
 
 
@@ -408,7 +489,9 @@ def _(pd, vae_analysis_file):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""It includes mean and standard deviation""")
+    mo.md(r"""
+    It includes mean and standard deviation
+    """)
     return
 
 
@@ -422,7 +505,9 @@ def _(vae_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Mean and standard deviation are stacked together""")
+    mo.md(r"""
+    Mean and standard deviation are stacked together
+    """)
     return
 
 
@@ -459,15 +544,31 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 
 
 @app.cell
+def _(tsne_columns, vae_df_merged, x_max, x_min, y_max, y_min):
+    # mo_plot.ranges
+    i_selected2 = (vae_df_merged[tsne_columns[0]] > x_min) & (vae_df_merged[tsne_columns[0]] < x_max) & (vae_df_merged[tsne_columns[1]] > y_min) & (vae_df_merged[tsne_columns[1]] < y_max)
+    vae_df_merged[i_selected2].index
+    return
+
+
+@app.cell
 def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
-    plotted_samples = trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=30)
-    # plotted_samples, output_tables = trapallada.results.plot.marimo_selected(mo_plot, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=30)
-    return (plotted_samples,)
+    i_selected = [e['index'] for e in mo_plot.points if e]
+    plotted_samples = trapallada.results.plot.marimo_selected(i_selected, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=20)
+    return i_selected, plotted_samples
+
+
+@app.cell
+def _(i_selected):
+    i_selected is True
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Select *windows* to be highlighted""")
+    mo.md(r"""
+    Select *windows* to be highlighted
+    """)
     return
 
 
@@ -480,7 +581,9 @@ def _(mo, plotted_samples):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Plots are saved""")
+    mo.md(r"""
+    Plots are saved
+    """)
     return
 
 
@@ -576,13 +679,17 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## AR""")
+    mo.md(r"""
+    ## AR
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The results for the AR model""")
+    mo.md(r"""
+    The results for the AR model
+    """)
     return
 
 
@@ -595,13 +702,17 @@ def _(ar_analysis_file, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Mahalanobis distance-based comparison""")
+    mo.md(r"""
+    ## Mahalanobis distance-based comparison
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Let us get rid of the undecided (`NaN`s)""")
+    mo.md(r"""
+    Let us get rid of the undecided (`NaN`s)
+    """)
     return
 
 
@@ -614,7 +725,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""How many windows of each `Type`? Notice the `Type` of the `NOT interesting` is `NaN`""")
+    mo.md(r"""
+    How many windows of each `Type`? Notice the `Type` of the `NOT interesting` is `NaN`
+    """)
     return
 
 
@@ -626,7 +739,9 @@ def _(no_undecided_res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The *label* is `1` if `Event` is `True` and `0` otherwise.""")
+    mo.md(r"""
+    The *label* is `1` if `Event` is `True` and `0` otherwise.
+    """)
     return
 
 
@@ -644,7 +759,9 @@ def _(res_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""An auxiliary function to save the results of both algorithms.""")
+    mo.md(r"""
+    An auxiliary function to save the results of both algorithms.
+    """)
     return
 
 
@@ -660,12 +777,22 @@ def _(output_dir, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""For VAE""")
+    mo.md(r"""
+    For VAE
+    """)
     return
 
 
 @app.cell
-def _(min_precision, no_undecided_res_df, save_results, trapallada, y, z_mean):
+def _(
+    min_precision,
+    no_undecided_res_df,
+    save_button,
+    save_results,
+    trapallada,
+    y,
+    z_mean,
+):
     vae_metrics, (labels, vae_scores) = trapallada.results.analysis.mahalanobis_based_metrics(
         z_mean, y, no_undecided_res_df.index.values, min_precision=min_precision, return_labels_scores=True)
     vae_roc_fig, vae_roc_fig_df = trapallada.results.plot.roc(
@@ -673,14 +800,17 @@ def _(min_precision, no_undecided_res_df, save_results, trapallada, y, z_mean):
         title=f'<b>VAE</b> (AUC={vae_metrics['roc_auc']:.2f}, AP={vae_metrics['average_precision']:.2f}, BR@{min_precision}={vae_metrics['best_recall_at_min_precision']:.2f})',
         return_plot_data=True
     )
-    save_results(vae_roc_fig_df, vae_metrics, 'vae')
+    if save_button.value:
+        save_results(vae_roc_fig_df, vae_metrics, 'vae')
     vae_roc_fig
     return (labels,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""For AR""")
+    mo.md(r"""
+    For AR
+    """)
     return
 
 
@@ -690,6 +820,7 @@ def _(
     labels,
     min_precision,
     no_undecided_res_df,
+    save_button,
     save_results,
     trapallada,
     y,
@@ -704,7 +835,8 @@ def _(
         title=f'<b>AR</b> (AUC={ar_metrics['roc_auc']:.2f}, AP={ar_metrics['average_precision']:.2f}, BR@{min_precision}={ar_metrics['best_recall_at_min_precision']:.2f})',
         return_plot_data=True
     )
-    save_results(ar_roc_fig_df, ar_metrics, 'ar')
+    if save_button.value:
+        save_results(ar_roc_fig_df, ar_metrics, 'ar')
     ar_roc_fig
     return
 
