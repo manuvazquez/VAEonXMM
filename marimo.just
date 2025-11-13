@@ -31,8 +31,20 @@ run_assessment:
 vae_vs_ar:
   {{uv_command}} marimo edit experiments/vae_vs_ar.py
 
-# paper_main_vae_vs_ar:
-#   {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main"
-
 paper_main_vae_vs_ar:
-  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --x-range "[-10.1,10.1]" --y-range "[-10.1,10.1]"
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main"
+
+paper_main_vae_vs_ar_zoomed_east:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --output_subdir "east" --x-range "[90,112]" --y-range "[15,43]"
+
+paper_main_vae_vs_ar_zoomed_north:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --output_subdir "north" --x-range "[-17,17]" --y-range "[85,110]"
+
+paper_main_vae_vs_ar_zoomed_west:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --output_subdir "west" --x-range "[-122,-98]" --y-range "[-6,25]"
+
+paper_main_vae_vs_ar_zoomed_south:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --output_subdir "south" --x-range "[-16,18]" --y-range "[-107,-76]"
+
+paper_main_vae_vs_ar_zoomed_center:
+  {{uv_command}} marimo edit experiments/vae_vs_ar.py -- --results_subdir "paper_main" --output_subdir "center" --x-range "[-10,10]" --y-range "[-10,10]"

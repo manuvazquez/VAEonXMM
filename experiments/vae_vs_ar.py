@@ -59,14 +59,6 @@ def _(mo):
     return (args,)
 
 
-@app.cell
-def _(args):
-    x_min, x_max = tuple(map(float, args['x-range'].strip('[]').split(',')))
-    y_min, y_max = tuple(map(float, args['y-range'].strip('[]').split(',')))
-    print(x_min, x_max, '\n', y_min, y_max)
-    return x_max, x_min, y_max, y_min
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -544,24 +536,32 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
 
 
 @app.cell
-def _(tsne_columns, vae_df_merged, x_max, x_min, y_max, y_min):
-    # mo_plot.ranges
-    i_selected2 = (vae_df_merged[tsne_columns[0]] > x_min) & (vae_df_merged[tsne_columns[0]] < x_max) & (vae_df_merged[tsne_columns[1]] > y_min) & (vae_df_merged[tsne_columns[1]] < y_max)
-    vae_df_merged[i_selected2].index
-    return
+def _(args, mo_plot, tsne_columns, vae_df_merged):
+    if ('x-range' in args) and ('y-range' in args):
+
+        x_min, x_max = tuple(map(float, args['x-range'].strip('[]').split(',')))
+        y_min, y_max = tuple(map(float, args['y-range'].strip('[]').split(',')))
+    
+        in_range = \
+        (vae_df_merged[tsne_columns[0]] > x_min) &\
+        (vae_df_merged[tsne_columns[0]] < x_max) &\
+        (vae_df_merged[tsne_columns[1]] > y_min) &\
+        (vae_df_merged[tsne_columns[1]] < y_max)
+
+        i_selected = vae_df_merged[in_range].index
+        selected_region = dict(x=[x_min, x_max], y=[y_min, y_max])
+    else:
+        i_selected = [e['index'] for e in mo_plot.points if e]
+        selected_region = mo_plot.ranges
+    print(f'{selected_region=}')
+    return i_selected, selected_region
 
 
 @app.cell
-def _(full_signals_dir, mo_plot, model, trapallada, vae_df_merged):
-    i_selected = [e['index'] for e in mo_plot.points if e]
+def _(full_signals_dir, i_selected, model, trapallada, vae_df_merged):
+    # i_selected = [e['index'] for e in mo_plot.points if e]
     plotted_samples = trapallada.results.plot.marimo_selected(i_selected, vae_df_merged, model, 'vae', full_signals_dir, max_n_samples_to_show=20)
-    return i_selected, plotted_samples
-
-
-@app.cell
-def _(i_selected):
-    i_selected is True
-    return
+    return (plotted_samples,)
 
 
 @app.cell(hide_code=True)
@@ -577,6 +577,13 @@ def _(mo, plotted_samples):
     plotted_samples_table = mo.ui.table(plotted_samples)
     plotted_samples_table
     return (plotted_samples_table,)
+
+
+@app.cell
+def _():
+    # plotted_samples_table.value, vae_df_merged.loc[15483].to_frame().T
+    # # plotted_samples_table.value.equals(vae_df_merged.loc[15483].to_frame().T)
+    return
 
 
 @app.cell(hide_code=True)
@@ -596,8 +603,8 @@ def _(mo):
 
 @app.cell
 def _(
+    args,
     full_signals_dir,
-    mo_plot,
     model,
     os,
     pathlib,
@@ -606,6 +613,7 @@ def _(
     plotted_samples_table,
     res_dir,
     save_button,
+    selected_region,
     trapallada,
     tsne_columns,
     vae_df,
@@ -626,17 +634,23 @@ def _(
         scatter_df.to_csv(output_dir / 'tSNE.csv', index=False)
 
         # if some region has been selected...
-        if (mo_plot.ranges != {}):
+        if selected_region != {}:
 
-            region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in mo_plot.ranges.values()])
+            if 'output_subdir' in args:
+                output_subdir = args['output_subdir']
+            else:
+                output_subdir = '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in selected_region.values()])
+
+            # region_subdir = output_dir / '_'.join(['-'.join((map(lambda x: str(int(x)), c))) for c in selected_region.values()])
+            region_subdir = output_dir / output_subdir
             region_subdir.mkdir(parents=True, exist_ok=True)
 
             print(f'Region subdir: {region_subdir}')
 
             with open(f'{region_subdir/ f'coordinates'}.yaml', 'w') as f:
 
-                yaml.dump(mo_plot.ranges, f)
-                pd.DataFrame(mo_plot.ranges).to_csv(region_subdir / 'coordinates.csv', index=False)
+                yaml.dump(selected_region, f)
+                pd.DataFrame(selected_region).to_csv(region_subdir / 'coordinates.csv', index=False)
 
             for window_id, row in plotted_samples_table.value.iterrows():
 
