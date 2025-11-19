@@ -1,15 +1,13 @@
 \documentclass{standalone}
 \usepackage{pgfplots}
 
-\usetikzlibrary{positioning}
+\usetikzlibrary{fit,positioning}
 
 \pgfplotsset{compat=1.18}
 \pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
 
 \providecommand{\dataDir}{paper_main}
-% \providecommand{\zoomSubdirs}{94-108_9-25}
-% \providecommand{\zoomSubdirs}{-8-9_-6-6,94-108_9-25}
-% \providecommand{\zoomSubdirs}{94-108_9-25,-8-9_-6-6}
+\providecommand{\zoomSubdirs}{east,north}
 
 \begin{document}
 \begin{tikzpicture}
@@ -18,7 +16,6 @@
     ylabel={t-SNE${}_2$},
     title={Latent space projection (t-SNE)},
     grid=major,
-    % clip=true,
     clip=false,
     scatter/classes={
       Unlabeled={
@@ -56,22 +53,12 @@
       col sep=comma,
       trim cells=true,
       ignore chars={ },
-    % ]{\dataDir/foo.csv};
     ]{\dataDir/tSNE.csv};
 
     % ---------------- Legend entries ----------------
 
 
   \pgfplotsset{legend image post style={xshift=2pt}} % keeps hollow circle off the frame
-
-  % \addlegendimage{only marks, /pgfplots/scatter/classes/Unlabeled}
-  % \addlegendentry{Unlabeled}
-
-  % \addlegendimage{only marks, /pgfplots/scatter/classes/{NO Event}} % note braces for space
-  % \addlegendentry{No Event}
-
-  % \addlegendimage{only marks, /pgfplots/scatter/classes/Event}
-  % \addlegendentry{Event}
 
   \addlegendimage{
     only marks,
@@ -93,8 +80,20 @@
     % if zoom subdirs (comma-separated list like "-8-9_-6-6,-95--84_58-66") have been passed...  
     \ifdefined\zoomSubdirs
 
+      \def\zoomNodeAnchors{north east, north, north west, south}
+      % \def\zoomNodeAnchors{north east, north}
+
       % for each subdir...
-      \foreach \subdir [count=\iSubdir from 1] in \zoomSubdirs {
+      \foreach \subdir [
+        count=\iSubdir from 1,
+      ] in \zoomSubdirs {
+
+        % in order to "locate" the anchor for this index (Gemini)
+        \foreach \anc [count=\j from 1] in \zoomNodeAnchors {
+            \ifnum\j=\iSubdir
+                \xdef\currentAnchor{\anc} % \xdef makes it global to escape the inner loop
+            \fi
+        }
         
         % CSV with the coordinates of the zoom rectangle are read
         \pgfplotstableread[col sep=comma]{\dataDir/\subdir/coordinates.csv}\zoombox
@@ -108,10 +107,23 @@
         % \typeout{[zoom \iSubdir] \subdir: xa=\xa, ya=\ya, xb=\xb, yb=\yb}
 
         % rectangle is plotted...
-        \expanded{\noexpand\draw[black, thick] (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);}
+        \expanded{\noexpand\draw[black, very thick] (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);}
+
+        \expanded{%
+          \noexpand\node[
+            fit={(axis cs:\xa,\ya) (axis cs:\xb,\yb)},
+            % inner sep=0pt,
+            % outer sep=0pt,
+          ] (zoombox\iSubdir) {};%
+        }
 
         % ...along with a "label"
-        \expanded{\noexpand\node[right] at (axis cs:\xa,\ya) {\#\iSubdir};}
+        % \expanded{\noexpand\node[right] at (axis cs:\xb,\yb) {\#\iSubdir};}
+        \expanded{%
+          \noexpand
+          \node[
+          ] at (zoombox\iSubdir.\currentAnchor) {\#\iSubdir};
+        }
 
         % highlighted points for this region are plotted
         \addplot+[
