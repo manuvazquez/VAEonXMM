@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.17.7"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""> Check the signals in some clusters""")
+    mo.md(r"""
+    > Check the signals in some clusters
+    """)
     return
 
 
@@ -48,7 +50,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Parameters""")
+    mo.md(r"""
+    # Parameters
+    """)
     return
 
 
@@ -63,7 +67,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Model""")
+    mo.md(r"""
+    ## Model
+    """)
     return
 
 
@@ -95,7 +101,9 @@ def _(mo, radio, slider):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Data""")
+    mo.md(r"""
+    ## Data
+    """)
     return
 
 
@@ -117,7 +125,9 @@ def _(file_browser, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*Analysis data* produced here can be associated with a particular trained model (for the case of VAEs) or with the `Dataset` (for the case of the AR model). The name of the file is also dependent on the model.""")
+    mo.md(r"""
+    *Analysis data* produced here can be associated with a particular trained model (for the case of VAEs) or with the `Dataset` (for the case of the AR model). The name of the file is also dependent on the model.
+    """)
     return
 
 
@@ -139,13 +149,17 @@ def _(model_dir, parameters, radio, slider):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Input Files""")
+    mo.md(r"""
+    # Input Files
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The base directory""")
+    mo.md(r"""
+    The base directory
+    """)
     return
 
 
@@ -158,25 +172,25 @@ def _(trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Particular *sub*directory with the trained model. It should be a `str` so that parameters can be injected with papermill.""")
+    mo.md(r"""
+    Particular *sub*directory with the trained model. It should be a `str` so that parameters can be injected with papermill.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     From the results directory,
 
     - the `Dataset`,
     - the headers of the corresponding files,
     - the ML model,
-    - a `DataFrame` with results from training, 
+    - a `DataFrame` with results from training,
     - a `dict` with the parameters
 
     are obtained
-    """
-    )
+    """)
     return
 
 
@@ -188,7 +202,9 @@ def _(model_dir, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The dimension of the latent space can be inferred from the *encoder*""")
+    mo.md(r"""
+    The dimension of the latent space can be inferred from the *encoder*
+    """)
     return
 
 
@@ -201,12 +217,10 @@ def _(model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The names of the columns for the latent space projections (to be added to a `DataFrame`
     ). `z_sd_cols` are only available for VAE models.
-    """
-    )
+    """)
     return
 
 
@@ -227,7 +241,9 @@ def _(dim_z, ds, mo, radio, slider):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""For t-SNE""")
+    mo.md(r"""
+    For t-SNE
+    """)
     return
 
 
@@ -239,7 +255,9 @@ def _(n_projected_components):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The path to *SIMBAD (XMATCH)* database""")
+    mo.md(r"""
+    The path to *SIMBAD (XMATCH)* database
+    """)
     return
 
 
@@ -252,7 +270,9 @@ def _(base_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""If the *analysis* `DataFrame` was not built before, it is.""")
+    mo.md(r"""
+    If the *analysis* `DataFrame` was not built before, it is.
+    """)
     return
 
 
@@ -352,7 +372,9 @@ def _(analysis_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""For the sake of convenience""")
+    mo.md(r"""
+    For the sake of convenience
+    """)
     return
 
 
@@ -364,7 +386,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The clustering (either *in projected space* or *in z*) to be analyzed""")
+    mo.md(r"""
+    The clustering (either *in projected space* or *in z*) to be analyzed
+    """)
     return
 
 
@@ -379,7 +403,9 @@ def _(radio):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Seemingly, *parquet* format dismisses `Categorical` data type""")
+    mo.md(r"""
+    Seemingly, *parquet* format dismisses `Categorical` data type
+    """)
     return
 
 
@@ -392,7 +418,9 @@ def _(analysis_df, available_clusterings, radio):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""It is manually fixed""")
+    mo.md(r"""
+    It is manually fixed
+    """)
     return
 
 
@@ -405,7 +433,9 @@ def _(analysis_df, available_clusterings):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The number of objects for every *type*""")
+    mo.md(r"""
+    The number of objects for every *type*
+    """)
     return
 
 
@@ -417,7 +447,9 @@ def _(analysis_df):
 
 @app.cell
 def _(mo):
-    mo.md(r"""Columns that will be shown when hovering over elements in the plot""")
+    mo.md(r"""
+    Columns that will be shown when hovering over elements in the plot
+    """)
     return
 
 
@@ -430,7 +462,9 @@ def _(available_clusterings):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Some metadata on the XMM-Newton""")
+    mo.md(r"""
+    Some metadata on the XMM-Newton
+    """)
     return
 
 
@@ -446,21 +480,21 @@ def _(trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Training""")
+    mo.md(r"""
+    # Training
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Curves for the training/validation
 
-    - loss, 
+    - loss,
     - log-likelihood, and
     - KL divergence
-    """
-    )
+    """)
     return
 
 
@@ -473,7 +507,9 @@ def _(mo, radio, training_df, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Number of parameters in the model""")
+    mo.md(r"""
+    Number of parameters in the model
+    """)
     return
 
 
@@ -485,7 +521,9 @@ def _(model, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""If using a CVAE, the convolutional kernel in the decoder""")
+    mo.md(r"""
+    If using a CVAE, the convolutional kernel in the decoder
+    """)
     return
 
 
@@ -500,19 +538,25 @@ def _(model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Latent space""")
+    mo.md(r"""
+    # Latent space
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Mean""")
+    mo.md(r"""
+    ## Mean
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Mean and standard deviation for every **mean** in the latent space""")
+    mo.md(r"""
+    Mean and standard deviation for every **mean** in the latent space
+    """)
     return
 
 
@@ -525,13 +569,17 @@ def _(analysis_df, px):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Standard deviation""")
+    mo.md(r"""
+    ## Standard deviation
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Mean and standard deviation for every **standar deviation** in the latent space""")
+    mo.md(r"""
+    Mean and standard deviation for every **standar deviation** in the latent space
+    """)
     return
 
 
@@ -545,7 +593,9 @@ def _(analysis_df, mo, px, radio):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Javi's paper""")
+    mo.md(r"""
+    # Javi's paper
+    """)
     return
 
 
@@ -565,22 +615,22 @@ def _(ds, model, trapallada, xmm_newton_metadata):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Clusters""")
+    mo.md(r"""
+    # Clusters
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Clusters over
 
     - the latent space, and
     - *projected space* (t-SNE).
 
     **CAVEAT**: they are not necessarily computed with the same parameters.
-    """
-    )
+    """)
     return
 
 
@@ -599,7 +649,9 @@ def _(analysis_df, available_clusterings, go, make_subplots):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The directory with the full signals is inferred""")
+    mo.md(r"""
+    The directory with the full signals is inferred
+    """)
     return
 
 
@@ -612,13 +664,11 @@ def _(parameters, pathlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The windows in the projected space, colored according to its
 
     - cluster in the latent space (`z`)
-    """
-    )
+    """)
     return
 
 
@@ -636,7 +686,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""- cluster in the projected space""")
+    mo.md(r"""
+    - cluster in the projected space
+    """)
     return
 
 
@@ -654,7 +706,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""- cluster in the wasserstein space""")
+    mo.md(r"""
+    - cluster in the wasserstein space
+    """)
     return
 
 
@@ -675,7 +729,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""(some signals)""")
+    mo.md(r"""
+    (some signals)
+    """)
     return
 
 
@@ -687,7 +743,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Signals by `main_type`""")
+    mo.md(r"""
+    # Signals by `main_type`
+    """)
     return
 
 
@@ -699,7 +757,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The (selected beforehand) *signals of interest*""")
+    mo.md(r"""
+    The (selected beforehand) *signals of interest*
+    """)
     return
 
 
@@ -715,7 +775,9 @@ def _(analysis_df, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Empty `main_type`s are set to `UNKNOWN`""")
+    mo.md(r"""
+    Empty `main_type`s are set to `UNKNOWN`
+    """)
     return
 
 
@@ -727,13 +789,17 @@ def _(analysis_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Assessment""")
+    mo.md(r"""
+    # Assessment
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""In order to have fixed axes""")
+    mo.md(r"""
+    In order to have fixed axes
+    """)
     return
 
 
@@ -746,13 +812,11 @@ def _(analysis_df, tsne_columns):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     All the windows are plotted, and some of them, considered *of interest*, are highlighted.
 
     One can **double-click** a `main_type` in the *Legend* to only show the corresponding curves
-    """
-    )
+    """)
     return
 
 
@@ -775,7 +839,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Plots are saved""")
+    mo.md(r"""
+    Plots are saved
+    """)
     return
 
 
@@ -806,7 +872,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Some filtering of the selection""")
+    mo.md(r"""
+    Some filtering of the selection
+    """)
     return
 
 
@@ -820,7 +888,8 @@ def _(
     radio,
     trapallada,
 ):
-    trapallada.results.plot.marimo_selected(mo_plot, analysis_df, model, radio.value, full_signals_dir, max_n_samples_to_show)
+    i_selected = [e['index'] for e in mo_plot.points if e]
+    trapallada.results.plot.marimo_selected(i_selected, analysis_df, model, radio.value, full_signals_dir, max_n_samples_to_show)
     return
 
 

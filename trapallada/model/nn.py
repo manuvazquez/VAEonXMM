@@ -14,6 +14,9 @@ from jaxtyping import Array, Float, PyTree, PRNGKeyArray
 
 import trapallada.util
 
+# activation_function = jax.nn.silu
+activation_function = jax.nn.relu
+
 class Encoder(eqx.Module):
 
     layers: list
@@ -62,7 +65,7 @@ class Encoder(eqx.Module):
 
             self.layers.extend([
                 eqx.nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value, key=key),
-                jax.nn.relu,
+                activation_function,
                 eqx.nn.LayerNorm((out_channels, conv_output_len[0].item()))
             ])
 
@@ -142,7 +145,7 @@ class Decoder(eqx.Module):
 
         self.layers.extend([
             eqx.nn.Linear(in_features=dim_z, out_features=layers_spatial_sizes[0], key=subkey),
-            jax.nn.relu,
+            activation_function,
             lambda x: jnp.reshape(x, (channels[0], layers_spatial_sizes[1])), # from a 1D vector to a 2D array
         ])
 
@@ -166,7 +169,7 @@ class Decoder(eqx.Module):
                 eqx.nn.ConvTranspose1d(
                     in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride_value,
                     output_padding=output_padding.item(), key=subkey),
-                jax.nn.relu,
+                activation_function,
                 eqx.nn.LayerNorm((out_channels, expected_len))
             ])
 
@@ -198,7 +201,7 @@ class NonNegativeDecoder(Decoder):
         super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 
         # a RELU layer is added at the end
-        self.layers.append(jax.nn.relu)
+        self.layers.append(activation_function)
 
 class ConditionalDecoder(eqx.Module):
 
@@ -223,7 +226,7 @@ class NonNegativeConditionalDecoder(ConditionalDecoder):
         super().__init__(input_size, dim_z, layers_spatial_sizes, kernel_sizes, channels, stride, key)
 
         # a RELU layer is added at the end
-        self.z_decoder.layers.append(jax.nn.relu)
+        self.z_decoder.layers.append(activation_function)
 
 class VAE(eqx.Module):
 

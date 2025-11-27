@@ -75,69 +75,80 @@
     mark=square*, mark size=3pt,
     mark options={draw=green, fill=green}
   }
-  \legend{Unlabeled, No Event, Event}
 
-    % if zoom subdirs (comma-separated list like "-8-9_-6-6,-95--84_58-66") have been passed...  
-    \ifdefined\zoomSubdirs
+  % \legend{Unlabeled, No Event, Event}
 
-      \def\zoomNodeAnchors{north east, north, north west, south}
-      % \def\zoomNodeAnchors{north east, north}
+  \addlegendimage{
+    only marks,
+    mark=star, 
+    mark size=2.2pt,
+    draw=blue
+  }
 
-      % for each subdir...
-      \foreach \subdir [
-        count=\iSubdir from 1,
-      ] in \zoomSubdirs {
+  % Update the list of labels to include the 4th item
+  \legend{Unlabeled, No Event, Event, Plotted}
 
-        % in order to "locate" the anchor for this index (Gemini)
-        \foreach \anc [count=\j from 1] in \zoomNodeAnchors {
-            \ifnum\j=\iSubdir
-                \xdef\currentAnchor{\anc} % \xdef makes it global to escape the inner loop
-            \fi
-        }
-        
-        % CSV with the coordinates of the zoom rectangle are read
-        \pgfplotstableread[col sep=comma]{\dataDir/\subdir/coordinates.csv}\zoombox
+  % if zoom subdirs (comma-separated list like "-8-9_-6-6,-95--84_58-66") have been passed...  
+  \ifdefined\zoomSubdirs
 
-        % corners are parsed from there
-        \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xa{\pgfplotsretval}
-        \pgfplotstablegetelem{0}{y}\of\zoombox \edef\ya{\pgfplotsretval}
-        \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xb{\pgfplotsretval}
-        \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yb{\pgfplotsretval}
+    % \def\zoomNodeAnchors{north east, north, north west, south}
+    \def\zoomNodeAnchors{north east, north, east, south west, south west}
 
-        % \typeout{[zoom \iSubdir] \subdir: xa=\xa, ya=\ya, xb=\xb, yb=\yb}
+    % for each subdir...
+    \foreach \subdir [
+      count=\iSubdir from 1,
+    ] in \zoomSubdirs {
 
-        % rectangle is plotted...
-        \expanded{\noexpand\draw[black, very thick] (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);}
+      % in order to "locate" the anchor for this index (Gemini)
+      \foreach \anc [count=\j from 1] in \zoomNodeAnchors {
+          \ifnum\j=\iSubdir
+              \xdef\currentAnchor{\anc} % \xdef makes it global to escape the inner loop
+          \fi
+      }
+      
+      % CSV with the coordinates of the zoom rectangle are read
+      \pgfplotstableread[col sep=comma]{\dataDir/\subdir/coordinates.csv}\zoombox
 
-        \expanded{%
-          \noexpand\node[
-            fit={(axis cs:\xa,\ya) (axis cs:\xb,\yb)},
-            % inner sep=0pt,
-            % outer sep=0pt,
-          ] (zoombox\iSubdir) {};%
-        }
+      % corners are parsed from there
+      \pgfplotstablegetelem{0}{x}\of\zoombox \edef\xa{\pgfplotsretval}
+      \pgfplotstablegetelem{0}{y}\of\zoombox \edef\ya{\pgfplotsretval}
+      \pgfplotstablegetelem{1}{x}\of\zoombox \edef\xb{\pgfplotsretval}
+      \pgfplotstablegetelem{1}{y}\of\zoombox \edef\yb{\pgfplotsretval}
 
-        % ...along with a "label"
-        % \expanded{\noexpand\node[right] at (axis cs:\xb,\yb) {\#\iSubdir};}
-        \expanded{%
-          \noexpand
-          \node[
-          ] at (zoombox\iSubdir.\currentAnchor) {\#\iSubdir};
-        }
+      % \typeout{[zoom \iSubdir] \subdir: xa=\xa, ya=\ya, xb=\xb, yb=\yb}
 
-        % highlighted points for this region are plotted
-        \addplot+[
-          only marks,
-          mark=star,
-          mark size=2.2pt,
-          draw=blue,
-        ] table[
-          x=tsne_1, y=tsne_2,
-          col sep=comma,
-        ]{\dataDir/\subdir/selected_windows.csv};
+      % rectangle is plotted...
+      \expanded{\noexpand\draw[black, very thick] (axis cs:\xa,\ya) rectangle (axis cs:\xb,\yb);}
+
+      \expanded{%
+        \noexpand\node[
+          fit={(axis cs:\xa,\ya) (axis cs:\xb,\yb)},
+          % inner sep=0pt,
+          % outer sep=0pt,
+        ] (zoombox\iSubdir) {};%
       }
 
-    \fi
+      % ...along with a "label"
+      % \expanded{\noexpand\node[right] at (axis cs:\xb,\yb) {\#\iSubdir};}
+      \expanded{%
+        \noexpand
+        \node[
+        ] at (zoombox\iSubdir.\currentAnchor) {\#\iSubdir};
+      }
+
+      % highlighted points for this region are plotted
+      \addplot+[
+        only marks,
+        mark=star,
+        mark size=2.2pt,
+        draw=blue,
+      ] table[
+        x=tsne_1, y=tsne_2,
+        col sep=comma,
+      ]{\dataDir/\subdir/selected_windows.csv};
+    }
+
+  \fi
 
   \end{axis}
 \end{tikzpicture}

@@ -15,7 +15,7 @@ model: &model
   - 12
   - 12
   - 12
-  dim_z: 40
+  dim_z: 10
   kernel_sizes: # <---- FFT (due to redundancy)
   - 64
   - 32

@@ -1,6 +1,6 @@
-mod python '~/python/python.just'
-mod notebook '~/python/notebook.just'
-mod mlflow '~/python/mlflow.just'
+mod python '~/scripts/python.just'
+mod notebook '~/scripts/notebook.just'
+mod mlflow '~/scripts/mlflow.just'
 mod latex
 mod marimo
 

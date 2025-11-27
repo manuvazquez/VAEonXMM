@@ -1,3 +1,4 @@
+input_dir := "plots"
 output_dir := "figures"
 
 latexmk_command := "latexmk -lualatex -quiet -gg"
@@ -10,10 +11,8 @@ all: \
   (reference_vs_non-reference "paper_main") (reference_vs_non-reference "ae_z_10") \
   (roc "paper_main" "vae") (roc "paper_main" "ar") \
   paper_embedded_windows \
-  paper_latent \
-
-test: \
-  paper_embedded_windows \
+  paper_latent
+  cp {{input_dir}}/VAE.tex {{input_dir}}/{{output_dir}}
 
 dolphin:
   dolphin plots/{{output_dir}} &
@@ -66,8 +65,22 @@ latent DIR ZOOM_SUBDIRS="": (latent_allowing_clean DIR ZOOM_SUBDIRS) (latent_all
 
 east_region := "east"
 north_region := "north"
+center_region := "center"
+south_region := "south"
+west_region := "west"
 
-paper_latent: (latent "paper_main" "\"" + east_region + "," + north_region + "\"") dolphin
+paper_latent: (latent "paper_main" "\"" +
+        east_region + 
+        "," + 
+        north_region +  
+        "," + 
+        center_region + 
+        "," + 
+        west_region +         
+        "," + 
+        south_region + 
+        "\"") 
+        dolphin
 
 embedded_windows_dir DIR="plots/paper_main/91-114_13-41":
   #!/usr/bin/env bash
@@ -87,4 +100,7 @@ embedded_windows_dir DIR="plots/paper_main/91-114_13-41":
 paper_embedded_windows: \
   (embedded_windows_dir "plots/paper_main/" + east_region)\
   (embedded_windows_dir "plots/paper_main/" + north_region)\
+  (embedded_windows_dir "plots/paper_main/" + center_region)\
+  (embedded_windows_dir "plots/paper_main/" + west_region)\
+  (embedded_windows_dir "plots/paper_main/" + south_region)\
   dolphin

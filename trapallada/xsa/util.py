@@ -6,7 +6,6 @@ import tarfile
 import tempfile
 import shutil
 import re
-# import json
 import pprint
 from typing import Sequence
 
