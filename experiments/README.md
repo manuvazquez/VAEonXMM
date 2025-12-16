@@ -1,2 +1,0 @@
-- Some extra packages might be required to run these notebooks, e.g.,
-    - altair

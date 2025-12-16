@@ -5,6 +5,10 @@
 \providecommand{\dataPoint}{\mathbf{x}}
 \providecommand{\dataPointEst}{\hat{\mathbf{x}}}
 
+\providecommand{\zMean}{\boldsymbol{\mu}_\phi}
+\providecommand{\zVar}{\boldsymbol{\sigma}^2_\phi}
+\providecommand{\xMean}{\boldsymbol{g}_\theta}
+
 \begin{tikzpicture}[
     >=Stealth, 
     thick, 
@@ -15,6 +19,7 @@
     \definecolor{myblue}{RGB}{200, 200, 245}
     \definecolor{mygrid}{RGB}{100, 100, 160}
     \definecolor{errorred}{RGB}{200, 50, 50}
+    \definecolor{pdfcolor}{RGB}{100, 100, 180}
 
     % --- LEFT SIDE: DATA SPACE (3D) ---
     \begin{axis}[
@@ -38,19 +43,19 @@
             samples=19,
         ] {x^2 - y^2};
 
-        % --- POINTS (Updated for closer proximity) ---
-        
-        % Point x: (-1.2, 0.3) -> z = 1.35 (High on the left wing)
+        % --- POINTS ---
+        % Point x (Original)
         \coordinate (x_real) at (axis cs: -1.2, 0.3, 1.35); 
         
-        % Point x_hat: Moved closer to x
-        % x=-0.8 (closer to -1.2), y=0.7 (closer to 0.3)
-        % z = (-0.8)^2 - (0.7)^2 = 0.64 - 0.49 = 0.15
-        \coordinate (x_hat) at (axis cs: -0.8, 0.7, 0.15);
+        % Point x_hat (Reconstruction) - MOVED CLOSER
+        % x = -1.0 (closer to -1.2)
+        % y = 0.5  (closer to 0.3)
+        % z = (-1.0)^2 - (0.5)^2 = 0.75
+        \coordinate (x_hat) at (axis cs: -1.0, 0.5, 0.75);
 
         % Draw the dots
         \addplot3[only marks, mark=*, mark size=3pt, color=black] coordinates {(-1.2, 0.3, 1.35)};
-        \addplot3[only marks, mark=*, mark size=3pt, color=black] coordinates {(-0.8, 0.7, 0.15)};
+        \addplot3[only marks, mark=*, mark size=3pt, color=black] coordinates {(-1.0, 0.5, 0.75)};
         
         % Draw Error Line
         \draw[densely dotted, ultra thick, errorred] (x_real) -- (x_hat);
@@ -59,43 +64,63 @@
 
     % Labels
     \node[above] at (x_real) {$\dataPoint$};
-    \node[below left] at (x_hat) {$\dataPointEst$};
+    \node[below right] at (x_hat) {$\dataPointEst$};
     
     \node[anchor=south] at (0, 3.5) {\textsc{Data Space}};
-    % \node[anchor=south] at (0, 3.0) {\Large $\mathbb{R}^n$};
     \node[anchor=south] at (0, 3.0) {\Large $\mathbb{R}^{d_x}$};
-    % \node[mygrid] at (1, -2.5) {\Large $\mathcal{M}$};
 
 
     % --- RIGHT SIDE: LATENT SPACE (2D) ---
-    \begin{scope}[shift={(6,-2)}]
-        \draw[step=1, gray!20, thin] (0,0) grid (4,4);
-        \draw[thick, ->] (0,0) -- (4.2,0);
-        \draw[thick, ->] (0,0) -- (0,4.2);
+    \begin{scope}[shift={(8,0)}] 
         
-        \coordinate (z_point) at (2.5, 2.5);
-        \fill (z_point) circle (3pt) node[above] {$\latentSpacePoint$};
+        % 1. Draw Grid and Axes (Centered at 0,0)
+        \draw[step=1, gray!20, thin] (-2.2,-2.2) grid (2.2,2.2);
+        \draw[thick, ->] (-2.5,0) -- (2.5,0);
+        \draw[thick, ->] (0,-2.5) -- (0,2.5);
         
-        \node at (2, 4.8) {\textsc{Latent Space}};
-        \node at (2, 4.3) {\Large $\mathbb{R}^{d_z}$};
+        % 2. Gaussian Contour Plot (Standard Normal centered at 0,0)
+        \begin{axis}[
+            at={(0,0)}, anchor=center,
+            width=5.5cm, height=5.5cm, scale only axis, 
+            hide axis,
+            xmin=-2.5, xmax=2.5, ymin=-2.5, ymax=2.5,
+            view={0}{90},
+            colormap={gaussian_map}{color(0cm)=(white); color(1cm)=(pdfcolor)},
+            fill opacity=0.6,
+        ]
+            \addplot3[
+                contour filled={number=9, labels=false}, 
+                domain=-2.5:2.5,
+                y domain=-2.5:2.5,
+                samples=40, 
+            ] 
+            {exp(-(x^2 + y^2) / (2 * 0.6^2))};
+        \end{axis}
+
+        % 3. Point z (Close to mean 0,0)
+        \coordinate (z_point) at (0.3, 0.3);
+        \fill (z_point) circle (3pt) node[above right] {$\latentSpacePoint$};
+        
+        % Labels
+        \node at (0, 3.2) {\textsc{Latent Space}};
+        \node at (0, 2.7) {\Large $\mathbb{R}^{d_z}$};
     \end{scope}
 
 
     % --- CONNECTIONS ---
     
     % Encoder: x -> z
-    \draw[->, thick, shorten >= 5pt, shorten <= 5pt] (x_real) to[out=20, in=130] 
-        node[midway, above, text=gray, name=encoder] {encoder} 
-        node[midway, below] {\Large $\encoderFunc{}$} 
+    \draw[->, thick, shorten >= 5pt, shorten <= 5pt] (x_real) to[out=20, in=150] 
+        node[midway, above=1ex, text=gray, name=encoder] {encoder} 
+        % node[midway, below] {\Large $\encoderFunc{}$} 
+        node[midway, below] {\Large $\zMean,\zVar$} 
         (z_point);
 
     % Decoder: z -> x_hat
-    \draw[->, thick, shorten >= 5pt, shorten <= 5pt] (z_point) to[out=230, in=-60] 
+    \draw[->, thick, shorten >= 5pt, shorten <= 5pt] (z_point) to[out=220, in=-20] 
         node[midway, below=0.2cm, text=gray, name=decoder] {decoder} 
-        node[midway, below=0.7cm] {\Large $\decoderFunc{} \approx \encoderFunc{}^{-1}$} 
+        % node[midway, below=0.7cm] {\Large $\decoderFunc{} \approx \encoderFunc{}^{-1}$} 
+        node[midway, below=0.7cm] {\Large $\xMean$} 
         (x_hat);
-
-    % % Approximation Text (Centered)
-    % \node[blue!50!gray] at ($(encoder)!.5!(decoder)$) {\Large $\decoderFunc{} \approx \encoderFunc{}^{-1}$};
 
 \end{tikzpicture}

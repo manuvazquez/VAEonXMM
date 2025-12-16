@@ -1,6 +1,8 @@
 mod python '~/scripts/python.just'
 mod notebook '~/scripts/notebook.just'
 mod mlflow '~/scripts/mlflow.just'
+mod git '~/scripts/git.just'
+
 mod latex
 mod marimo
 
@@ -12,13 +14,10 @@ trapallada_dir := justfile_directory()
 trapallada_data_dir := join(trapallada_dir, 'data')
 
 # annotations
-
 reference_signals_file := join(trapallada_dir, 'interesting.yaml')
 annotated_windows_file := join(trapallada_dir, 'annotations', 'annotated_windows.parquet')
 
 data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'trapallada')
-
-# conda_environment := "trap"
 
 # i) PYTHONBREAKPOINT=ipdb.set_trace indicates Python to use ipdb for debugging
 # ii) --no-sync doesn't try to update venv before running the command (useuful when having a CUDA-enabled
@@ -106,44 +105,31 @@ whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_F
 
 # ====================================================================================================
 
-[group('infracstructure')]
-retrieve_from_cluster SERVER=default_server DIRECTORY="results":
-  rsync --recursive {{SERVER}}:"trapallada"/{{DIRECTORY}} {{tmp_dir}}/
-  @echo "Retrieving all the files in {{SERVER}} at {{DIRECTORY}}"
+# [group('jesus')]
+# mount_supergraph:
+#   rclone mount --read-only uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
 
-[doc("FILE: the name of the html file; NAME: new name for the file; SERVER: remote server where the notebook will be published")]
-[group('infracstructure')]
-publish_html_on_cluster FILE NAME SERVER=default_server:
-  cp "{{FILE}}" {{tmp_dir}}/{{NAME}}.html
-  rsync --perms --owner {{tmp_dir}}/{{NAME}}.html {{SERVER}}:public_html
-  rm {{tmp_dir}}/{{NAME}}.html
-  echo https://www.tsc.uc3m.es/~mvazquez/{{NAME}}.html
+# [group('jesus')]
+# mount_trapallada:
+#   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
 
-clean_cache DIR=".":
-  # rm experiments/*.parquet
-  fd -u -g "{nodes,edges}.parquet" --exec rm {} \; {{DIR}}
+# [group('jesus')]
+# cp_results INPUT_DIR:
+#   #!/usr/bin/env bash
+#   set -euo pipefail
+  
+#   output_dir={{google_drive_dir}}/trapallada/{{datetime('%Y-%m-%d-%H%M%S')}}
+#   echo Copying to $output_dir...
+#   mkdir $output_dir
+#   echo "{{INPUT_DIR}}" > $output_dir/source.txt
+#   # VAE
+#   cp {{INPUT_DIR}}/vae.parquet $output_dir
+#   # AR
+#   cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) $output_dir
+#   cp {{INPUT_DIR}}/labels/annotated_windows.parquet $output_dir
 
 # ====================================================================================================
 
-[group('jesus')]
-mount_supergraph:
-  rclone mount --read-only uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
-
-[group('jesus')]
-mount_trapallada:
-  rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
-
-[group('jesus')]
-cp_results INPUT_DIR:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  
-  output_dir={{google_drive_dir}}/trapallada/{{datetime('%Y-%m-%d-%H%M%S')}}
-  echo Copying to $output_dir...
-  mkdir $output_dir
-  echo "{{INPUT_DIR}}" > $output_dir/source.txt
-  # VAE
-  cp {{INPUT_DIR}}/vae.parquet $output_dir
-  # AR
-  cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) $output_dir
-  cp {{INPUT_DIR}}/labels/annotated_windows.parquet $output_dir
+[group('overleaf')]
+paper:
+  xdg-open "https://www.overleaf.com/project/68da64d6929dc7af28c157b2"
