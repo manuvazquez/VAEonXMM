@@ -485,7 +485,11 @@ def tars_to_array(
         max_n_sources: int = 4, min_power: float = 0., min_count_rate: float = 0., min_gti_ratio: float = 0.,
         signals_to_extract: list[str] = ['RATE'],
         output_directory: str | pathlib.Path | None = None
-        ) -> tuple[Float[Array, 'window channel time'], pd.DataFrame, pd.DataFrame]:
+        ) -> tuple[
+            Float[Array, 'window channel time'],
+            pd.DataFrame, pd.DataFrame,
+            dict, Float[Array, 'window time']
+        ]:
     """
     Converts a list of tar files into a NumPy array of signals and a pandas DataFrame of metadata.
     

@@ -12,7 +12,9 @@ all: \
   (roc "paper_main" "vae") (roc "paper_main" "ar") \
   paper_embedded_windows \
   paper_latent
-  cp {{input_dir}}/VAE.tex {{input_dir}}/{{output_dir}}
+  # cp {{input_dir}}/VAE.tex {{input_dir}}/{{output_dir}}
+  ln -sf "$(readlink -f {{input_dir}}/VAE.tex)" {{input_dir}}/{{output_dir}}/VAE.tex
+  ln -sf "$(readlink -f {{input_dir}}/AR.tex)" {{input_dir}}/{{output_dir}}/AR.tex
 
 dolphin:
   dolphin plots/{{output_dir}} &

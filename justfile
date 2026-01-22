@@ -105,31 +105,6 @@ whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_F
 
 # ====================================================================================================
 
-# [group('jesus')]
-# mount_supergraph:
-#   rclone mount --read-only uc3m: {{google_drive_dir}}/git_supergraph --drive-root-folder-id 1czYxj2lzIyVCHQj1uVefYz6L7OWV_iY5
-
-# [group('jesus')]
-# mount_trapallada:
-#   rclone mount uc3m: {{google_drive_dir}}/trapallada --drive-root-folder-id 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
-
-# [group('jesus')]
-# cp_results INPUT_DIR:
-#   #!/usr/bin/env bash
-#   set -euo pipefail
-  
-#   output_dir={{google_drive_dir}}/trapallada/{{datetime('%Y-%m-%d-%H%M%S')}}
-#   echo Copying to $output_dir...
-#   mkdir $output_dir
-#   echo "{{INPUT_DIR}}" > $output_dir/source.txt
-#   # VAE
-#   cp {{INPUT_DIR}}/vae.parquet $output_dir
-#   # AR
-#   cp $(cat {{INPUT_DIR}}/signals_to_assess.txt) $output_dir
-#   cp {{INPUT_DIR}}/labels/annotated_windows.parquet $output_dir
-
-# ====================================================================================================
-
 [group('overleaf')]
 paper:
   xdg-open "https://www.overleaf.com/project/68da64d6929dc7af28c157b2"

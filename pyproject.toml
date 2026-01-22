@@ -1,17 +1,19 @@
 [project]
 name = "trapallada"
-version = "0.3.0"
+version = "0.3.1"
 description = "Time-series Recognition and Analysis Platform for Astronomical Lightcurve Labeling and Data Analysis"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "altair",
     "astropy",
-    "astroquery==0.4.6", # seemingly, astroquery 0.4.7's XMMNewton.download_data does not support full paths in "filename" argument
+    # "astroquery==0.4.6", # seemingly, astroquery 0.4.7's XMMNewton.download_data does not support full paths in "filename" argument
+    "astroquery",
     "equinox",
+    "flax>=0.12.2",
     "ipywidgets",
-    # "jax[cuda12]", # <------------------ CUDA
-    "jax", # <------------------ CPU-only
+    "jax[cuda12]", # <------------------ CUDA
+    # "jax", # <------------------ CPU-only
     "matplotlib",
     "mlflow",
     "numpyro",
@@ -44,13 +46,13 @@ required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_6
 "trap_pack_obs.py" = "trapallada.xsa.util:cl_tars_to_array"
 
 # <------------------ CPU-only
-[tool.uv.sources]
-torch = [
-    { index = "pytorch-cpu" },
-]
-torchvision = [
-    { index = "pytorch-cpu" },
-]
+# [tool.uv.sources]
+# torch = [
+#     { index = "pytorch-cpu" },
+# ]
+# torchvision = [
+#     { index = "pytorch-cpu" },
+# ]
 
 # ===========================
 

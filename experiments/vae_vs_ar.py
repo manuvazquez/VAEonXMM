@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.18.1"
 app = marimo.App(width="full")
 
 
@@ -535,13 +535,21 @@ def _(mo, pathlib, pd, res_df, res_dir, trapallada, vae_df):
     return full_signals_dir, mo_plot, model, tsne_columns, vae_df_merged
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    If *both* x- and y-ranges were passed as parameters
+    """)
+    return
+
+
 @app.cell
 def _(args, mo_plot, tsne_columns, vae_df_merged):
     if ('x-range' in args) and ('y-range' in args):
 
         x_min, x_max = tuple(map(float, args['x-range'].strip('[]').split(',')))
         y_min, y_max = tuple(map(float, args['y-range'].strip('[]').split(',')))
-    
+
         in_range = \
         (vae_df_merged[tsne_columns[0]] > x_min) &\
         (vae_df_merged[tsne_columns[0]] < x_max) &\
@@ -718,6 +726,14 @@ def _(ar_analysis_file, pd):
 def _(mo):
     mo.md(r"""
     ## Mahalanobis distance-based comparison
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    None of the things coming now depend on the selection (or passed x- and y-ranges)
     """)
     return
 

@@ -1,0 +1,37 @@
+\begin{tikzpicture}[
+% Definición de estilos
+block/.style={
+    rectangle, 
+    draw=black, 
+    thick, 
+    fill=blue!5, 
+    text width=1.0cm, 
+    align=center, 
+    minimum height=1.2cm,
+    font=\sffamily\small
+},
+arrow/.style={
+    thick, 
+    -Stealth, 
+    shorten >=1pt
+},
+label_text/.style={
+    font=\sffamily\scriptsize, 
+    text=gray!80!black
+}]
+
+% Nodos (Bloques)
+\node (input) at (0,0) [align=center] {{\bf x}};
+\node (pca) [block, right=0.5cm of input] {PCA};
+\node (sub) [block, right=0.7cm of pca] {$\downarrow s$};
+\node (ar) [block, right=0.7cm of sub] {AR($p$)};
+\node (output) [right=0.5cm of ar] {${\bf w}$};
+
+% Conexiones con etiquetas descriptivas
+\draw [arrow] (input) -- (pca);
+%\draw [arrow] (pca) -- node[above, label_text] {2 bands} (sub);
+\draw [arrow] (pca) -- node[above, label_text] {} (sub);
+% \draw [arrow] (sub) -- node[above, label_text] {$L/2$} (ar);
+\draw [arrow] (sub) -- node[above, label_text] {}(ar);
+\draw [arrow] (ar) -- (output);
+\end{tikzpicture}

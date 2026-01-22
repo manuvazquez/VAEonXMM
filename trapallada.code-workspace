@@ -30,6 +30,7 @@
 			"results/new/logs": true
 		},
 		"editor.wordWrap": "on",
-		"outline.collapseItems": "alwaysCollapse"
+		"outline.collapseItems": "alwaysCollapse",
+		"git.ignoreLimitWarning": true
 	},
 }
