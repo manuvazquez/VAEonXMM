@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.1"
+__generated_with = "0.23.6"
 app = marimo.App(width="full")
 
 
@@ -15,6 +15,7 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -49,6 +50,7 @@ def _():
     import trapallada.results.plot
     import trapallada.model.training
     import trapallada.model.nn
+
     return np, os, pathlib, pd, trapallada, yaml
 
 
@@ -802,6 +804,7 @@ def _(output_dir, pd):
         df.to_csv(output_dir / f'{algorithm}_roc.csv', index=False)
         with open(output_dir / f'{algorithm}_auc.txt', 'w') as f:
             f.write(f'{metrics['roc_auc']:.2f}')
+
     return (save_results,)
 
 
@@ -868,6 +871,60 @@ def _(
     if save_button.value:
         save_results(ar_roc_fig_df, ar_metrics, 'ar')
     ar_roc_fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Rebuttal
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    `True` for all the *windows* corresponding to signal *0921510101PNX000SRCTSR8003*
+    """)
+    return
+
+
+@app.cell
+def _(vae_df):
+    i_plot_9_top = vae_df['signal'].str.endswith('0921510101PNX000SRCTSR8003')
+    i_plot_9_top.sum()
+    return (i_plot_9_top,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The windows
+    """)
+    return
+
+
+@app.cell
+def _(i_plot_9_top, vae_df):
+    vae_df[i_plot_9_top]
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Only those that start before a selected time moment. In can be easily exported (from *marimo*) using the `Export` button.
+    """)
+    return
+
+
+@app.cell
+def _(i_plot_9_top, vae_df):
+    _reference_start_time = vae_df.loc[22960]['start']
+    _previous_windows = vae_df.loc[(vae_df[i_plot_9_top]['start'] < _reference_start_time).index]
+    _previous_windows.filter(regex=r'^tsne_\d')
+    _previous_windows[['signal','start', 'end', 'tsne_1', 'tsne_2']]
     return
 
 

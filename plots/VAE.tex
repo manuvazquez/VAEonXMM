@@ -2,6 +2,7 @@
 \providecommand{\decoderFunc}{f_{\text{dec}}}
 
 \providecommand{\latentSpacePoint}{\mathbf{z}}
+
 \providecommand{\dataPoint}{\mathbf{x}}
 \providecommand{\dataPointEst}{\hat{\mathbf{x}}}
 
@@ -16,8 +17,11 @@
 ]
 
     % --- COLORS ---
-    \definecolor{myblue}{RGB}{200, 200, 245}
-    \definecolor{mygrid}{RGB}{100, 100, 160}
+    % \definecolor{myblue}{RGB}{200, 200, 245}
+    % \definecolor{mygrid}{RGB}{100, 100, 160}
+    \definecolor{myblue}{RGB}{235, 235, 255}
+    \definecolor{mygrid}{RGB}{130, 130, 190}
+
     \definecolor{errorred}{RGB}{200, 50, 50}
     \definecolor{pdfcolor}{RGB}{100, 100, 180}
 
@@ -63,8 +67,11 @@
     \end{axis}
 
     % Labels
-    \node[above] at (x_real) {$\dataPoint$};
-    \node[below right] at (x_hat) {$\dataPointEst$};
+    % \node[above] at (x_real) {$\dataPoint$};
+    % \node[below right] at (x_hat) {$\dataPointEst$};
+
+    \node[above left] at (x_real) {$\dataPoint$};
+    \node[below left=0.1em and 0.3em,outer sep=0, inner sep=0] at (x_hat) {$\dataPointEst$};
     
     \node[anchor=south] at (0, 3.5) {\textsc{Data Space}};
     \node[anchor=south] at (0, 3.0) {\Large $\mathbb{R}^{d_x}$};

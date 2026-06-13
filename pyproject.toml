@@ -12,8 +12,6 @@ dependencies = [
     "equinox",
     "flax>=0.12.2",
     "ipywidgets",
-    "jax[cuda12]", # <------------------ CUDA
-    # "jax", # <------------------ CPU-only
     "matplotlib",
     "mlflow",
     "numpyro",
@@ -26,6 +24,19 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "statsmodels>=0.14.4",
+    "marimo>=0.23.3",
+]
+
+# uv sync --extra cpu / uv sync --extra cuda
+[project.optional-dependencies]
+cpu = [
+    "jax",
+    "torch",
+    "torchvision",
+]
+
+cuda = [
+    "jax[cuda12]",
     "torch",
     "torchvision",
 ]
@@ -38,28 +49,38 @@ include = ["trapallada"]
 package = true
 # in order to deal with this bug https://github.com/astral-sh/uv/issues/16685
 required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [project.scripts]
 "trap_fit_vae_on_signals.py" = "trapallada.core:cl_fit_vae_on_signals"
 "trap_grid_fit_vae_on_signals.py" = "trapallada.core:cl_grid_fit_vae_on_signals"
 "trap_download_obs.py" = "trapallada.xsa.util:cl_download_observations"
 "trap_pack_obs.py" = "trapallada.xsa.util:cl_tars_to_array"
-
-# <------------------ CPU-only
-# [tool.uv.sources]
-# torch = [
-#     { index = "pytorch-cpu" },
-# ]
-# torchvision = [
-#     { index = "pytorch-cpu" },
-# ]
-
-# ===========================
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
 
 [dependency-groups]
 dev = [
@@ -76,4 +97,3 @@ dev = [
     "nbdime>=4.0.2",
     "kaleido>=1.1.0",
 ]
-

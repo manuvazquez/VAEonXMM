@@ -21,11 +21,11 @@ label_text/.style={
 }]
 
 % Nodos (Bloques)
-\node (input) at (0,0) [align=center] {{\bf x}};
+\node (input) at (0,0) [align=center] {$\mathbf{x}$};
 \node (pca) [block, right=0.5cm of input] {PCA};
 \node (sub) [block, right=0.7cm of pca] {$\downarrow s$};
 \node (ar) [block, right=0.7cm of sub] {AR($p$)};
-\node (output) [right=0.5cm of ar] {${\bf w}$};
+\node (output) [right=0.5cm of ar] {$\mathbf{z}'$};
 
 % Conexiones con etiquetas descriptivas
 \draw [arrow] (input) -- (pca);

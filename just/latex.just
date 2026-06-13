@@ -1,8 +1,11 @@
-input_dir := "plots"
-output_dir := "figures"
+input_dir := join(justfile_directory(),"plots")
+output_dir := join(justfile_directory(),"figures")
 
 latexmk_command := "latexmk -lualatex -quiet -gg"
 latexmk_outdir := "-outdir=" + output_dir
+
+# foo:
+#   ls {{justfile_directory()}}
 
 default:
   just -f {{source_file()}} --list

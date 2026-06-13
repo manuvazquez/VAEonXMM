@@ -1,10 +1,12 @@
-mod python '~/scripts/python.just'
-mod notebook '~/scripts/notebook.just'
-mod mlflow '~/scripts/mlflow.just'
-mod git '~/scripts/git.just'
+mod python '~/scripts/just/python.just'
+mod notebook '~/scripts/just/notebook.just'
+mod mlflow '~/scripts/just/mlflow.just'
+mod git '~/scripts/just/git.just'
+mod remote '~/scripts/just/remote.just'
+mod mo '~/scripts/just/mo.just'
 
-mod latex
-mod marimo
+mod latex 'just/latex.just'
+mod marimo 'just/marimo.just'
 
 home_dir := env_var('HOME')
 google_drive_dir := join(home_dir, 'drive')
@@ -23,9 +25,6 @@ data_dir := join(env_var_or_default('MY_DATA_DIR', join(home_dir, 'data')), 'tra
 # ii) --no-sync doesn't try to update venv before running the command (useuful when having a CUDA-enabled
 #     environment in one machine and a CPU-relying in another)
 uv_command := "PYTHONBREAKPOINT=ipdb.set_trace uv run --no-sync"
-
-# default_server := "meiga05"
-default_server := "skoll"
 
 default:
   just --list
@@ -103,8 +102,22 @@ pack_obs_test OUTPUT_SUBDIR="mini_rate": (pack_obs OUTPUT_SUBDIR "63" "225" "10"
 whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_FILES_STEM) (fit PARAMETERS DATA_FILES_STEM)
   echo "this might take a while..."
 
-# ====================================================================================================
+# ===================================== Google Drive =================================================
 
-[group('overleaf')]
-paper:
-  xdg-open "https://www.overleaf.com/project/68da64d6929dc7af28c157b2"
+mount_drive:
+  just remote::mount_uc3m_drive trapallada 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
+
+umount_drive:
+  just remote::unmount trapallada
+
+# ======================================= analysis ===================================================
+
+[group('rebuttal')]
+[doc("Make 'vae.parquet' in DIR")]
+analyze DIR:
+  {{uv_command}} experiments/analysis.py --model_dir {{DIR}}
+
+[group('rebuttal')]
+[doc("Explore signal P0921510101PNX000SRCTSR8003")]
+fig_9_top:
+  just marimo::paper_main_vae_vs_ar

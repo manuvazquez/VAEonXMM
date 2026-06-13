@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.23.6"
 app = marimo.App(width="full")
 
 
@@ -15,6 +15,7 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -38,6 +39,8 @@ def _():
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
+    import trapallada.util
+
     return DataLoader, go, make_subplots, pathlib, pd, px, trapallada
 
 
@@ -46,6 +49,13 @@ def _():
     import plotly.io as pio
     pio.renderers.default = 'notebook'
     return
+
+
+@app.cell
+def _(mo):
+    args = mo.cli_args()
+    args
+    return (args,)
 
 
 @app.cell(hide_code=True)
@@ -84,17 +94,35 @@ def _(mo):
     return (radio,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    One can also skip the above selector and choose the argument from the command line.
+    """)
+    return
+
+
 @app.cell
-def _(mo, radio):
-    if radio.value == 'ar':
+def _(args, radio):
+    if 'algorithm' in args:
+        algorithm = args['algorithm']
+    else:
+        algorithm = radio.value
+    return (algorithm,)
+
+
+@app.cell
+def _(algorithm, mo):
+    # if 'model' in args:
+    if algorithm == 'ar':
         slider = mo.ui.form(element=mo.ui.slider(start=2, stop=20, label="AR process order", value=5))
         mo.output.append(slider)
     return (slider,)
 
 
 @app.cell
-def _(mo, radio, slider):
-    if radio.value == 'ar':
+def _(algorithm, mo, slider):
+    if algorithm == 'ar':
         mo.stop(slider.value is None, mo.md("**Choose the order of the AR model**"))
     return
 
@@ -108,17 +136,21 @@ def _(mo):
 
 
 @app.cell
-def _(mo, pathlib):
+def _(mo, trapallada):
     file_browser = mo.ui.file_browser(
-        initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
+        # initial_path=pathlib.Path('results/'), selection_mode='directory', multiple=False, restrict_navigation=True
+        initial_path=trapallada.util.get_base_directory() / 'results', selection_mode='directory', multiple=False, restrict_navigation=True
     )
     file_browser
     return (file_browser,)
 
 
 @app.cell
-def _(file_browser, mo):
-    model_dir = file_browser.path()
+def _(args, file_browser, mo, pathlib):
+    if 'model_dir' in args:
+        model_dir = pathlib.Path(args['model_dir'])
+    else:
+        model_dir = file_browser.path()
     mo.stop(model_dir is None, mo.md("**Choose a path.**"))
     return (model_dir,)
 
@@ -132,10 +164,10 @@ def _(mo):
 
 
 @app.cell
-def _(model_dir, parameters, radio, slider):
-    analysis_file_stem = radio.value
+def _(algorithm, model_dir, parameters, slider):
+    analysis_file_stem = algorithm
 
-    if radio.value == 'vae':
+    if algorithm == 'vae':
         analysis_dir = model_dir
     else:
         analysis_dir = model_dir.parent / 'AR'
@@ -225,9 +257,9 @@ def _(mo):
 
 
 @app.cell
-def _(dim_z, ds, mo, radio, slider):
+def _(algorithm, dim_z, ds, mo, slider):
     # z_cols = [f'z_{i}' for i in range(1, dim_z + 1)]
-    if radio.value == 'vae':
+    if algorithm == 'vae':
         z_cols = [f'z_{i}' for i in range(1, dim_z + 1)]
     else:
         mo.stop(slider.value is None, mo.md("**Choose the order of the AR model**"))
@@ -279,6 +311,7 @@ def _(mo):
 @app.cell
 def _(
     DataLoader,
+    algorithm,
     analysis_dir,
     analysis_file_stem,
     catalog_file,
@@ -288,7 +321,6 @@ def _(
     n_projected_components,
     pd,
     positions_df,
-    radio,
     slider,
     trapallada,
     tsne_cols,
@@ -307,7 +339,7 @@ def _(
         dl = DataLoader(ds, batch_size=128, shuffle=False)
 
         # VAE
-        if radio.value == 'vae':
+        if algorithm == 'vae':
 
             # projection onto the latent space...
             z, z_sd = trapallada.results.analysis.project_onto_latent_space(dl, model.encoder, return_sd=True)
@@ -358,8 +390,8 @@ def _(analysis_df):
 
 
 @app.cell
-def _(analysis_df, radio):
-    if radio.value == 'vae':
+def _(algorithm, analysis_df):
+    if algorithm == 'vae':
         analysis_df['wasserstein cluster in z']
     return
 
@@ -393,10 +425,10 @@ def _(mo):
 
 
 @app.cell
-def _(radio):
+def _(algorithm):
     available_clusterings = ['cluster in z', 'cluster in projected space']
 
-    if radio.value == 'vae':
+    if algorithm == 'vae':
         available_clusterings += ['wasserstein cluster in z']
     return (available_clusterings,)
 
@@ -410,8 +442,8 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, available_clusterings, radio):
-    if radio.value == 'vae':
+def _(algorithm, analysis_df, available_clusterings):
+    if algorithm == 'vae':
         analysis_df[available_clusterings].dtypes
     return
 
@@ -499,8 +531,8 @@ def _(mo):
 
 
 @app.cell
-def _(mo, radio, training_df, trapallada):
-    if radio.value == 'vae':
+def _(algorithm, mo, training_df, trapallada):
+    if algorithm == 'vae':
         mo.output.append(trapallada.analysis.training_chart(training_df))
     return
 
@@ -584,8 +616,8 @@ def _(mo):
 
 
 @app.cell
-def _(analysis_df, mo, px, radio):
-    if radio.value == 'vae':
+def _(algorithm, analysis_df, mo, px):
+    if algorithm == 'vae':
         latents_sd_df = analysis_df.filter(regex=r'z_sd_\d+').agg(['mean', 'std']).T
         mo.output.append(px.scatter(latents_sd_df, x=latents_sd_df.index, y='mean', error_y='std'))
     return
@@ -714,15 +746,15 @@ def _(mo):
 
 @app.cell
 def _(
+    algorithm,
     analysis_df,
     full_signals_dir,
     mo,
     on_plot_hover_columns,
-    radio,
     trapallada,
     tsne_columns,
 ):
-    if radio.value == 'vae':
+    if algorithm == 'vae':
         mo.output.append(trapallada.results.plot.TSNE(analysis_df, tsne_columns, full_signals_dir, on_plot_hover_columns).make_fig(color_column='wasserstein cluster in z'))
     return
 
@@ -880,16 +912,16 @@ def _(mo):
 
 @app.cell
 def _(
+    algorithm,
     analysis_df,
     full_signals_dir,
     max_n_samples_to_show,
     mo_plot,
     model,
-    radio,
     trapallada,
 ):
     i_selected = [e['index'] for e in mo_plot.points if e]
-    trapallada.results.plot.marimo_selected(i_selected, analysis_df, model, radio.value, full_signals_dir, max_n_samples_to_show)
+    trapallada.results.plot.marimo_selected(i_selected, analysis_df, model, algorithm, full_signals_dir, max_n_samples_to_show)
     return
 
 

@@ -207,7 +207,7 @@ def rank_obs_files(obs_dir: str | pathlib.Path) -> pd.DataFrame:
     fits_files_series = pd.Series([f.name for f in fits_files], dtype=pd.StringDtype())
     
     # the names are parsed into a `DataFrame`...
-    fits_files_df = fits_files_series.str.extract(trapallada.xsa.util.re_filename)
+    fits_files_df = fits_files_series.str.extract(re_filename)
 
     # ...which is then enriched with the full path of every file
     fits_files_df['full path'] = fits_files
@@ -241,7 +241,7 @@ def download_observations(
             # in order to, hopefully, avoid bans/errors
             time.sleep(sleep_time_between_requests)
 
-def cl_download_observations(args: list = None):
+def cl_download_observations(args: list | None = None):
     """
     Command line interface for the `download_observations` function.
     """
@@ -374,7 +374,7 @@ def download_extract_filter(
 
 def read_tar(
         file: str | pathlib.Path, max_n_sources: int = 4, signals_to_extract: list[str] = ['RATE']
-    ) -> tuple[pd.DataFrame | None, pd.Series | None]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] | tuple[None, None, None]:
     """
     Reads a tar file containing FITS files, returning a number of sources.
 
@@ -384,8 +384,8 @@ def read_tar(
         signals_to_extract (list[str], optional): The signals to be extracted. Defaults to ['RATE'].
 
     Returns:
-        tuple[pd.DataFrame or None, pd.Series or None]: A tuple containing the DataFrame with the top ranked FITS files
-        and a Series with the header information, or `None` if there are no relevant files.
+        tuple[pd.DataFrame or None, pd.DataFrame or None, pd.DataFrame or None]: A tuple containing the DataFrame with the top ranked FITS files,
+        a DataFrame with the header information, and a DataFrame with the mask information, or `None` if there are no relevant files.
     """
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -815,7 +815,7 @@ def tars_to_array(
         return all_signals, metadata_df, all_headers_df, full_signals_dict, all_masks
 
 
-def cl_tars_to_array(args: list = None):
+def cl_tars_to_array(args: list | None = None):
     """
     Command line interface for the `tars_to_array` function.
     """
