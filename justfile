@@ -104,11 +104,13 @@ whole_sheebang PARAMETERS DATA_FILES_STEM="obs": (download_obs) (pack_obs DATA_F
 
 # ===================================== Google Drive =================================================
 
+[group('sharing')]
 mount_drive:
-  just remote::mount_uc3m_drive trapallada 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
+  @just remote::mount_uc3m_drive trapallada 1nyxuRvEFIsEnAXVP0Z0wxJtJRLOPWB7R
 
+[group('sharing')]
 umount_drive:
-  just remote::unmount trapallada
+  @just remote::unmount trapallada
 
 # ======================================= analysis ===================================================
 
@@ -121,3 +123,8 @@ analyze DIR:
 [doc("Explore signal P0921510101PNX000SRCTSR8003")]
 fig_9_top:
   just marimo::paper_main_vae_vs_ar
+
+[group('rebuttal')]
+[doc("Latent space for beta=5, dim_z=10")]
+fig_latent_larger_beta:
+  just latex::latent beta_5_dim_z_10/

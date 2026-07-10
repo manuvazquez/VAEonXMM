@@ -338,6 +338,7 @@ def mahalanobis_based_metrics(
     else:
         return metrics
 
+# these are the "reference signals" in the paper
 def i_windows_of_interest(analysis_df: pd.DataFrame) -> Generator[tuple[pd.Index, str]]:
     
     signals_of_interest = trapallada.data.Labels(

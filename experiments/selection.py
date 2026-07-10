@@ -1,18 +1,23 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.23.9"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""> Windows selected to be evaluated by the annotator""")
+    mo.md(r"""
+    > Windows selected to be evaluated by the annotator
+
+    N.B.: For every signal of interest **a single representative *window* is chosen** and only that is used for ranking.
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -35,6 +40,7 @@ def _():
     import trapallada.results.analysis
     import trapallada.results.plot
     import trapallada.model.ar
+
     return np, pathlib, pd, scipy, trapallada
 
 
@@ -47,13 +53,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Parameters""")
+    mo.md(r"""
+    # Parameters
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Some global parameters""")
+    mo.md(r"""
+    Some global parameters
+    """)
     return
 
 
@@ -76,7 +86,9 @@ def _(pathlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""File with the *reference* **signals**""")
+    mo.md(r"""
+    File with the *reference* **signals**
+    """)
     return
 
 
@@ -89,7 +101,9 @@ def _(trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Model path""")
+    mo.md(r"""
+    ## Model path
+    """)
     return
 
 
@@ -111,7 +125,9 @@ def _(file_browser, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## AR""")
+    mo.md(r"""
+    ## AR
+    """)
     return
 
 
@@ -133,7 +149,9 @@ def _(ar_browser, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We keep track of which AR model was used""")
+    mo.md(r"""
+    We keep track of which AR model was used
+    """)
     return
 
 
@@ -147,19 +165,17 @@ def _(ar_analysis_file, model_dir):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     From the results directory,
 
     - the `Dataset`,
     - the headers of the corresponding files,
     - the ML model,
-    - a `DataFrame` with results from training, 
+    - a `DataFrame` with results from training,
     - a `dict` with the parameters
 
     are obtained
-    """
-    )
+    """)
     return
 
 
@@ -171,7 +187,9 @@ def _(model_dir, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""From the parameters of the simulation it's possible to find out the directory containing the *full* signals (before splitting into *windows*).""")
+    mo.md(r"""
+    From the parameters of the simulation it's possible to find out the directory containing the *full* signals (before splitting into *windows*).
+    """)
     return
 
 
@@ -184,7 +202,9 @@ def _(parameters, pathlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Metadata is extracted from the `Dataset`. A new column `signal` is added for the sake of convenience.""")
+    mo.md(r"""
+    Metadata is extracted from the `Dataset`. A new column `signal` is added for the sake of convenience.
+    """)
     return
 
 
@@ -197,19 +217,25 @@ def _(ds):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# *Reference* windows""")
+    mo.md(r"""
+    # *Reference* windows
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This is only meant to be performed **once** (clicking the `Save` button below).""")
+    mo.md(r"""
+    This is only meant to be performed **once** (clicking the `Save` button below).
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The *windows* belonging to the (selected beforehand) "signals of interest" (only one window is shown). This is only meant to help in choosing, below, one window from each.""")
+    mo.md(r"""
+    The *windows* belonging to the (selected beforehand) "signals of interest" (only one window is shown). This is only meant to help in choosing, below, one window from each.
+    """)
     return
 
 
@@ -227,7 +253,9 @@ def _(metadata_df, mo, reference_signals_file, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""*All the windows*, to be selected for plotting""")
+    mo.md(r"""
+    *All the windows*, to be selected for plotting
+    """)
     return
 
 
@@ -251,7 +279,9 @@ def _(full_signals_dir, mo, signals_of_interest_table, trapallada):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A button that, when pressed, will save the current selection in an *Excel* file.""")
+    mo.md(r"""
+    A button that, when pressed, will save the current selection in an *Excel* file.
+    """)
     return
 
 
@@ -264,7 +294,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""If the above button is pressed, the *selected* rows (**and only those**) are saved""")
+    mo.md(r"""
+    If the above button is pressed, the *selected* rows (**and only those**) are saved
+    """)
     return
 
 
@@ -283,7 +315,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The selection that is currently saved. **CAVEAT**: `# window` here is not the number of window *within* a signal but the overall number of window (more of an identifier).""")
+    mo.md(r"""
+    The selection that is currently saved. **CAVEAT**: `# window` here is not the number of window *within* a signal but the overall number of window (more of an identifier).
+    """)
     return
 
 
@@ -302,12 +336,10 @@ def _(reference_windows_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     A *numpy* `Array` with the indexes of the "eligible windows" (those belonging to the "reference signals" are not `eligible` unless they have been selected above
     ). Notice we first drop *signals* (encompassing many windows) and then we add back *windows*.
-    """
-    )
+    """)
     return
 
 
@@ -325,13 +357,17 @@ def _(metadata_df, reference_windows_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Ranking""")
+    mo.md(r"""
+    # Ranking
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A function to get the closest windows (as given by the passed *analysis* file) to the selected ones **in the latent space**. No window belonging to the same *signal* of one of the selected windows is picked.""")
+    mo.md(r"""
+    A function to get the closest windows (as given by the passed *analysis* file) to the selected ones **in the latent space**. No window belonging to the same *signal* of one of the selected windows is picked.
+    """)
     return
 
 
@@ -376,12 +412,15 @@ def _(i_eligible, metadata_df, np, pathlib, pd, reference_windows_df, scipy):
             return (i_eligible[i_closest], distances[i_selected[:, None], i_closest])
         else:
             return i_eligible[i_closest]
+
     return (rank_windows,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A function to, given a ranking, select a number of windows belonging to *different* (i.e., unique) signals""")
+    mo.md(r"""
+    A function to, given a ranking, select a number of windows belonging to *different* (i.e., unique) signals
+    """)
     return
 
 
@@ -395,18 +434,23 @@ def _(metadata_df, np):
             i_to_keep.extend(metadata_df.loc[i_sorted_selected].drop_duplicates('signal')[:n].index)
 
         return set(i_to_keep)
+
     return (select_windows,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Output""")
+    mo.md(r"""
+    # Output
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## VAE""")
+    mo.md(r"""
+    ## VAE
+    """)
     return
 
 
@@ -430,7 +474,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## AR""")
+    mo.md(r"""
+    ## AR
+    """)
     return
 
 
@@ -448,13 +494,17 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Final signals""")
+    mo.md(r"""
+    ## Final signals
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Notice that every algorithm selects `n_signals_to_keep_per_model_and_reference_window` per reference window and hence it might select a window more than once.""")
+    mo.md(r"""
+    Notice that every algorithm selects `n_signals_to_keep_per_model_and_reference_window` per reference window and hence it might select a window more than once.
+    """)
     return
 
 
@@ -488,7 +538,9 @@ def _(i_windows_selected_ar, i_windows_selected_vae, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A `DataFrame` with `n_signals_to_keep_per_model_and_reference_window` *windows* selected according to both VAE and AR models. Every algorithm selects windows belonging to different signals, but both algorithms might select the same window or different windows beloning to the same signal.""")
+    mo.md(r"""
+    A `DataFrame` with `n_signals_to_keep_per_model_and_reference_window` *windows* selected according to both VAE and AR models. Every algorithm selects windows belonging to different signals, but both algorithms might select the same window or different windows beloning to the same signal.
+    """)
     return
 
 
@@ -512,13 +564,17 @@ def _(
 
 @app.cell
 def _(mo, n_windows_selected_by_any, signals_to_assess_from_models_df):
-    mo.md(f"""The {n_windows_selected_by_any} windows belong to {len(signals_to_assess_from_models_df['signal'].unique())} signals""")
+    mo.md(f"""
+    The {n_windows_selected_by_any} windows belong to {len(signals_to_assess_from_models_df['signal'].unique())} signals
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""A `Series` which is `True` for every window whose signal has NOT been selected by one of the algorithms.""")
+    mo.md(r"""
+    A `Series` which is `True` for every window whose signal has NOT been selected by one of the algorithms.
+    """)
     return
 
 
@@ -562,7 +618,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The above `DataFrame` is *shuffled* saved as it to a *.parquet* file and **without the index** to an *Excel* spreadsheet.""")
+    mo.md(r"""
+    The above `DataFrame` is *shuffled* saved as it to a *.parquet* file and **without the index** to an *Excel* spreadsheet.
+    """)
     return
 
 
@@ -576,7 +634,9 @@ def _(model_dir, output_file_without_suffix, signals_to_assess_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Importance sampling""")
+    mo.md(r"""
+    # Importance sampling
+    """)
     return
 
 

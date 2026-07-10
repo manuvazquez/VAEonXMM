@@ -606,7 +606,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    save_button = mo.ui.run_button(label="Save zoom region")
+    save_button = mo.ui.run_button(label="Save t-SNE CSV and zoom region")
     save_button
     return (save_button,)
 
@@ -718,7 +718,8 @@ def _(mo):
 
 
 @app.cell
-def _(ar_analysis_file, pd):
+def _(ar_analysis_file, mo, pd):
+    mo.stop(not ar_analysis_file.exists(), mo.md("**Analysis for AR must be run.**"))
     ar_df = pd.read_parquet(ar_analysis_file)
     ar_df.head()
     return (ar_df,)

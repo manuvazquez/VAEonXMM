@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.9"
 app = marimo.App(width="full")
 
 
@@ -845,7 +845,7 @@ def _(analysis_df, tsne_columns):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    All the windows are plotted, and some of them, considered *of interest*, are highlighted.
+    All the windows are plotted, and some of them, considered *of interest* ("reference signals" in the paper), are highlighted.
 
     One can **double-click** a `main_type` in the *Legend* to only show the corresponding curves
     """)

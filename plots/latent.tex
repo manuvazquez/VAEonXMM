@@ -7,7 +7,7 @@
 \pgfplotsset{plot coordinates/math parser=false,unbounded coords=discard}
 
 \providecommand{\dataDir}{paper_main}
-\providecommand{\zoomSubdirs}{east,north}
+% \providecommand{\zoomSubdirs}{east,north}
 
 \begin{document}
 \begin{tikzpicture}
@@ -78,12 +78,14 @@
 
   % \legend{Unlabeled, No Event, Event}
 
-  \addlegendimage{
-    only marks,
-    mark=star, 
-    mark size=2.2pt,
-    draw=blue
-  }
+  \ifdefined\zoomSubdirs
+    \addlegendimage{
+      only marks,
+      mark=star, 
+      mark size=2.2pt,
+      draw=blue
+    }
+  \fi
 
   % Update the list of labels to include the 4th item
   \legend{Unlabeled, No Event, Event, Plotted}

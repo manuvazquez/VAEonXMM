@@ -19,7 +19,6 @@
 			"**/*.log": true,
 			"**/*.parquet": true,
 			"**/*.pdf": true,
-			"**/*.png": true,
 			"**/*.PNG": true,
 			"**/*.synctex.gz": true,
 			"**/*.tar": true,

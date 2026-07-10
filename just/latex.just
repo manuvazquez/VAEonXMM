@@ -1,11 +1,12 @@
 input_dir := join(justfile_directory(),"plots")
-output_dir := join(justfile_directory(),"figures")
+# output_dir := join(justfile_directory(),"figures")
+output_dir := "figures"
 
 latexmk_command := "latexmk -lualatex -quiet -gg"
 latexmk_outdir := "-outdir=" + output_dir
 
-# foo:
-#   ls {{justfile_directory()}}
+# this is mainly required because this file used to live in the project's root directory
+set no-cd
 
 default:
   just -f {{source_file()}} --list
@@ -61,10 +62,10 @@ roc DIR ALGORITHM: (roc_allowing_clean DIR ALGORITHM) (roc_allowing_clean DIR AL
 
 [private]
 latent_allowing_clean DIR ZOOM_SUBDIRS="" CLEAN="false":
-    {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\dataDir}{"{{DIR}}"}"{{if ZOOM_SUBDIRS!="" {"\\\\newcommand{\\\\zoomSubdirs}{"+ZOOM_SUBDIRS+"}"} else {""} }} -cd "plots/latent.tex"
+    {{latexmk_command}} {{if CLEAN == "true" {"-c"} else {""} }} "-usepretex=\\newcommand{\\dataDir}{"{{DIR}}"}"{{if ZOOM_SUBDIRS!="" {"\\\\newcommand{\\\\zoomSubdirs}{"+ZOOM_SUBDIRS+"}"} else {""} }} -cd {{join(input_dir,"latent.tex")}}
 
 latent DIR ZOOM_SUBDIRS="": (latent_allowing_clean DIR ZOOM_SUBDIRS) (latent_allowing_clean DIR ZOOM_SUBDIRS "true")
-  mv plots/latent.pdf plots/{{output_dir}}/latent_{{replace(DIR, "/", "_")}}{{if ZOOM_SUBDIRS!="" {"_"+ZOOM_SUBDIRS} else {""} }}.pdf
+  mv {{join(input_dir,"latent.pdf")}} {{input_dir}}/{{output_dir}}/latent_{{replace(DIR, "/", "_")}}{{if ZOOM_SUBDIRS!="" {"_"+ZOOM_SUBDIRS} else {""} }}.pdf
 
 # ==================================================
 
