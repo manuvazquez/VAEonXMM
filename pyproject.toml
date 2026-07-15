@@ -43,7 +43,7 @@ cuda = [
 
 [tool.setuptools.packages.find]
 where = ["./"]
-include = ["trapallada"]
+include = ["trapallada*"]
 
 [tool.uv]
 package = true

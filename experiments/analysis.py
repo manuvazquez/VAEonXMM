@@ -68,7 +68,7 @@ def _(mo):
 
 @app.cell
 def _():
-    max_n_samples_to_show = 30
+    max_n_samples_to_show = 5
 
     # for t-SNE
     n_projected_components = 2
@@ -902,6 +902,15 @@ def _():
     return
 
 
+@app.cell
+def _():
+    # selected_points = mo_plot.points   # list[dict]
+    # selected_indices = mo_plot.indices # list[int]
+    # selected_range = mo_plot.ranges    # e.g. {"x": [...], "y": [...]}
+    # selected_indices[:4]
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -920,8 +929,25 @@ def _(
     model,
     trapallada,
 ):
-    i_selected = [e['index'] for e in mo_plot.points if e]
-    trapallada.results.plot.marimo_selected(i_selected, analysis_df, model, algorithm, full_signals_dir, max_n_samples_to_show)
+    i_selected = [e['index'] for e in mo_plot.points if e and 'index' in e]
+
+    # the output is captured in `_` so that what the function returns doesn't become the final output of the cell (instead of whatever the function produces)
+    _ = trapallada.results.plot.marimo_selected(i_selected, analysis_df, model, algorithm, full_signals_dir, max_n_samples_to_show)
+    return (i_selected,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    For Javi to analyze with SIMBAD
+    """)
+    return
+
+
+@app.cell
+def _(analysis_df, i_selected):
+    # analysis_df.loc[i_selected]['signal']
+    analysis_df.loc[i_selected, ['RA', 'DEC', 'CRA', 'CDEC', 'signal']].drop_duplicates(subset='signal')
     return
 
 
