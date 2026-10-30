@@ -3,7 +3,7 @@ name = "trapallada"
 version = "0.3.1"
 description = "Time-series Recognition and Analysis Platform for Astronomical Lightcurve Labeling and Data Analysis"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "altair",
     "astropy",
@@ -24,7 +24,7 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "statsmodels>=0.14.4",
-    "marimo>=0.23.3",
+    "marimo>=0.23.15",
 ]
 
 # uv sync --extra cpu / uv sync --extra cuda
@@ -43,7 +43,7 @@ cuda = [
 
 [tool.setuptools.packages.find]
 where = ["./"]
-include = ["trapallada*"]
+include = ["trapallada"]
 
 [tool.uv]
 package = true
